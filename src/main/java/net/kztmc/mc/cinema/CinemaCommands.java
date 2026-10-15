@@ -45,8 +45,7 @@ public final class CinemaCommands {
     }
 
     private static void openGui() {
-        Minecraft mc = Minecraft.getInstance();
-        mc.execute(() -> mc.setScreenAndShow(new CinemaScreen()));
+        CinemaScreen.requestOpen();
     }
 
     private static int spawn(String kind, String entityType, String skin) {
