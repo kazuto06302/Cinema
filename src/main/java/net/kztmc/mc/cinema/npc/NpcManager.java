@@ -12,6 +12,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.kztmc.mc.cinema.Cinema;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.player.RemotePlayer;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
@@ -25,6 +26,11 @@ import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 
+/**
+ * NPC定義(NpcData)を保持し、クライアントのレベルに偽エンティティとして出し入れする。
+ * 定義が本体、エンティティは使い捨て。チャンクのアンロード/ディメンション移動で消えても
+ * 条件が揃えば tick で再スポーンする。
+ */
 public final class NpcManager {
     private static final List<NpcData> DEFS = new ArrayList<>();
     private static final Map<UUID, Entity> LIVE = new HashMap<>();
@@ -34,6 +40,8 @@ public final class NpcManager {
     private static String worldKey;
     private static boolean dirty;
     private static int saveCooldown;
+    private static UUID selected;
+    /** サーバー側エンティティIDと衝突しないよう高い値から払い出す */
     private static int nextEntityId = 0x40000000;
 
     private NpcManager() {}
@@ -46,6 +54,7 @@ public final class NpcManager {
             DEFS.addAll(NpcStorage.load(worldKey, registries));
             LIVE.clear();
             liveLevel = null;
+            selected = null;
             Cinema.LOGGER.info("Loaded {} NPC(s) for {}", DEFS.size(), worldKey);
         });
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
@@ -54,6 +63,7 @@ public final class NpcManager {
             DEFS.clear();
             liveLevel = null;
             worldKey = null;
+            selected = null;
         });
         ClientTickEvents.END_CLIENT_TICK.register(NpcManager::tick);
     }
@@ -64,37 +74,71 @@ public final class NpcManager {
         return List.copyOf(DEFS);
     }
 
+    public static Optional<NpcData> get(UUID id) {
+        return DEFS.stream().filter(d -> d.id().equals(id)).findFirst();
+    }
+
+    public static UUID selectedId() {
+        return selected;
+    }
+
+    public static Optional<NpcData> selectedData() {
+        return selected == null ? Optional.empty() : get(selected);
+    }
+
+    public static void select(UUID id) {
+        selected = id;
+    }
+
     public static void add(NpcData data) {
         DEFS.add(data);
+        selected = data.id();
         dirty = true;
     }
 
-    /** 定義を差し替えてエンティティも作り直す(GUIからの編集用) */
-    public static void update(NpcData data) {
+    /** プレイヤーの足元・向かい合う向きにNPCを追加する */
+    public static NpcData spawnAtPlayer(String kind, String entityType, String skin) {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer p = mc.player;
+        if (p == null || mc.level == null) return null;
+        float faceYaw = p.getYRot() + 180f; // プレイヤーの方を向かせる
+        NpcData data = NpcData.create(kind, entityType, skin,
+                mc.level.dimension().identifier().toString(),
+                p.getX(), p.getY(), p.getZ(), faceYaw);
+        add(data);
+        return data;
+    }
+
+    /** 定義を差し替え、生きているエンティティにも即反映する(スライダー操作など) */
+    public static void replace(NpcData data) {
         for (int i = 0; i < DEFS.size(); i++) {
             if (DEFS.get(i).id().equals(data.id())) {
                 DEFS.set(i, data);
-                despawn(data.id());
+                Entity e = LIVE.get(data.id());
+                if (e != null && !e.isRemoved()) applyState(e, data);
                 dirty = true;
                 return;
             }
         }
     }
 
+    /** エンティティ自体を作り直す(種類やスキンを変えたとき用) */
+    public static void respawn(UUID id) {
+        despawn(id);
+    }
+
     public static void remove(UUID id) {
         DEFS.removeIf(d -> d.id().equals(id));
         despawn(id);
+        if (id.equals(selected)) selected = null;
         dirty = true;
     }
 
     public static void clear() {
         for (NpcData d : List.copyOf(DEFS)) despawn(d.id());
         DEFS.clear();
+        selected = null;
         dirty = true;
-    }
-
-    public static Entity liveEntity(UUID id) {
-        return LIVE.get(id);
     }
 
     // ---- tick ----
@@ -157,13 +201,14 @@ public final class NpcManager {
 
     private static Entity createEntity(ClientLevel level, NpcData def) {
         if (NpcData.PLAYER.equals(def.kind())) {
-            // TODO(skin): GameProfile だけだと既定スキンになる。スキン反映は次のステップで対応
+            // TODO(skin): GameProfile だけだと既定スキンになる。スキン反映は別ステップで対応
             GameProfile profile = new GameProfile(def.id(), def.skin().orElse("NPC"));
             return new RemotePlayer(level, profile);
         }
         Identifier typeId = Identifier.tryParse(def.entityType());
-        Optional<EntityType<?>> type = typeId == null ? Optional.empty() : BuiltInRegistries.ENTITY_TYPE.getOptional(typeId);
-
+        Optional<EntityType<?>> type = typeId == null
+                ? Optional.empty()
+                : BuiltInRegistries.ENTITY_TYPE.getOptional(typeId);
         if (type.isEmpty()) {
             Cinema.LOGGER.warn("Unknown entity type: {}", def.entityType());
             return null;
@@ -171,6 +216,7 @@ public final class NpcManager {
         return type.get().create(level, EntitySpawnReason.LOAD);
     }
 
+    /** 何度呼んでも同じ結果になる(冪等)ようにしてある。生成時と編集時の両方で使う。 */
     private static void applyState(Entity e, NpcData d) {
         e.setPos(d.x(), d.y(), d.z());
         e.xo = e.xOld = d.x();
@@ -182,6 +228,12 @@ public final class NpcManager {
         e.xRotO = d.xRot();
         e.setNoGravity(true);
 
+        // ポーズ: Player は tick で姿勢が再計算されるので、フラグ側も合わせる
+        NpcPose pose = d.npcPose();
+        e.setShiftKeyDown(pose == NpcPose.CROUCHING);
+        e.setSwimming(pose == NpcPose.SWIMMING);
+        e.setPose(pose.pose);
+
         if (e instanceof Mob mob) {
             mob.setNoAi(true);
         }
@@ -192,14 +244,8 @@ public final class NpcManager {
             living.yBodyRotO = d.bodyYRot();
             for (EquipmentSlot slot : EquipmentSlot.values()) {
                 ItemStack stack = d.equipment().get(slot.getName());
-                if (stack != null && !stack.isEmpty()) {
-                    living.setItemSlot(slot, stack.copy());
-                }
+                living.setItemSlot(slot, stack == null ? ItemStack.EMPTY : stack.copy());
             }
         }
-    }
-
-    public static String typeId(EntityType<?> type) {
-        return BuiltInRegistries.ENTITY_TYPE.getKey(type).toString();
     }
 }
