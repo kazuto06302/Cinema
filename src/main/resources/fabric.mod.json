@@ -11,9 +11,6 @@
   "environment": "client",
   "entrypoints": {
     "client": [
-      "net.kztmc.mc.cinema.client.CinemaClient"
-    ],
-    "main": [
       "net.kztmc.mc.cinema.Cinema"
     ]
   },
