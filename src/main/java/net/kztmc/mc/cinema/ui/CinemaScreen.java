@@ -1,18 +1,17 @@
 package net.kztmc.mc.cinema.ui;
 
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.function.DoubleConsumer;
+import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.npc.NpcPose;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.AbstractSliderButton;
-import net.minecraft.client.gui.components.Button;
 import net.minecraft.client.gui.components.EditBox;
-import net.minecraft.client.gui.components.StringWidget;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -20,14 +19,15 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
 
 /**
- * 撮影用の編集画面。左: NPC一覧と追加 / 右: 選択中NPCの向き・ポーズ・装備。
- * 標準ウィジェットの上に半透明パネルを敷いた構成(独自ウィジェットは後で差し替え)。
+ * 撮影用の編集画面(モダンUI版)。
+ *   左パネル: タブ[NPC一覧 / モブ追加]
+ *   右パネル: 選択中NPCの向き・ポーズ・位置・装備
+ * ゲーム画面は暗くしない。上部中央のボタンでUI全体を隠せる。
  */
 public class CinemaScreen extends Screen {
-    private static final int PANEL_W = 176;
-    private static final int PAD = 6;
-    private static final int PANEL_BG = 0xD00E1116;
-    private static final int ACCENT = 0xFF4C8DFF;
+    private static final int PANEL_W = 204;
+    private static final int M = 8;     // 画面端の余白
+    private static final int PAD = 8;   // パネル内の余白
 
     private static final EquipmentSlot[] SLOTS = {
             EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
@@ -35,9 +35,25 @@ public class CinemaScreen extends Screen {
     };
     private static final String[] SLOT_LABELS = {"メイン", "オフ", "頭", "胴", "脚", "足"};
 
-    private static String lastMobId = "minecraft:zombie";
+    private enum Tab { NPCS, MOBS }
 
-    private EditBox mobIdBox;
+    private record Label(String text, int x, int y, int color) {}
+
+    // 画面を開き直しても保持する状態
+    private static Tab tab = Tab.NPCS;
+    private static String search = "";
+    private static boolean collapsed;
+
+    private final List<Label> labels = new ArrayList<>();
+    private ModernList<NpcData> npcList;
+    private ModernList<MobCatalog.Entry> mobList;
+    private double npcScroll;
+    private double mobScroll;
+    private boolean pendingRefresh;
+
+    private int leftX, rightX, panelY, panelH;
+    private boolean hasRight;
+    private int searchX, searchY, searchW;
 
     public CinemaScreen() {
         super(Component.literal("Cinema"));
@@ -48,141 +64,217 @@ public class CinemaScreen extends Screen {
         return false;
     }
 
+    /** ゲーム画面を暗くしない(撮影構図を見ながら編集するため) */
     @Override
-    protected void init() {
-        buildLeftPanel();
-        NpcManager.selectedData().ifPresent(this::buildRightPanel);
+    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
     }
 
-    // ---- 左パネル ----
+    /** ウィジェットのクリック処理中に作り直すと危ないので、次の描画の頭で実行する */
+    private void refresh() {
+        pendingRefresh = true;
+    }
 
-    private void buildLeftPanel() {
-        int x = 8 + PAD;
+    @Override
+    protected void init() {
+        labels.clear();
+        npcList = null;
+        mobList = null;
+        hasRight = false;
+
+        panelY = M;
+        panelH = this.height - M * 2;
+        leftX = M;
+        rightX = this.width - PANEL_W - M;
+
+        addRenderableWidget(new ModernButton((this.width - 76) / 2, M, 76, 18,
+                collapsed ? "UI表示" : "UI非表示", ModernButton.Style.DEFAULT, () -> {
+            collapsed = !collapsed;
+            refresh();
+        }));
+        if (collapsed) return;
+
+        buildLeft();
+        NpcManager.selectedData().ifPresent(d -> {
+            hasRight = true;
+            buildRight(d);
+        });
+    }
+
+    // ================= 左パネル =================
+
+    private void buildLeft() {
+        int x = leftX + PAD;
         int w = PANEL_W - PAD * 2;
-        int y = 8 + PAD;
+        int y = panelY + 10;
+        int bottom = panelY + panelH - PAD;
 
-        addRenderableWidget(new StringWidget(x, y, w, 10, Component.literal("NPC"), this.font));
+        labels.add(new Label("CINEMA", x, y, Theme.ACCENT));
         y += 16;
 
-        addRenderableWidget(Button.builder(Component.literal("+ プレイヤー"), b -> {
-            NpcManager.spawnAtPlayer(NpcData.PLAYER, "minecraft:player", "NPC");
-            rebuildWidgets();
-        }).bounds(x, y, w, 18).build());
-        y += 22;
+        int half = (w - 4) / 2;
+        addRenderableWidget(new ModernButton(x, y, half, 18, "NPC (" + NpcManager.defs().size() + ")",
+                ModernButton.Style.GHOST, () -> {
+            tab = Tab.NPCS;
+            refresh();
+        }).setSelected(tab == Tab.NPCS));
+        addRenderableWidget(new ModernButton(x + half + 4, y, half, 18, "モブ追加",
+                ModernButton.Style.GHOST, () -> {
+            tab = Tab.MOBS;
+            refresh();
+        }).setSelected(tab == Tab.MOBS));
+        y += 24;
 
-        mobIdBox = new EditBox(this.font, x, y, w, 18, Component.literal("mob"));
-        mobIdBox.setMaxLength(100);
-        mobIdBox.setValue(lastMobId);
-        mobIdBox.setResponder(s -> lastMobId = s);
-        addRenderableWidget(mobIdBox);
-        y += 22;
+        if (tab == Tab.NPCS) {
+            int listH = bottom - 24 - y;
+            npcList = new ModernList<>(x, y, w, listH, "NPCはまだいません",
+                    d -> NpcData.PLAYER.equals(d.kind()) ? d.skin().orElse("NPC") : MobCatalog.nameOf(d.entityType()),
+                    d -> NpcData.PLAYER.equals(d.kind()) ? "Player" : "Mob",
+                    d -> d.id().equals(NpcManager.selectedId()),
+                    d -> {
+                        NpcManager.select(d.id());
+                        refresh();
+                    });
+            npcList.setItems(NpcManager.defs());
+            npcList.setScroll(npcScroll);
+            addRenderableWidget(npcList);
 
-        addRenderableWidget(Button.builder(Component.literal("+ モブ"), b -> {
-            String id = lastMobId.contains(":") ? lastMobId : "minecraft:" + lastMobId;
-            NpcManager.spawnAtPlayer(NpcData.MOB, id, null);
-            rebuildWidgets();
-        }).bounds(x, y, w, 18).build());
-        y += 28;
+            addRenderableWidget(new ModernButton(x, bottom - 18, w, 18, "+ プレイヤーを追加",
+                    ModernButton.Style.PRIMARY, () -> {
+                NpcManager.spawnAtPlayer(NpcData.PLAYER, "minecraft:player", "NPC");
+                refresh();
+            }));
+        } else {
+            searchX = x;
+            searchY = y;
+            searchW = w;
+            EditBox box = new EditBox(this.font, x + 6, y + 5, w - 12, 10, Component.literal("検索"));
+            box.setBordered(false);
+            box.setMaxLength(60);
+            box.setHint(Component.literal("モブを検索..."));
+            box.setValue(search);
+            addRenderableWidget(box);
+            y += 24;
 
-        UUID sel = NpcManager.selectedId();
-        for (NpcData d : NpcManager.defs()) {
-            if (y > this.height - 34) break; // TODO: スクロール対応
-            boolean isSel = d.id().equals(sel);
-            String name = NpcData.PLAYER.equals(d.kind())
-                    ? "[P] " + d.skin().orElse("NPC")
-                    : "[M] " + d.entityType().replace("minecraft:", "");
-            UUID id = d.id();
-            addRenderableWidget(Button.builder(Component.literal((isSel ? "> " : "") + name), b -> {
-                NpcManager.select(id);
-                rebuildWidgets();
-            }).bounds(x, y, w, 18).build());
-            y += 20;
+            mobList = new ModernList<>(x, y, w, bottom - y, "該当するモブがありません",
+                    MobCatalog.Entry::name,
+                    e -> e.id().startsWith("minecraft:") ? "" : e.id().substring(0, e.id().indexOf(':')),
+                    e -> false,
+                    e -> {
+                        NpcManager.spawnAtPlayer(NpcData.MOB, e.id(), null);
+                        tab = Tab.NPCS;
+                        refresh();
+                    });
+            mobList.setItems(MobCatalog.filter(search));
+            mobList.setScroll(mobScroll);
+            box.setResponder(s -> {
+                search = s;
+                mobList.setItems(MobCatalog.filter(s));
+                mobList.setScroll(0);
+            });
+            addRenderableWidget(mobList);
         }
     }
 
-    // ---- 右パネル ----
+    // ================= 右パネル =================
 
-    private void buildRightPanel(NpcData d) {
+    private void buildRight(NpcData d) {
         UUID id = d.id();
-        int x = this.width - PANEL_W - 8 + PAD;
+        int x = rightX + PAD;
         int w = PANEL_W - PAD * 2;
-        int y = 8 + PAD;
+        int y = panelY + 10;
+        int bottom = panelY + panelH - PAD;
 
-        addRenderableWidget(new StringWidget(x, y, w, 10, Component.literal("選択中のNPC"), this.font));
+        String name = NpcData.PLAYER.equals(d.kind()) ? d.skin().orElse("NPC") : MobCatalog.nameOf(d.entityType());
+        labels.add(new Label(Theme.fit(this.font, name, w), x, y, Theme.TEXT));
         y += 16;
+
+        // --- 向き ---
+        labels.add(new Label("向き", x, y, Theme.TEXT_DIM));
+        y += 11;
 
         float body = Mth.wrapDegrees(d.bodyYRot());
         float headOffset = Mth.clamp(Mth.wrapDegrees(d.headYRot() - d.bodyYRot()), -75f, 75f);
 
-        addRenderableWidget(new ValueSlider(x, y, w, 18, "体の向き", -180, 180, body, v ->
+        addRenderableWidget(new ModernSlider(x, y, w, 22, "体の向き", "°", -180, 180, body, v ->
                 edit(id, cur -> {
                     float bo = (float) v;
                     float off = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
                     float head = bo + off;
                     return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, bo);
                 })));
-        y += 20;
-
-        addRenderableWidget(new ValueSlider(x, y, w, 18, "頭の左右", -75, 75, headOffset, v ->
+        y += 22;
+        addRenderableWidget(new ModernSlider(x, y, w, 22, "頭の左右", "°", -75, 75, headOffset, v ->
                 edit(id, cur -> {
                     float head = cur.bodyYRot() + (float) v;
                     return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, cur.bodyYRot());
                 })));
-        y += 20;
-
-        addRenderableWidget(new ValueSlider(x, y, w, 18, "頭の上下", -90, 90, d.xRot(), v ->
+        y += 22;
+        addRenderableWidget(new ModernSlider(x, y, w, 22, "頭の上下", "°", -90, 90, d.xRot(), v ->
                 edit(id, cur -> cur.withTransform(cur.x(), cur.y(), cur.z(), cur.yRot(), (float) v,
                         cur.headYRot(), cur.bodyYRot()))));
+        y += 28;
+
+        // --- ポーズ ---
+        labels.add(new Label("ポーズ", x, y, Theme.TEXT_DIM));
+        y += 11;
+        NpcPose[] poses = NpcPose.values();
+        int gap = 3;
+        int pw = (w - gap * (poses.length - 1)) / poses.length;
+        for (int i = 0; i < poses.length; i++) {
+            NpcPose p = poses[i];
+            addRenderableWidget(new ModernButton(x + i * (pw + gap), y, pw, 18, p.label,
+                    ModernButton.Style.DEFAULT, () -> {
+                edit(id, cur -> cur.withPose(p));
+                refresh();
+            }).setSelected(d.npcPose() == p));
+        }
         y += 24;
 
-        addRenderableWidget(Button.builder(Component.literal("ポーズ: " + d.npcPose().label), b -> {
-            NpcManager.get(id).ifPresent(cur -> NpcManager.replace(cur.withPose(cur.npcPose().next())));
-            rebuildWidgets();
-        }).bounds(x, y, w, 18).build());
-        y += 22;
-
-        addRenderableWidget(Button.builder(Component.literal("現在位置に移動"), b -> {
+        // --- 位置 ---
+        addRenderableWidget(new ModernButton(x, y, w, 18, "自分の位置に移動して向かい合う",
+                ModernButton.Style.DEFAULT, () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
             float faceYaw = mc.player.getYRot() + 180f;
-            NpcManager.get(id).ifPresent(cur -> NpcManager.replace(
-                    cur.withTransform(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
-                            faceYaw, cur.xRot(), faceYaw, faceYaw)));
-            rebuildWidgets();
-        }).bounds(x, y, w, 18).build());
-        y += 28;
+            edit(id, cur -> cur.withTransform(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
+                    faceYaw, cur.xRot(), faceYaw, faceYaw));
+            refresh();
+        }));
+        y += 24;
 
-        addRenderableWidget(new StringWidget(x, y, w, 10, Component.literal("装備(手持ちを設定)"), this.font));
-        y += 14;
-
+        // --- 装備 ---
+        labels.add(new Label("装備(手に持っているアイテムを設定)", x, y, Theme.TEXT_DIM));
+        y += 11;
         for (int i = 0; i < SLOTS.length; i++) {
             EquipmentSlot slot = SLOTS[i];
             ItemStack cur = d.equipment().get(slot.getName());
             String item = (cur == null || cur.isEmpty()) ? "-" : cur.getHoverName().getString();
-            addRenderableWidget(Button.builder(Component.literal(SLOT_LABELS[i] + ": " + item), b -> {
+            addRenderableWidget(new ModernButton(x, y, w - 22, 18, SLOT_LABELS[i] + "  " + item,
+                    ModernButton.Style.DEFAULT, () -> {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player == null) return;
-                ItemStack held = mc.player.getMainHandItem().copy();
-                setEquipment(id, slot, held);
-                rebuildWidgets();
-            }).bounds(x, y, w - 22, 18).build());
-            addRenderableWidget(Button.builder(Component.literal("x"), b -> {
+                setEquipment(id, slot, mc.player.getMainHandItem().copy());
+                refresh();
+            }));
+            addRenderableWidget(new ModernButton(x + w - 18, y, 18, 18, "×",
+                    ModernButton.Style.GHOST, () -> {
                 setEquipment(id, slot, ItemStack.EMPTY);
-                rebuildWidgets();
-            }).bounds(x + w - 20, y, 20, 18).build());
+                refresh();
+            }));
             y += 20;
         }
 
-        y += 8;
-        addRenderableWidget(Button.builder(Component.literal("このNPCを削除"), b -> {
+        // --- 削除(下端固定) ---
+        addRenderableWidget(new ModernButton(x, bottom - 18, w, 18, "このNPCを削除",
+                ModernButton.Style.DANGER, () -> {
             NpcManager.remove(id);
-            rebuildWidgets();
-        }).bounds(x, y, w, 18).build());
+            refresh();
+        }));
     }
 
-    // ---- 編集ヘルパー ----
+    // ================= 編集ヘルパー =================
 
-    private static void edit(UUID id, java.util.function.UnaryOperator<NpcData> fn) {
+    private static void edit(UUID id, UnaryOperator<NpcData> fn) {
         NpcManager.get(id).ifPresent(cur -> NpcManager.replace(fn.apply(cur)));
     }
 
@@ -195,54 +287,28 @@ public class CinemaScreen extends Screen {
         });
     }
 
-    // ---- 描画 ----
+    // ================= 描画 =================
 
     @Override
-    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
-        // パネルを先に敷き、その上にウィジェットを描く
-        panel(graphics, 8, 8, PANEL_W, this.height - 16);
-        if (NpcManager.selectedId() != null) {
-            panel(graphics, this.width - PANEL_W - 8, 8, PANEL_W, this.height - 16);
-        }
-        super.extractRenderState(graphics, mouseX, mouseY, delta);
-    }
-
-    private static void panel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        g.fill(x, y, x + w, y + h, PANEL_BG);
-        g.fill(x, y, x + w, y + 2, ACCENT); // 上端のアクセントライン
-    }
-
-    // ---- スライダー ----
-
-    private static final class ValueSlider extends AbstractSliderButton {
-        private final String label;
-        private final double min;
-        private final double max;
-        private final DoubleConsumer onChange;
-
-        ValueSlider(int x, int y, int w, int h, String label, double min, double max, double cur,
-                    DoubleConsumer onChange) {
-            super(x, y, w, h, Component.empty(), (Mth.clamp(cur, min, max) - min) / (max - min));
-            this.label = label;
-            this.min = min;
-            this.max = max;
-            this.onChange = onChange;
-            updateMessage();
+    public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
+        if (pendingRefresh) {
+            pendingRefresh = false;
+            if (npcList != null) npcScroll = npcList.getScroll();
+            if (mobList != null) mobScroll = mobList.getScroll();
+            rebuildWidgets();
         }
 
-        private double real() {
-            return min + (max - min) * this.value;
+        if (!collapsed) {
+            Theme.panel(g, leftX, panelY, PANEL_W, panelH);
+            if (hasRight) Theme.panel(g, rightX, panelY, PANEL_W, panelH);
+            if (tab == Tab.MOBS) {
+                // 検索ボックスの背景
+                Theme.roundRect(g, searchX, searchY, searchW, 20, Theme.SURFACE);
+            }
+            for (Label l : labels) {
+                Theme.text(g, this.font, l.text(), l.x(), l.y(), l.color());
+            }
         }
-
-        @Override
-        protected void updateMessage() {
-            if (label == null) return; // super コンストラクタ経由で呼ばれた場合の保険
-            setMessage(Component.literal(label + ": " + Math.round(real()) + "°"));
-        }
-
-        @Override
-        protected void applyValue() {
-            onChange.accept(real());
-        }
+        super.extractRenderState(g, mouseX, mouseY, delta);
     }
 }
