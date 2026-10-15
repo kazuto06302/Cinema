@@ -55,16 +55,18 @@ public class ModernButton extends AbstractWidget {
         Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(), bg);
         if (selected && style == Style.GHOST) {
             // 下線でタブの選択状態を表す
-            g.fill(getX() + 4, getY() + getHeight() - 2, getX() + getWidth() - 4, getY() + getHeight(), Theme.ACCENT);
+            int line = Math.max(1, Theme.u(2));
+            int inset = Theme.u(4);
+            g.fill(getX() + inset, getY() + getHeight() - line, getX() + getWidth() - inset, getY() + getHeight(), Theme.ACCENT);
         }
 
-        String label = Theme.fit(font, getMessage().getString(), getWidth() - 8);
-        Theme.textCentered(g, font, label, getX() + getWidth() / 2, getY() + (getHeight() - 8) / 2, fg);
+        String label = Theme.fit(font, getMessage().getString(), getWidth() - Theme.u(8));
+        Theme.textCentered(g, font, label, getX() + getWidth() / 2, getY() + (getHeight() - Theme.textH()) / 2, fg);
     }
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (!active || !visible || event.button() != 0 || !isMouseOver(event.x(), event.y())) return false;
+        if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
         playDownSound(Minecraft.getInstance().getSoundManager());
         onPress.run();
         return true;

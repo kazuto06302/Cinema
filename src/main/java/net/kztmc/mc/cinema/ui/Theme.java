@@ -1,11 +1,15 @@
 package net.kztmc.mc.cinema.ui;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.util.Mth;
 
 /** UI全体の色・描画ヘルパー。見た目を変えたいときはここを触る。 */
 public final class Theme {
     private Theme() {}
+
+    public static final float FONT_PX = 18f;
 
     public static final int PANEL = 0xEB0F1218;
     public static final int PANEL_BORDER = 0xFF262C38;
@@ -20,12 +24,41 @@ public final class Theme {
     public static final int DANGER_DIM = 0xFF3A1D23;
     public static final int GHOST_HOVER = 0x00232938; // alpha 0 から補間して出す
 
-    /** 角を2pxだけ落とした簡易角丸 */
+    // ---- サイズ(GUIスケールに連動) ----
+
+    /** バニラのフォントは8px。GUIスケール込みで FONT_PX になるような拡大率 */
+    public static float fontScale() {
+        double gui = Minecraft.getInstance().getWindow().getGuiScale();
+        return Mth.clamp((float) (FONT_PX / (8.0 * gui)), 0.4f, 1.0f);
+    }
+
+    /** 8px基準の寸法を、現在の文字サイズに合わせて縮める */
+    public static int u(int base) {
+        return Math.max(1, Math.round(base * fontScale()));
+    }
+
+    /** 描画される文字の高さ(GUI単位) */
+    public static int textH() {
+        return Math.max(3, Math.round(8 * fontScale()));
+    }
+
+    /**
+     * クリックとして扱うボタン番号。
+     * ログでは物理クリックが 1 や 3 で届いていたため、0 と 1 を許可している。
+     */
+    public static boolean isClick(int button) {
+        return button == 0 || button == 1;
+    }
+
+    // ---- 描画 ----
+
+    /** 角を落とした簡易角丸(小さいときは1px) */
     public static void roundRect(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
         if (((color >>> 24) & 0xFF) == 0) return;
-        g.fill(x + 2, y, x + w - 2, y + h, color);
-        g.fill(x + 1, y + 1, x + w - 1, y + h - 1, color);
-        g.fill(x, y + 2, x + w, y + h - 2, color);
+        int r = fontScale() < 0.7f ? 1 : 2;
+        g.fill(x + r, y, x + w - r, y + h, color);
+        if (r == 2) g.fill(x + 1, y + 1, x + w - 1, y + h - 1, color);
+        g.fill(x, y + r, x + w, y + h - r, color);
     }
 
     /** 枠つきパネル */
@@ -45,21 +78,32 @@ public final class Theme {
         return out;
     }
 
+    /** 拡大率を反映したテキスト幅(GUI単位) */
+    public static int textWidth(Font font, String s) {
+        return Math.round(font.width(s) * fontScale());
+    }
+
     public static String fit(Font font, String s, int maxWidth) {
-        if (font.width(s) <= maxWidth) return s;
-        String cut = font.plainSubstrByWidth(s, Math.max(0, maxWidth - font.width("…")));
-        return cut + "…";
+        if (textWidth(font, s) <= maxWidth) return s;
+        int budget = (int) ((maxWidth - textWidth(font, "…")) / fontScale());
+        return font.plainSubstrByWidth(s, Math.max(0, budget)) + "…";
     }
 
     public static void text(GuiGraphicsExtractor g, Font font, String s, int x, int y, int color) {
-        g.text(font, s, x, y, color, false);
+        float fs = fontScale();
+        var pose = g.pose();
+        pose.pushMatrix();
+        pose.translate((float) x, (float) y);
+        pose.scale(fs, fs);
+        g.text(font, s, 0, 0, color, false);
+        pose.popMatrix();
     }
 
     public static void textCentered(GuiGraphicsExtractor g, Font font, String s, int cx, int y, int color) {
-        g.text(font, s, cx - font.width(s) / 2, y, color, false);
+        text(g, font, s, cx - textWidth(font, s) / 2, y, color);
     }
 
     public static void textRight(GuiGraphicsExtractor g, Font font, String s, int right, int y, int color) {
-        g.text(font, s, right - font.width(s), y, color, false);
+        text(g, font, s, right - textWidth(font, s), y, color);
     }
 }
