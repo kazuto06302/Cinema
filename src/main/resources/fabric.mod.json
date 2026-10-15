@@ -1,0 +1,28 @@
+{
+  "schemaVersion": 1,
+  "id": "cinema",
+  "version": "${version}",
+  "name": "Cinema",
+  "description": "",
+  "authors": [],
+  "contact": {},
+  "license": "MIT",
+  "icon": "assets/cinema/icon.png",
+  "environment": "client",
+  "entrypoints": {
+    "client": [
+      "net.kztmc.mc.cinema.client.CinemaClient"
+    ],
+    "main": [
+      "net.kztmc.mc.cinema.Cinema"
+    ]
+  },
+  "mixins": [
+    "cinema.mixins.json"
+  ],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "fabric-api": "*",
+    "minecraft": "${minecraft_version}"
+  }
+}
