@@ -241,7 +241,7 @@ public class CinemaScreen extends Screen {
         hasTuner = true;
         tunerW = Theme.u(170);
         int titleH = th + Theme.u(5);
-        tunerH = pad * 2 + titleH + sliderH * 4 + gap + btnH;
+        tunerH = pad * 2 + titleH + sliderH * 6 + gap + btnH;
         tunerX = (this.width - tunerW) / 2;
         tunerY = this.height - m - tunerH;
 
@@ -268,22 +268,20 @@ public class CinemaScreen extends Screen {
         MobIcons.IconStyle s = MobIcons.styleOf(id);
 
         addRenderableWidget(new ModernSlider(x, y, w, sliderH, "このモブの大きさ", "%", 30, 150,
-                Math.round(s.fit() * 100f), v -> {
-            MobIcons.IconStyle cur = MobIcons.styleOf(id);
-            MobIcons.setDebugStyle(id, MobIcons.IconStyle.of((float) v / 100f, cur.yaw(), cur.pitch()));
-        }));
+                Math.round(s.fit() * 100f),
+                v -> MobIcons.setDebugStyle(id, MobIcons.styleOf(id).withFit((float) v / 100f))));
         y += sliderH;
-        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "横回転", "°", -180, 180,
-                s.yaw(), v -> {
-            MobIcons.IconStyle cur = MobIcons.styleOf(id);
-            MobIcons.setDebugStyle(id, MobIcons.IconStyle.of(cur.fit(), (float) v, cur.pitch()));
-        }));
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "横回転", "°", -180, 180, s.yaw(),
+                v -> MobIcons.setDebugStyle(id, MobIcons.styleOf(id).withYaw((float) v))));
         y += sliderH;
-        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "縦回転", "°", -90, 90,
-                s.pitch(), v -> {
-            MobIcons.IconStyle cur = MobIcons.styleOf(id);
-            MobIcons.setDebugStyle(id, MobIcons.IconStyle.of(cur.fit(), cur.yaw(), (float) v));
-        }));
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "縦回転", "°", -90, 90, s.pitch(),
+                v -> MobIcons.setDebugStyle(id, MobIcons.styleOf(id).withPitch((float) v))));
+        y += sliderH;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "傾き(Z回転)", "°", -180, 180, s.roll(),
+                v -> MobIcons.setDebugStyle(id, MobIcons.styleOf(id).withRoll((float) v))));
+        y += sliderH;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "高さ", "%", -100, 100, s.height(),
+                v -> MobIcons.setDebugStyle(id, MobIcons.styleOf(id).withHeight((float) v))));
         y += sliderH + gap;
 
         int half = (w - gap) / 2;

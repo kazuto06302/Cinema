@@ -39,30 +39,61 @@ public final class MobIcons {
     public static final boolean DEBUG_TUNER = true;
 
     /** 枠いっぱいを1.0としたときの基本の大きさ(全モブ共通)。調整パネルから動かせる */
-    private static float fitGlobal = 0.75f;
+    private static float fitGlobal = 1.00f;
 
     /** 切り取り範囲をアイコンの外側にどれだけ広げるか(アイコンサイズに対する割合) */
     private static final float CLIP_MARGIN = 1f / 6f;
 
     /** 縦回転の符号。見下ろす/見上げるが逆に見えたら反転する */
     private static final float PITCH_SIGN = -1f;
+    /** Z回転(roll)の符号。傾く向きが逆に見えたら -1f にする */
+    private static final float ROLL_SIGN = 1f;
+    /** 高さの符号。+で下に動いたら -1f と +1f を入れ替える */
+    private static final float HEIGHT_SIGN = -1f;
 
     /**
      * モブごとの表示スタイル。
      *   fit   : 大きさの倍率(1.0が標準、小さいほど小さく描く)
      *   yaw   : 横回転(度)。0=正面、90=真横。プラスで画面の左向き
      *   pitch : 縦回転(度)。上下の傾き。符号が逆なら PITCH_SIGN を反転
+     *   roll  : Z軸回転(度)。画面の中心を軸にアイコン全体を傾ける。符号が逆なら ROLL_SIGN を反転
+     *   height: 高さ(%)。アイコン枠の高さに対する割合で上下にずらす。+で上。逆なら HEIGHT_SIGN を反転
      */
-    public record IconStyle(float fit, float yaw, float pitch) {
-        public static final IconStyle DEFAULT = new IconStyle(1f, 20f, 0f);
+    public record IconStyle(float fit, float yaw, float pitch, float roll, float height) {
+        public static final IconStyle DEFAULT = new IconStyle(1f, 20f, 0f, 0f, 0f);
 
+        /** 従来の3項目だけの指定。roll と height は 0 */
         public static IconStyle of(float fit, float yaw, float pitch) {
-            return new IconStyle(fit, yaw, pitch);
+            return new IconStyle(fit, yaw, pitch, 0f, 0f);
+        }
+
+        public static IconStyle of(float fit, float yaw, float pitch, float roll, float height) {
+            return new IconStyle(fit, yaw, pitch, roll, height);
         }
 
         /** 大きさだけ変えて、向きは標準のまま */
         public static IconStyle fit(float fit) {
-            return new IconStyle(fit, DEFAULT.yaw, DEFAULT.pitch);
+            return new IconStyle(fit, DEFAULT.yaw, DEFAULT.pitch, 0f, 0f);
+        }
+
+        public IconStyle withFit(float v) {
+            return new IconStyle(v, yaw, pitch, roll, height);
+        }
+
+        public IconStyle withYaw(float v) {
+            return new IconStyle(fit, v, pitch, roll, height);
+        }
+
+        public IconStyle withPitch(float v) {
+            return new IconStyle(fit, yaw, v, roll, height);
+        }
+
+        public IconStyle withRoll(float v) {
+            return new IconStyle(fit, yaw, pitch, v, height);
+        }
+
+        public IconStyle withHeight(float v) {
+            return new IconStyle(fit, yaw, pitch, roll, v);
         }
     }
 
@@ -72,12 +103,12 @@ public final class MobIcons {
             Map.entry("minecraft:acacia_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:allay", IconStyle.of(0.70f, 20f, 0f)),
             Map.entry("minecraft:armadillo", IconStyle.of(0.75f, 20f, 0f)),
-            Map.entry("minecraft:arrow", IconStyle.of(0.70f, -39f, 0f)),
+            Map.entry("minecraft:arrow", IconStyle.of(0.50f, 80f, 0f, 150f, -40f)),
             Map.entry("minecraft:axolotl", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:bamboo_raft", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:bamboo_chest_raft", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:bat", IconStyle.of(0.75f, 20f, 0f)),
-            Map.entry("minecraft:bee", IconStyle.of(0.60f, 20f, 0f)),
+            Map.entry("minecraft:bee", IconStyle.of(0.60f, 20f, -5f, 5f, -5f)),
             Map.entry("minecraft:birch_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:birch_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:camel", IconStyle.of(0.85f, 20f, 0f)),
@@ -87,8 +118,8 @@ public final class MobIcons {
             Map.entry("minecraft:cherry_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:cherry_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:chicken", IconStyle.of(0.65f, 20f, 0f)),
-            Map.entry("minecraft:cod", IconStyle.of(0.65f, 89f, -68f)),
-            Map.entry("minecraft:copper_golem", IconStyle.of(0.59f, 20f, 0f)),
+            Map.entry("minecraft:cod", IconStyle.of(0.75f, 90f, -75f, 0f, 15f)),
+            Map.entry("minecraft:copper_golem", IconStyle.of(0.60f, 20f, 0f)),
             Map.entry("minecraft:cow", IconStyle.of(0.80f, 20f, 0f)),
             Map.entry("minecraft:creaking", IconStyle.of(1.20f, 20f, 0f)),
             Map.entry("minecraft:cushion", IconStyle.of(1.00f, 0f, 30f)),
@@ -98,64 +129,69 @@ public final class MobIcons {
             Map.entry("minecraft:donkey", IconStyle.of(0.80f, 20f, 0f)),
             Map.entry("minecraft:dragon_fireball", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:elder_guardian", IconStyle.of(0.70f, 30f, 0f)),
-            Map.entry("minecraft:ender_dragon", IconStyle.of(1.50f, 0f, 0f)),
-            Map.entry("minecraft:endermite", IconStyle.of(0.50f, 20f, 14f)),
+            Map.entry("minecraft:ender_dragon", IconStyle.of(2.00f, 0f, -15f, 0f, 15f)),
+            Map.entry("minecraft:endermite", IconStyle.of(0.50f, 20f, 15f)),
             Map.entry("minecraft:eye_of_ender", IconStyle.of(0.50f, 20f, 0f)),
-            Map.entry("minecraft:falling_block", IconStyle.of(0.80f, 0f, 0f)),
+            Map.entry("minecraft:falling_block", IconStyle.of(0.70f, 0f, 15f)),
             Map.entry("minecraft:fireball", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:firework_rocket", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:fox", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:frog", IconStyle.of(0.60f, 20f, 0f)),
             Map.entry("minecraft:ghast", IconStyle.of(0.75f, 20f, 0f)),
+            Map.entry("minecraft:glow_item_frame", IconStyle.of(0.50f, 20f, 0f, 0f, 30f)),
             Map.entry("minecraft:glow_squid", IconStyle.of(0.60f, 20f, 0f)),
             Map.entry("minecraft:goat", IconStyle.of(0.80f, 20f, 0f)),
             Map.entry("minecraft:guardian", IconStyle.of(0.70f, 30f, 0f)),
             Map.entry("minecraft:happy_ghast", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:hoglin", IconStyle.of(0.80f, 20f, 0f)),
             Map.entry("minecraft:horse", IconStyle.of(0.75f, 20f, 0f)),
+            Map.entry("minecraft:iron_golem", IconStyle.of(1.30f, 20f, 0f)),
+            Map.entry("minecraft:item_frame", IconStyle.of(0.50f, 20f, 0f, 0f, 30f)),
             Map.entry("minecraft:jungle_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:jungle_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
+            Map.entry("minecraft:leash_knot", IconStyle.of(0.60f, 20f, 15f)),
             Map.entry("minecraft:lingering_potion", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:llama", IconStyle.of(0.90f, 20f, 0f)),
             Map.entry("minecraft:llama_spit", IconStyle.of(0.40f, 20f, 0f)),
             Map.entry("minecraft:magma_cube", IconStyle.of(0.75f, 20f, 15f)),
             Map.entry("minecraft:mangrove_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:mangrove_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
-            Map.entry("minecraft:minecart", IconStyle.of(0.80f, 44f, 25f)),
-            Map.entry("minecraft:chest_minecart", IconStyle.of(0.80f, 46f, 25f)),
-            Map.entry("minecraft:command_block_minecart", IconStyle.of(0.80f, 44f, 25f)),
-            Map.entry("minecraft:furnace_minecart", IconStyle.of(0.80f, 46f, 25f)),
-            Map.entry("minecraft:hopper_minecart", IconStyle.of(0.80f, 44f, 25f)),
-            Map.entry("minecraft:spawner_minecart", IconStyle.of(0.80f, 46f, 25f)),
-            Map.entry("minecraft:tnt_minecart", IconStyle.of(0.80f, 44f, 25f)),
+            Map.entry("minecraft:minecart", IconStyle.of(0.80f, 45f, 25f)),
+            Map.entry("minecraft:chest_minecart", IconStyle.of(0.80f, 45f, 25f)),
+            Map.entry("minecraft:command_block_minecart", IconStyle.of(0.80f, 45f, 25f)),
+            Map.entry("minecraft:furnace_minecart", IconStyle.of(0.80f, 45f, 25f)),
+            Map.entry("minecraft:hopper_minecart", IconStyle.of(0.80f, 45f, 25f)),
+            Map.entry("minecraft:spawner_minecart", IconStyle.of(0.80f, 45f, 25f)),
+            Map.entry("minecraft:tnt_minecart", IconStyle.of(0.80f, 45f, 25f)),
             Map.entry("minecraft:mooshroom", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:mule", IconStyle.of(0.80f, 20f, 0f)),
             Map.entry("minecraft:nautilus", IconStyle.of(0.70f, 20f, 0f)),
             Map.entry("minecraft:oak_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:oak_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:ocelot", IconStyle.of(0.70f, 20f, 0f)),
+            Map.entry("minecraft:painting", IconStyle.of(0.40f, 20f, 180f, 0f, 15f)),
             Map.entry("minecraft:pale_oak_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:pale_oak_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:panda", IconStyle.of(0.85f, 20f, 0f)),
-            Map.entry("minecraft:phantom", IconStyle.of(0.85f, 20f, 0f)),
+            Map.entry("minecraft:phantom", IconStyle.of(0.70f, 20f, 0f)),
             Map.entry("minecraft:pig", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:poplar_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:poplar_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
-            Map.entry("minecraft:tnt", IconStyle.of(0.80f, 0f, 15f)),
+            Map.entry("minecraft:tnt", IconStyle.of(0.70f, 0f, 15f)),
             Map.entry("minecraft:pufferfish", IconStyle.of(0.85f, 20f, 15f)),
-            Map.entry("minecraft:rabbit", IconStyle.of(0.50f, 20f, 20f)),
+            Map.entry("minecraft:rabbit", IconStyle.of(0.50f, 20f, 30f, -10f, -5f)),
             Map.entry("minecraft:ravager", IconStyle.of(0.85f, 20f, 0f)),
-            Map.entry("minecraft:salmon", IconStyle.of(1.00f, 0f, -90f)),
+            Map.entry("minecraft:salmon", IconStyle.of(0.75f, 90f, -75f, 0f, 15f)),
             Map.entry("minecraft:sheep", IconStyle.of(0.85f, 20f, 0f)),
-            Map.entry("minecraft:shulker", IconStyle.of(0.80f, 20f, 0f)),
-            Map.entry("minecraft:shulker_bullet", IconStyle.of(0.50f, 20f, 0f)),
+            Map.entry("minecraft:shulker", IconStyle.of(0.70f, 20f, 0f)),
+            Map.entry("minecraft:shulker_bullet", IconStyle.of(0.40f, 20f, 0f)),
             Map.entry("minecraft:silverfish", IconStyle.of(0.50f, 20f, 15f)),
             Map.entry("minecraft:skeleton_horse", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:slime", IconStyle.of(0.85f, 20f, 0f)),
-            Map.entry("minecraft:small_fireball", IconStyle.of(0.60f, 20f, 0f)),
+            Map.entry("minecraft:small_fireball", IconStyle.of(0.60f, 20f, 0f, 0f, 15f)),
             Map.entry("minecraft:sniffer", IconStyle.of(0.80f, 20f, 0f)),
             Map.entry("minecraft:snowball", IconStyle.of(0.50f, 20f, 0f)),
-            Map.entry("minecraft:spectral_arrow", IconStyle.of(1.00f, 90f, 0f)),
+            Map.entry("minecraft:spectral_arrow", IconStyle.of(0.50f, 80f, 0f, 150f, -40f)),
             Map.entry("minecraft:spider", IconStyle.of(0.90f, 20f, 0f)),
             Map.entry("minecraft:splash_potion", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:spruce_boat", IconStyle.of(0.75f, 45f, 25f)),
@@ -167,17 +203,17 @@ public final class MobIcons {
             Map.entry("minecraft:egg", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:ender_pearl", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:trader_llama", IconStyle.of(0.90f, 20f, 0f)),
-            Map.entry("minecraft:trident", IconStyle.of(1.00f, -71f, -34f)),
-            Map.entry("minecraft:tropical_fish", IconStyle.of(1.00f, 89f, -80f)),
+            Map.entry("minecraft:trident", IconStyle.of(0.75f, 60f, 10f, 140f, -50f)),
+            Map.entry("minecraft:tropical_fish", IconStyle.of(0.75f, 90f, -75f, 0f, 30f)),
             Map.entry("minecraft:turtle", IconStyle.of(0.85f, 20f, 15f)),
             Map.entry("minecraft:vex", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:warden", IconStyle.of(0.90f, 20f, 0f)),
-            Map.entry("minecraft:breeze_wind_charge", IconStyle.of(0.50f, 20f, 0f)),
-            Map.entry("minecraft:wind_charge", IconStyle.of(0.50f, 20f, 0f)),
+            Map.entry("minecraft:breeze_wind_charge", IconStyle.of(0.50f, 20f, -15f, 0f, 20f)),
+            Map.entry("minecraft:wind_charge", IconStyle.of(0.50f, 20f, -15f, 0f, 20f)),
             Map.entry("minecraft:wither_skull", IconStyle.of(0.30f, -160f, 15f)),
             Map.entry("minecraft:wolf", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:zoglin", IconStyle.of(0.80f, 20f, 0f)),
-            Map.entry("minecraft:zombie_horse", IconStyle.of(0.80f, 20f, 0f)),
+            Map.entry("minecraft:zombie_horse", IconStyle.of(0.80f, 20f, 0f, 0f, -10f)),
             Map.entry("minecraft:zombie_nautilus", IconStyle.of(0.70f, 20f, 0f))
     );
 
@@ -218,10 +254,15 @@ public final class MobIcons {
     }
 
     /** STYLES にそのまま貼れる1行 */
+    /** STYLES にそのまま貼れる1行 */
     public static String styleLine(String id) {
         IconStyle s = styleOf(id);
-        return String.format(Locale.ROOT, "Map.entry(\"%s\", IconStyle.of(%.2ff, %.0ff, %.0ff)),",
-                id, s.fit(), s.yaw(), s.pitch());
+        if (s.roll() == 0f && s.height() == 0f) {
+            return String.format(Locale.ROOT, "Map.entry(\"%s\", IconStyle.of(%.2ff, %.0ff, %.0ff)),",
+                    id, s.fit(), s.yaw(), s.pitch());
+        }
+        return String.format(Locale.ROOT, "Map.entry(\"%s\", IconStyle.of(%.2ff, %.0ff, %.0ff, %.0ff, %.0ff)),",
+                id, s.fit(), s.yaw(), s.pitch(), s.roll(), s.height());
     }
 
     /**
@@ -230,11 +271,16 @@ public final class MobIcons {
      * 落ちるモブが見つかったら、ここにIDを足す。
      */
     private static final Set<String> NO_RENDER = Set.of(
-            "minecraft:marker", "minecraft:interaction", "minecraft:area_effect_cloud",
-            "minecraft:block_display", "minecraft:item_display", "minecraft:text_display",
-            "minecraft:item", "minecraft:painting", "minecraft:item_frame", "minecraft:glow_item_frame",
-            "minecraft:leash_knot", "minecraft:lightning_bolt", "minecraft:fishing_bobber",
-            "minecraft:ominous_item_spawner");
+            "minecraft:marker",
+            "minecraft:interaction",
+            "minecraft:area_effect_cloud",
+            "minecraft:block_display",
+            "minecraft:item_display",
+            "minecraft:text_display",
+            "minecraft:item",
+            "minecraft:lightning_bolt",
+            "minecraft:ominous_item_spawner"
+    );
 
     private static final Map<String, Optional<Entity>> CACHE = new HashMap<>();
     private static final Set<String> FAILED = new HashSet<>();
@@ -294,7 +340,7 @@ public final class MobIcons {
             float scale = size * fitGlobal * style.fit() / extent;
 
             int margin = Math.round(size * CLIP_MARGIN);
-            drawEntity(g, e, scale, style.yaw(), style.pitch(),
+            drawEntity(g, e, scale, style, size,
                     x - margin, y - margin, x + size + margin, y + size + margin);
             return true;
         } catch (Throwable t) {
@@ -305,11 +351,13 @@ public final class MobIcons {
     }
 
     /** インベントリ画面でプレイヤーを描く処理と同じ手順を、あらゆるエンティティ向けに書いたもの */
-    private static void drawEntity(GuiGraphicsExtractor g, Entity e, float scale, float yaw, float pitch,
+    private static void drawEntity(GuiGraphicsExtractor g, Entity e, float scale, IconStyle style, int size,
                                    int x0, int y0, int x1, int y1) {
-        // 縦回転(カメラの傾き)
-        Quaternionf rotX = new Quaternionf().rotateX(PITCH_SIGN * (float) Math.toRadians(pitch));
-        Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI).mul(rotX);
+        float rollRad = ROLL_SIGN * (float) Math.toRadians(style.roll());
+
+        // 縦回転(カメラの傾き)と、Z回転(画面内の傾き)
+        Quaternionf rotX = new Quaternionf().rotateX(PITCH_SIGN * (float) Math.toRadians(style.pitch()));
+        Quaternionf rotation = new Quaternionf().rotateZ((float) Math.PI + rollRad).mul(rotX);
 
         // 向きを一時的に書き換えて描画状態を作り、終わったら元に戻す
         LivingEntity living = e instanceof LivingEntity l ? l : null;
@@ -323,7 +371,7 @@ public final class MobIcons {
         }
 
         // 横回転: 180°で正面。体と頭を同じ向きにそろえる
-        float facing = 180f + yaw;
+        float facing = 180f + style.yaw();
         e.setYRot(facing);
         e.setXRot(0f);
         e.yRotO = facing;
@@ -337,9 +385,17 @@ public final class MobIcons {
 
         try {
             float entityScale = living != null ? living.getScale() : 1f;
+            float paramScale = scale / entityScale;
+
+            // 従来の位置(roll=0, height=0 のときはこれと同じ)
             Vector3f translation = new Vector3f(0f, e.getBbHeight() / 2f + 0.0625f * entityScale, 0f);
+            // Z回転は画面の中心を軸に回すので、位置のずらしも同じ角度だけ回す
+            new Quaternionf().rotateZ(rollRad).transform(translation);
+            // 高さ: アイコン枠に対する割合を、ブロック単位に直して足す
+            translation.y += HEIGHT_SIGN * (style.height() / 100f * size) / paramScale;
+
             EntityRenderState state = createState(e);
-            g.entity(state, scale / entityScale, translation, rotation, rotX, x0, y0, x1, y1);
+            g.entity(state, paramScale, translation, rotation, rotX, x0, y0, x1, y1);
         } finally {
             e.setYRot(oYRot);
             e.setXRot(oXRot);
