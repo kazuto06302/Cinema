@@ -167,6 +167,11 @@ public final class NpcManager {
             spawn(level, def);
         }
 
+        // アニメーションを一定位置に保つ必要があるエンティティ(エヴォーカーの牙など)
+        for (Entity live : LIVE.values()) {
+            if (!live.isRemoved()) EntityTweaks.hold(live);
+        }
+
         if (dirty && --saveCooldown <= 0) {
             saveNow();
         }
@@ -188,6 +193,7 @@ public final class NpcManager {
         if (e == null) return;
         e.setId(nextEntityId++);
         applyState(e, def);
+        EntityTweaks.prepare(e);
         level.addEntity(e);
         LIVE.put(def.id(), e);
     }

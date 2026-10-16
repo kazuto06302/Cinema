@@ -65,6 +65,10 @@ public class CinemaScreen extends Screen {
     private boolean hasTuner;
     private int tunerX, tunerY, tunerW, tunerH;
 
+    private static final String DEV_WORD = "cinema";   // 検索欄にこれを入力するとdevモードが切り替わる
+    private static boolean devMode;                    // 保存されない(ゲームを閉じると通常に戻る)
+    private static boolean focusSearch;                // 切り替え後に検索欄へ入力を戻す
+
     public CinemaScreen() {
         super(Component.literal("Cinema"));
     }
@@ -107,6 +111,18 @@ public class CinemaScreen extends Screen {
         pendingRefresh = true;
     }
 
+    /** 検索欄に DEV_WORD が入力されたときの切り替え。入力欄は空に戻す */
+    private void toggleDevMode() {
+        devMode = !devMode;
+        search = "";
+        focusSearch = true;
+        Minecraft mc = Minecraft.getInstance();
+        if (mc.player != null) {
+            mc.player.sendOverlayMessage(Component.literal("[Cinema] devMode " + (devMode ? "ON" : "OFF")));
+        }
+        refresh();
+    }
+
     @Override
     protected void init() {
         labels.clear();
@@ -143,7 +159,7 @@ public class CinemaScreen extends Screen {
             hasRight = true;
             buildRight(d);
         });
-        if (MobIcons.DEBUG_TUNER && tab == Tab.MOBS) buildTuner();
+        if (devMode && tab == Tab.MOBS) buildTuner();
     }
 
     // ================= 左パネル =================
@@ -154,7 +170,7 @@ public class CinemaScreen extends Screen {
         int y = panelY + Theme.u(8);
         int bottom = panelY + panelH - pad;
 
-        labels.add(new Label("CINEMA", x, y, Theme.ACCENT));
+        labels.add(new Label(devMode ? "CINEMA  [DEV]" : "CINEMA", x, y, Theme.ACCENT));
         y += th + Theme.u(5);
 
         // --- タブ行: [NPC] [モブ追加] [+ プレイヤー] ---
@@ -206,14 +222,18 @@ public class CinemaScreen extends Screen {
             box.setHint(Component.literal("モブを検索..."));
             box.setValue(search);
             addRenderableWidget(box);
+            if (focusSearch) {
+                focusSearch = false;
+                setInitialFocus(box);
+            }
             y += searchH + gap;
 
             mobGrid = new ModernCardGrid<>(x, y, w, bottom - y, MOB_COLS, "該当するモブがありません",
                     MobCatalog.Entry::name,
                     (g, e, ix, iy, size) -> MobIcons.paint(g, this.font, e.id(), e.name(), ix, iy, size),
                     e -> {
-                        if (MobIcons.DEBUG_TUNER) {
-                            // 調整中は、クリックで調整対象を選ぶ(スポーンしない)
+                        if (devMode) {
+                            // devモード中は、クリックで調整対象を選ぶ(スポーンしない)
                             tuneId = e.id();
                             tuneName = e.name();
                             refresh();
@@ -223,12 +243,16 @@ public class CinemaScreen extends Screen {
                         tab = Tab.NPCS;
                         refresh();
                     });
-            mobGrid.setHighlight(e -> MobIcons.DEBUG_TUNER && e.id().equals(tuneId));
-            mobGrid.setItems(MobCatalog.filter(search));
+            mobGrid.setHighlight(e -> devMode && e.id().equals(tuneId));
+            mobGrid.setItems(MobCatalog.filter(search, devMode));
             mobGrid.setScroll(mobScroll);
             box.setResponder(s -> {
+                if (s.trim().equalsIgnoreCase(DEV_WORD)) {
+                    toggleDevMode();
+                    return;
+                }
                 search = s;
-                mobGrid.setItems(MobCatalog.filter(s));
+                mobGrid.setItems(MobCatalog.filter(s, devMode));
                 mobGrid.setScroll(0);
             });
             addRenderableWidget(mobGrid);

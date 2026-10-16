@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.npc.EntityTweaks;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -31,12 +32,6 @@ public final class MobIcons {
 
     /** false にすると全部タイル表示(エンティティ描画で問題が出たときの退避用) */
     public static final boolean RENDER_ENTITIES = true;
-
-    /**
-     * 調整用スライダーを出すか。調整が終わったら false にする。
-     * true の間は、モブ追加タブでカードをクリックしても「調整対象の選択」になり、スポーンしない。
-     */
-    public static final boolean DEBUG_TUNER = true;
 
     /** 枠いっぱいを1.0としたときの基本の大きさ(全モブ共通)。調整パネルから動かせる */
     private static float fitGlobal = 1.00f;
@@ -202,14 +197,15 @@ public final class MobIcons {
             Map.entry("minecraft:experience_bottle", IconStyle.of(0.45f, 20f, 0f)),
             Map.entry("minecraft:egg", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:ender_pearl", IconStyle.of(0.50f, 20f, 0f)),
+            Map.entry("minecraft:evoker_fangs", IconStyle.of(0.50f, -70f, 0f)),
             Map.entry("minecraft:trader_llama", IconStyle.of(0.90f, 20f, 0f)),
             Map.entry("minecraft:trident", IconStyle.of(0.75f, 60f, 10f, 140f, -50f)),
             Map.entry("minecraft:tropical_fish", IconStyle.of(0.75f, 90f, -75f, 0f, 30f)),
             Map.entry("minecraft:turtle", IconStyle.of(0.85f, 20f, 15f)),
             Map.entry("minecraft:vex", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:warden", IconStyle.of(0.90f, 20f, 0f)),
-            Map.entry("minecraft:breeze_wind_charge", IconStyle.of(0.50f, 20f, -15f, 0f, 20f)),
-            Map.entry("minecraft:wind_charge", IconStyle.of(0.50f, 20f, -15f, 0f, 20f)),
+            Map.entry("minecraft:breeze_wind_charge", IconStyle.of(0.50f, 20f, -15f, 0f, 35f)),
+            Map.entry("minecraft:wind_charge", IconStyle.of(0.50f, 20f, -15f, 0f, 35f)),
             Map.entry("minecraft:wither_skull", IconStyle.of(0.30f, -160f, 15f)),
             Map.entry("minecraft:wolf", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:zoglin", IconStyle.of(0.80f, 20f, 0f)),
@@ -310,6 +306,7 @@ public final class MobIcons {
             Entity e = type.create(level, EntitySpawnReason.LOAD);
             if (e == null) return Optional.empty();
             e.setId(nextIconId++);   // 未割り当てのまま描画すると IllegalStateException になる
+            EntityTweaks.prepare(e);
             return Optional.of(e);
         } catch (Throwable t) {
             Cinema.LOGGER.warn("Failed to create icon entity for {}", id, t);
