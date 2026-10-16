@@ -22,8 +22,10 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * 撮影用の編集画面(コンパクト版)。
- *   左パネル: タブ[NPC一覧 / モブ追加]
+ *   左パネル: タブ行[NPC / モブ追加 / +プレイヤー] と、その下のリスト。
+ *             「モブ追加」タブの間は横3カードが入る幅に広がる。
  *   右パネル: 選択中NPCの向き・ポーズ・位置・装備
+ *   下パネル: (MobIcons.DEBUG_TUNER が true のときだけ)モブアイコンの大きさ・向きの調整
  * ゲーム画面は暗くしない。上部中央のボタンでUI全体を隠せる。
  * 寸法はすべて Theme.u() 経由で、文字サイズ(Theme.FONT_PX)に連動して縮む。
  */
@@ -34,6 +36,8 @@ public class CinemaScreen extends Screen {
     };
     private static final String[] SLOT_LABELS = {"メイン", "オフ", "頭", "胴", "脚", "足"};
 
+    private static final int MOB_COLS = 3;
+
     private enum Tab { NPCS, MOBS }
 
     private record Label(String text, int x, int y, int color) {}
@@ -43,19 +47,23 @@ public class CinemaScreen extends Screen {
     private static String search = "";
     private static boolean collapsed;
     private static boolean openRequested;
+    private static String tuneId;     // 調整中のモブ(DEBUG_TUNER用)
+    private static String tuneName;
 
     private final List<Label> labels = new ArrayList<>();
     private ModernList<NpcData> npcList;
-    private ModernList<MobCatalog.Entry> mobList;
+    private ModernCardGrid<MobCatalog.Entry> mobGrid;
     private double npcScroll;
     private double mobScroll;
     private boolean pendingRefresh;
 
     // レイアウト(init時に確定)
-    private int m, pad, gap, panelW, btnH, sliderH, th;
+    private int m, pad, gap, panelW, leftW, btnH, sliderH, th;
     private int leftX, rightX, panelY, panelH;
     private boolean hasRight;
     private int searchX, searchY, searchW, searchH;
+    private boolean hasTuner;
+    private int tunerX, tunerY, tunerW, tunerH;
 
     public CinemaScreen() {
         super(Component.literal("Cinema"));
@@ -103,8 +111,9 @@ public class CinemaScreen extends Screen {
     protected void init() {
         labels.clear();
         npcList = null;
-        mobList = null;
+        mobGrid = null;
         hasRight = false;
+        hasTuner = false;
 
         // 寸法は文字サイズに連動
         th = Theme.textH();
@@ -112,6 +121,7 @@ public class CinemaScreen extends Screen {
         pad = Theme.u(6);
         gap = Theme.u(4);
         panelW = Theme.u(150);
+        leftW = (tab == Tab.MOBS) ? Theme.u(220) : panelW;   // モブ追加は3カードが入る幅
         btnH = Math.max(th + 3, Theme.u(14));
         sliderH = th + Theme.u(11);
 
@@ -133,35 +143,46 @@ public class CinemaScreen extends Screen {
             hasRight = true;
             buildRight(d);
         });
+        if (MobIcons.DEBUG_TUNER && tab == Tab.MOBS) buildTuner();
     }
 
     // ================= 左パネル =================
 
     private void buildLeft() {
         int x = leftX + pad;
-        int w = panelW - pad * 2;
+        int w = leftW - pad * 2;
         int y = panelY + Theme.u(8);
         int bottom = panelY + panelH - pad;
 
         labels.add(new Label("CINEMA", x, y, Theme.ACCENT));
         y += th + Theme.u(5);
 
-        int half = (w - gap) / 2;
-        addRenderableWidget(new ModernButton(x, y, half, btnH, "NPC (" + NpcManager.defs().size() + ")",
+        // --- タブ行: [NPC] [モブ追加] [+ プレイヤー] ---
+        int usable = w - gap * 2;
+        int wNpc = usable * 22 / 100;
+        int wMob = usable * 33 / 100;
+        int wAdd = usable - wNpc - wMob;
+
+        addRenderableWidget(new ModernButton(x, y, wNpc, btnH, "NPC",
                 ModernButton.Style.GHOST, () -> {
             tab = Tab.NPCS;
             refresh();
         }).setSelected(tab == Tab.NPCS));
-        addRenderableWidget(new ModernButton(x + half + gap, y, half, btnH, "モブ追加",
+        addRenderableWidget(new ModernButton(x + wNpc + gap, y, wMob, btnH, "モブ追加",
                 ModernButton.Style.GHOST, () -> {
             tab = Tab.MOBS;
             refresh();
         }).setSelected(tab == Tab.MOBS));
+        addRenderableWidget(new ModernButton(x + wNpc + wMob + gap * 2, y, wAdd, btnH, "+ プレイヤー",
+                ModernButton.Style.PRIMARY, () -> {
+            NpcManager.spawnAtPlayer(NpcData.PLAYER, "minecraft:player", "NPC");
+            tab = Tab.NPCS;   // 追加したNPCがすぐ見えるように一覧へ
+            refresh();
+        }));
         y += btnH + gap;
 
         if (tab == Tab.NPCS) {
-            int listH = bottom - (btnH + gap) - y;
-            npcList = new ModernList<>(x, y, w, listH, "NPCはまだいません",
+            npcList = new ModernList<>(x, y, w, bottom - y, "NPCはまだいません",
                     d -> NpcData.PLAYER.equals(d.kind()) ? d.skin().orElse("NPC") : MobCatalog.nameOf(d.entityType()),
                     d -> NpcData.PLAYER.equals(d.kind()) ? "Player" : "Mob",
                     d -> d.id().equals(NpcManager.selectedId()),
@@ -172,12 +193,6 @@ public class CinemaScreen extends Screen {
             npcList.setItems(NpcManager.defs());
             npcList.setScroll(npcScroll);
             addRenderableWidget(npcList);
-
-            addRenderableWidget(new ModernButton(x, bottom - btnH, w, btnH, "+ プレイヤーを追加",
-                    ModernButton.Style.PRIMARY, () -> {
-                NpcManager.spawnAtPlayer(NpcData.PLAYER, "minecraft:player", "NPC");
-                refresh();
-            }));
         } else {
             // EditBox は標準部品で文字が8px固定のため、検索欄だけ他より少し大きくなる
             searchX = x;
@@ -193,24 +208,96 @@ public class CinemaScreen extends Screen {
             addRenderableWidget(box);
             y += searchH + gap;
 
-            mobList = new ModernList<>(x, y, w, bottom - y, "該当するモブがありません",
+            mobGrid = new ModernCardGrid<>(x, y, w, bottom - y, MOB_COLS, "該当するモブがありません",
                     MobCatalog.Entry::name,
-                    e -> e.id().startsWith("minecraft:") ? "" : e.id().substring(0, e.id().indexOf(':')),
-                    e -> false,
+                    (g, e, ix, iy, size) -> MobIcons.paint(g, this.font, e.id(), e.name(), ix, iy, size),
                     e -> {
+                        if (MobIcons.DEBUG_TUNER) {
+                            // 調整中は、クリックで調整対象を選ぶ(スポーンしない)
+                            tuneId = e.id();
+                            tuneName = e.name();
+                            refresh();
+                            return;
+                        }
                         NpcManager.spawnAtPlayer(NpcData.MOB, e.id(), null);
                         tab = Tab.NPCS;
                         refresh();
                     });
-            mobList.setItems(MobCatalog.filter(search));
-            mobList.setScroll(mobScroll);
+            mobGrid.setHighlight(e -> MobIcons.DEBUG_TUNER && e.id().equals(tuneId));
+            mobGrid.setItems(MobCatalog.filter(search));
+            mobGrid.setScroll(mobScroll);
             box.setResponder(s -> {
                 search = s;
-                mobList.setItems(MobCatalog.filter(s));
-                mobList.setScroll(0);
+                mobGrid.setItems(MobCatalog.filter(s));
+                mobGrid.setScroll(0);
             });
-            addRenderableWidget(mobList);
+            addRenderableWidget(mobGrid);
         }
+    }
+
+    // ================= 下パネル(アイコン調整) =================
+
+    private void buildTuner() {
+        hasTuner = true;
+        tunerW = Theme.u(170);
+        int titleH = th + Theme.u(5);
+        tunerH = pad * 2 + titleH + sliderH * 4 + gap + btnH;
+        tunerX = (this.width - tunerW) / 2;
+        tunerY = this.height - m - tunerH;
+
+        int x = tunerX + pad;
+        int w = tunerW - pad * 2;
+        int y = tunerY + pad;
+
+        String title = "アイコン調整" + (tuneId == null ? "" : ": " + tuneName);
+        labels.add(new Label(Theme.fit(this.font, title, w), x, y, Theme.ACCENT));
+        y += titleH;
+
+        // 全モブ共通の大きさ
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "全体の大きさ", "%", 30, 120,
+                Math.round(MobIcons.getGlobalFit() * 100f),
+                v -> MobIcons.setGlobalFit((float) v / 100f)));
+        y += sliderH;
+
+        if (tuneId == null) {
+            labels.add(new Label("カードをクリックして選択", x, y + Theme.u(3), Theme.TEXT_DIM));
+            return;
+        }
+
+        String id = tuneId;
+        MobIcons.IconStyle s = MobIcons.styleOf(id);
+
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "このモブの大きさ", "%", 30, 150,
+                Math.round(s.fit() * 100f), v -> {
+            MobIcons.IconStyle cur = MobIcons.styleOf(id);
+            MobIcons.setDebugStyle(id, MobIcons.IconStyle.of((float) v / 100f, cur.yaw(), cur.pitch()));
+        }));
+        y += sliderH;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "横回転", "°", -180, 180,
+                s.yaw(), v -> {
+            MobIcons.IconStyle cur = MobIcons.styleOf(id);
+            MobIcons.setDebugStyle(id, MobIcons.IconStyle.of(cur.fit(), (float) v, cur.pitch()));
+        }));
+        y += sliderH;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "縦回転", "°", -90, 90,
+                s.pitch(), v -> {
+            MobIcons.IconStyle cur = MobIcons.styleOf(id);
+            MobIcons.setDebugStyle(id, MobIcons.IconStyle.of(cur.fit(), cur.yaw(), (float) v));
+        }));
+        y += sliderH + gap;
+
+        int half = (w - gap) / 2;
+        addRenderableWidget(new ModernButton(x, y, half, btnH, "行をコピー",
+                ModernButton.Style.PRIMARY, () -> {
+            String line = MobIcons.styleLine(id);
+            Minecraft.getInstance().keyboardHandler.setClipboard(line);
+            Cinema.LOGGER.info("[Cinema] {}   (FIT={})", line, MobIcons.getGlobalFit());
+        }));
+        addRenderableWidget(new ModernButton(x + half + gap, y, half, btnH, "リセット",
+                ModernButton.Style.DEFAULT, () -> {
+            MobIcons.clearDebugStyle(id);
+            refresh();
+        }));
     }
 
     // ================= 右パネル =================
@@ -335,13 +422,14 @@ public class CinemaScreen extends Screen {
         if (pendingRefresh) {
             pendingRefresh = false;
             if (npcList != null) npcScroll = npcList.getScroll();
-            if (mobList != null) mobScroll = mobList.getScroll();
+            if (mobGrid != null) mobScroll = mobGrid.getScroll();
             rebuildWidgets();
         }
 
         if (!collapsed) {
-            Theme.panel(g, leftX, panelY, panelW, panelH);
+            Theme.panel(g, leftX, panelY, leftW, panelH);
             if (hasRight) Theme.panel(g, rightX, panelY, panelW, panelH);
+            if (hasTuner) Theme.panel(g, tunerX, tunerY, tunerW, tunerH);
             if (tab == Tab.MOBS) {
                 // 検索ボックスの背景
                 Theme.roundRect(g, searchX, searchY, searchW, searchH, Theme.SURFACE);

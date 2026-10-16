@@ -60,7 +60,7 @@ public class ModernButton extends AbstractWidget {
             g.fill(getX() + inset, getY() + getHeight() - line, getX() + getWidth() - inset, getY() + getHeight(), Theme.ACCENT);
         }
 
-        String label = Theme.fit(font, getMessage().getString(), getWidth() - Theme.u(8));
+        String label = Theme.fit(font, getMessage().getString(), getWidth() - Theme.u(5));
         Theme.textCentered(g, font, label, getX() + getWidth() / 2, getY() + (getHeight() - Theme.textH()) / 2, fg);
     }
 
