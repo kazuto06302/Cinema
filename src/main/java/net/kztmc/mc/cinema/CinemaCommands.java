@@ -5,6 +5,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallba
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
+import net.kztmc.mc.cinema.npc.SceneFreeze;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -36,12 +37,19 @@ public final class CinemaCommands {
                                 .then(ClientCommands.argument("entity", StringArgumentType.word())
                                         .executes(ctx -> spawn(NpcData.MOB,
                                                 StringArgumentType.getString(ctx, "entity"), null))))
+                        .then(ClientCommands.literal("freeze")
+                                .executes(ctx -> {
+                                    SceneFreeze.toggle();
+                                    say("時間停止 " + (SceneFreeze.isFrozen() ? "ON" : "OFF"));
+                                    return 1;
+                                }))
                         .then(ClientCommands.literal("clear")
                                 .executes(ctx -> {
                                     NpcManager.clear();
                                     say("NPCをすべて削除しました");
                                     return 1;
                                 }))));
+
     }
 
     private static void openGui() {

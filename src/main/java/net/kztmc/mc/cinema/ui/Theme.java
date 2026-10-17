@@ -90,11 +90,15 @@ public final class Theme {
     }
 
     public static void text(GuiGraphicsExtractor g, Font font, String s, int x, int y, int color) {
-        float fs = fontScale();
+        text(g, font, s, x, y, color, fontScale());
+    }
+
+    /** 倍率を指定して描く(入力欄など、UI標準より少し小さくしたいとき用) */
+    public static void text(GuiGraphicsExtractor g, Font font, String s, int x, int y, int color, float scale) {
         var pose = g.pose();
         pose.pushMatrix();
         pose.translate((float) x, (float) y);
-        pose.scale(fs, fs);
+        pose.scale(scale, scale);
         g.text(font, s, 0, 0, color, false);
         pose.popMatrix();
     }

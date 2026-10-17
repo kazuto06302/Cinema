@@ -1,15 +1,9 @@
 package net.kztmc.mc.cinema.ui;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
-import net.kztmc.mc.cinema.npc.NpcData;
-import net.kztmc.mc.cinema.npc.NpcManager;
-import net.kztmc.mc.cinema.npc.NpcPose;
+import net.kztmc.mc.cinema.npc.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.EditBox;
@@ -38,7 +32,7 @@ public class CinemaScreen extends Screen {
 
     private static final int MOB_COLS = 3;
 
-    private enum Tab { NPCS, MOBS }
+    private enum Tab { NPCS, MOBS, PLAYERS }
 
     private record Label(String text, int x, int y, int color) {}
 
@@ -50,6 +44,12 @@ public class CinemaScreen extends Screen {
     private static String tuneId;     // 調整中のモブ(DEBUG_TUNER用)
     private static String tuneName;
 
+    //player
+    private static String playerInput = "";
+    private ModernCardGrid<String> playerGrid;
+    private double playerScroll;
+
+    //ui
     private final List<Label> labels = new ArrayList<>();
     private ModernList<NpcData> npcList;
     private ModernCardGrid<MobCatalog.Entry> mobGrid;
@@ -137,7 +137,7 @@ public class CinemaScreen extends Screen {
         pad = Theme.u(6);
         gap = Theme.u(4);
         panelW = Theme.u(150);
-        leftW = (tab == Tab.MOBS) ? Theme.u(220) : panelW;   // モブ追加は3カードが入る幅
+        leftW = Theme.u(210);
         btnH = Math.max(th + 3, Theme.u(14));
         sliderH = th + Theme.u(11);
 
@@ -147,11 +147,17 @@ public class CinemaScreen extends Screen {
         rightX = this.width - panelW - m;
 
         int pillW = Theme.u(56);
-        addRenderableWidget(new ModernButton((this.width - pillW) / 2, m, pillW, btnH,
+        int pillX = (this.width - (pillW * 2 + gap)) / 2;
+        addRenderableWidget(new ModernButton(pillX, m, pillW, btnH,
                 collapsed ? "UI表示" : "UI非表示", ModernButton.Style.DEFAULT, () -> {
             collapsed = !collapsed;
             refresh();
         }));
+        addRenderableWidget(new ModernButton(pillX + pillW + gap, m, pillW, btnH,
+                "時間停止", ModernButton.Style.DEFAULT, () -> {
+            SceneFreeze.toggle();
+            refresh();
+        }).setSelected(SceneFreeze.isFrozen()));
         if (collapsed) return;
 
         buildLeft();
@@ -179,22 +185,21 @@ public class CinemaScreen extends Screen {
         int wMob = usable * 33 / 100;
         int wAdd = usable - wNpc - wMob;
 
-        addRenderableWidget(new ModernButton(x, y, wNpc, btnH, "NPC",
+        addRenderableWidget(new ModernButton(x, y, wNpc, btnH, "NPC一覧",
                 ModernButton.Style.GHOST, () -> {
             tab = Tab.NPCS;
             refresh();
         }).setSelected(tab == Tab.NPCS));
-        addRenderableWidget(new ModernButton(x + wNpc + gap, y, wMob, btnH, "モブ追加",
+        addRenderableWidget(new ModernButton(x + wNpc + gap, y, wMob, btnH, "+モブ追加",
                 ModernButton.Style.GHOST, () -> {
             tab = Tab.MOBS;
             refresh();
         }).setSelected(tab == Tab.MOBS));
-        addRenderableWidget(new ModernButton(x + wNpc + wMob + gap * 2, y, wAdd, btnH, "+ プレイヤー",
-                ModernButton.Style.PRIMARY, () -> {
-            NpcManager.spawnAtPlayer(NpcData.PLAYER, "minecraft:player", "NPC");
-            tab = Tab.NPCS;   // 追加したNPCがすぐ見えるように一覧へ
+        addRenderableWidget(new ModernButton(x + wNpc + wMob + gap * 2, y, wAdd, btnH, "+プレイヤー追加",
+                ModernButton.Style.GHOST, () -> {
+            tab = Tab.PLAYERS;
             refresh();
-        }));
+        }).setSelected(tab == Tab.PLAYERS));
         y += btnH + gap;
 
         if (tab == Tab.NPCS) {
@@ -209,17 +214,17 @@ public class CinemaScreen extends Screen {
             npcList.setItems(NpcManager.defs());
             npcList.setScroll(npcScroll);
             addRenderableWidget(npcList);
+        } else if (tab == Tab.PLAYERS) {
+            buildPlayerTab(x, y, w, bottom);
         } else {
             // EditBox は標準部品で文字が8px固定のため、検索欄だけ他より少し大きくなる
             searchX = x;
             searchY = y;
             searchW = w;
-            searchH = Math.max(btnH, 12);
-            EditBox box = new EditBox(this.font, x + gap, y + (searchH - 8) / 2, w - gap * 2, 10,
-                    Component.literal("検索"));
-            box.setBordered(false);
+            searchH = btnH;
+            ModernTextField box = new ModernTextField(x, y, w, searchH);
+            box.setHint("モブを検索...");
             box.setMaxLength(60);
-            box.setHint(Component.literal("モブを検索..."));
             box.setValue(search);
             addRenderableWidget(box);
             if (focusSearch) {
@@ -246,7 +251,7 @@ public class CinemaScreen extends Screen {
             mobGrid.setHighlight(e -> devMode && e.id().equals(tuneId));
             mobGrid.setItems(MobCatalog.filter(search, devMode));
             mobGrid.setScroll(mobScroll);
-            box.setResponder(s -> {
+            box.setOnChange(s -> {
                 if (s.trim().equalsIgnoreCase(DEV_WORD)) {
                     toggleDevMode();
                     return;
@@ -257,6 +262,52 @@ public class CinemaScreen extends Screen {
             });
             addRenderableWidget(mobGrid);
         }
+    }
+
+    private void buildPlayerTab(int x, int y, int w, int bottom) {
+        int addW = Theme.u(44);
+        int fieldW = w - addW - gap;
+
+        ModernTextField box = new ModernTextField(x, y, fieldW, btnH);
+        box.setHint("ユーザー名(空欄は既定スキン)");
+        box.setMaxLength(16);
+        box.setCharFilter(cp -> cp < 128 && (Character.isLetterOrDigit(cp) || cp == '_'));
+        box.setValue(playerInput);
+        box.setOnChange(s -> playerInput = s);
+        box.setOnEnter(this::addPlayer);   // Enterで追加
+        addRenderableWidget(box);
+        setInitialFocus(box);
+
+        addRenderableWidget(new ModernButton(x + fieldW + gap, y, addW, btnH, "追加",
+                ModernButton.Style.PRIMARY, () -> addPlayer(playerInput)));
+        y += btnH + gap;
+
+        labels.add(new Label("履歴(クリックで追加)", x, y, Theme.TEXT_DIM));
+        y += th + Theme.u(3);
+
+        playerGrid = new ModernCardGrid<String>(x, y, w, bottom - y, MOB_COLS, "履歴はまだありません",
+                name -> name,
+                (g, name, ix, iy, size) -> MobIcons.paintPlayer(g, this.font, name, ix, iy, size),
+                this::addPlayer);
+        playerGrid.setItems(PlayerHistory.names());
+        playerGrid.setScroll(playerScroll);
+        addRenderableWidget(playerGrid);
+    }
+
+    private void addPlayer(String raw) {
+        String name = raw == null ? "" : raw.trim();
+        if (!name.isEmpty() && !name.matches("[A-Za-z0-9_]{1,16}")) {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player != null) {
+                mc.player.sendOverlayMessage(
+                        Component.literal("[Cinema] ユーザー名は半角英数字とアンダースコアで16文字までです"));
+            }
+            return;
+        }
+        NpcManager.spawnAtPlayer(NpcData.PLAYER, "minecraft:player", name.isEmpty() ? null : name);
+        if (!name.isEmpty()) PlayerHistory.add(name);
+        tab = Tab.NPCS;   // 追加したNPCがすぐ見えるように一覧へ
+        refresh();
     }
 
     // ================= 下パネル(アイコン調整) =================
@@ -378,6 +429,24 @@ public class CinemaScreen extends Screen {
         }
         y += btnH + gap;
 
+        // --- モデル(腕の太さ): プレイヤーのみ ---
+        if (NpcData.PLAYER.equals(d.kind())) {
+            labels.add(new Label("モデル(腕の太さ)", x, y, Theme.TEXT_DIM));
+            y += lh;
+            String[] modelLabels = {"自動", "ノーマル", "スリム"};
+            String[] modelValues = {null, "wide", "slim"};
+            int mw = (w - pgap * 2) / 3;
+            for (int i = 0; i < 3; i++) {
+                String value = modelValues[i];
+                addRenderableWidget(new ModernButton(x + i * (mw + pgap), y, mw, btnH, modelLabels[i],
+                        ModernButton.Style.DEFAULT, () -> {
+                    edit(id, cur -> cur.withModel(Optional.ofNullable(value)));
+                    refresh();
+                }).setSelected(java.util.Objects.equals(d.model().orElse(null), value)));
+            }
+            y += btnH + gap;
+        }
+
         // --- 位置 ---
         addRenderableWidget(new ModernButton(x, y, w, btnH, "自分の前に移動",
                 ModernButton.Style.DEFAULT, () -> {
@@ -445,6 +514,7 @@ public class CinemaScreen extends Screen {
             pendingRefresh = false;
             if (npcList != null) npcScroll = npcList.getScroll();
             if (mobGrid != null) mobScroll = mobGrid.getScroll();
+            if (playerGrid != null) playerScroll = playerGrid.getScroll();
             rebuildWidgets();
         }
 
@@ -452,10 +522,6 @@ public class CinemaScreen extends Screen {
             Theme.panel(g, leftX, panelY, leftW, panelH);
             if (hasRight) Theme.panel(g, rightX, panelY, panelW, panelH);
             if (hasTuner) Theme.panel(g, tunerX, tunerY, tunerW, tunerH);
-            if (tab == Tab.MOBS) {
-                // 検索ボックスの背景
-                Theme.roundRect(g, searchX, searchY, searchW, searchH, Theme.SURFACE);
-            }
             for (Label l : labels) {
                 Theme.text(g, this.font, l.text(), l.x(), l.y(), l.color());
             }

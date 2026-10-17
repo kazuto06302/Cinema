@@ -15,7 +15,7 @@ public final class EntityTweaks {
      * 牙のアニメーション位置。lifeTicks が小さいほど牙が大きく開く。
      * 12 で半開き。目安は 8〜14(4以下だと閉じ始めて縮む、22だとほぼ見えない)。
      */
-    private static final int FANGS_HOLD_TICKS = 12;
+    private static final int FANGS_HOLD_TICKS = 8;
 
     private static Field fangsLifeTicks;
     private static boolean fangsReflectionFailed;

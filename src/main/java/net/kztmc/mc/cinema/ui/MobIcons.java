@@ -1,17 +1,17 @@
 package net.kztmc.mc.cinema.ui;
 
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
+import java.nio.charset.StandardCharsets;
+import java.util.*;
+
+import com.mojang.authlib.GameProfile;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.npc.EntityTweaks;
+import net.kztmc.mc.cinema.npc.NpcPlayer;
+import net.kztmc.mc.cinema.npc.SkinResolver;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -45,6 +45,18 @@ public final class MobIcons {
     private static final float ROLL_SIGN = 1f;
     /** 高さの符号。+で下に動いたら -1f と +1f を入れ替える */
     private static final float HEIGHT_SIGN = -1f;
+
+    private static final String PLAYER_PREFIX = "player:";
+
+    /** プレイヤーのカード用のID("player:名前")。paint にそのまま渡せる */
+    public static String playerId(String name) {
+        return PLAYER_PREFIX + name;
+    }
+
+    /** プレイヤー(スキン)のカードを描く */
+    public static void paintPlayer(GuiGraphicsExtractor g, Font font, String name, int x, int y, int size) {
+        paint(g, font, playerId(name), name.isBlank() ? "NPC" : name, x, y, size);
+    }
 
     /**
      * モブごとの表示スタイル。
@@ -299,6 +311,15 @@ public final class MobIcons {
 
     private static Optional<Entity> create(Level level, String id) {
         try {
+            if (id.startsWith(PLAYER_PREFIX)) {
+                if (!(level instanceof ClientLevel clientLevel)) return Optional.empty();
+                String name = id.substring(PLAYER_PREFIX.length());
+                UUID uuid = UUID.nameUUIDFromBytes(("cinema:" + name).getBytes(StandardCharsets.UTF_8));
+                NpcPlayer p = new NpcPlayer(clientLevel,
+                        new GameProfile(uuid, name.isBlank() ? "NPC" : name), SkinResolver.forName(name));
+                p.setId(nextIconId++);
+                return Optional.of(p);
+            }
             Identifier typeId = Identifier.tryParse(id);
             if (typeId == null) return Optional.empty();
             EntityType<?> type = BuiltInRegistries.ENTITY_TYPE.getOptional(typeId).orElse(null);

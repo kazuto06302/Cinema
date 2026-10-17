@@ -66,6 +66,7 @@ public final class NpcManager {
             selected = null;
         });
         ClientTickEvents.END_CLIENT_TICK.register(NpcManager::tick);
+        ClientTickEvents.END_CLIENT_TICK.register(SceneFreeze::tick);
     }
 
     // ---- public API ----
@@ -169,7 +170,9 @@ public final class NpcManager {
 
         // アニメーションを一定位置に保つ必要があるエンティティ(エヴォーカーの牙など)
         for (Entity live : LIVE.values()) {
-            if (!live.isRemoved()) EntityTweaks.hold(live);
+            if (live.isRemoved()) continue;
+            EntityTweaks.hold(live);
+            if (SceneFreeze.isFrozen()) live.tickCount = 0;   // プレイヤーNPCは停止の対象外なので自分で固定する
         }
 
         if (dirty && --saveCooldown <= 0) {
@@ -207,9 +210,9 @@ public final class NpcManager {
 
     private static Entity createEntity(ClientLevel level, NpcData def) {
         if (NpcData.PLAYER.equals(def.kind())) {
-            // TODO(skin): GameProfile だけだと既定スキンになる。スキン反映は別ステップで対応
-            GameProfile profile = new GameProfile(def.id(), def.skin().orElse("NPC"));
-            return new RemotePlayer(level, profile);
+            String name = def.skin().orElse("");
+            GameProfile profile = new GameProfile(def.id(), name.isBlank() ? "NPC" : name);
+            return new NpcPlayer(level, profile, SkinResolver.forName(name));
         }
         Identifier typeId = Identifier.tryParse(def.entityType());
         Optional<EntityType<?>> type = typeId == null
@@ -240,6 +243,9 @@ public final class NpcManager {
         e.setSwimming(pose == NpcPose.SWIMMING);
         e.setPose(pose.pose);
 
+        if (e instanceof NpcPlayer player) {
+            player.setModelName(d.model().orElse(null));
+        }
         if (e instanceof Mob mob) {
             mob.setNoAi(true);
         }
