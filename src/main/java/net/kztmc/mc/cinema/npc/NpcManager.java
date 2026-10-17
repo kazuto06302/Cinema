@@ -53,6 +53,7 @@ public final class NpcManager {
             DEFS.clear();
             DEFS.addAll(NpcStorage.load(worldKey, registries));
             LIVE.clear();
+            SceneFreeze.clearRegistry();
             liveLevel = null;
             selected = null;
             Cinema.LOGGER.info("Loaded {} NPC(s) for {}", DEFS.size(), worldKey);
@@ -60,13 +61,13 @@ public final class NpcManager {
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> {
             saveNow();
             LIVE.clear();
+            SceneFreeze.clearRegistry();
             DEFS.clear();
             liveLevel = null;
             worldKey = null;
             selected = null;
         });
         ClientTickEvents.END_CLIENT_TICK.register(NpcManager::tick);
-        ClientTickEvents.END_CLIENT_TICK.register(SceneFreeze::tick);
     }
 
     // ---- public API ----
@@ -151,6 +152,7 @@ public final class NpcManager {
         if (level != liveLevel) { // ディメンション移動/再接続でレベルが別物になった
             LIVE.clear();
             liveLevel = level;
+            SceneFreeze.clearRegistry();
         }
 
         String dim = level.dimension().identifier().toString();
@@ -172,7 +174,6 @@ public final class NpcManager {
         for (Entity live : LIVE.values()) {
             if (live.isRemoved()) continue;
             EntityTweaks.hold(live);
-            if (SceneFreeze.isFrozen()) live.tickCount = 0;   // プレイヤーNPCは停止の対象外なので自分で固定する
         }
 
         if (dirty && --saveCooldown <= 0) {
@@ -199,10 +200,12 @@ public final class NpcManager {
         EntityTweaks.prepare(e);
         level.addEntity(e);
         LIVE.put(def.id(), e);
+        SceneFreeze.register(e);
     }
 
     private static void despawn(UUID id) {
         Entity e = LIVE.remove(id);
+        if (e != null) SceneFreeze.unregister(e);
         if (e != null && liveLevel != null) {
             liveLevel.removeEntity(e.getId(), Entity.RemovalReason.DISCARDED);
         }

@@ -209,7 +209,7 @@ public final class MobIcons {
             Map.entry("minecraft:experience_bottle", IconStyle.of(0.45f, 20f, 0f)),
             Map.entry("minecraft:egg", IconStyle.of(0.50f, 20f, 0f)),
             Map.entry("minecraft:ender_pearl", IconStyle.of(0.50f, 20f, 0f)),
-            Map.entry("minecraft:evoker_fangs", IconStyle.of(0.50f, -70f, 0f)),
+            Map.entry("minecraft:evoker_fangs", IconStyle.of(0.40f, -70f, 0f)),
             Map.entry("minecraft:trader_llama", IconStyle.of(0.90f, 20f, 0f)),
             Map.entry("minecraft:trident", IconStyle.of(0.75f, 60f, 10f, 140f, -50f)),
             Map.entry("minecraft:tropical_fish", IconStyle.of(0.75f, 90f, -75f, 0f, 30f)),

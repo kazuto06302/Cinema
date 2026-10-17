@@ -154,7 +154,7 @@ public class CinemaScreen extends Screen {
             refresh();
         }));
         addRenderableWidget(new ModernButton(pillX + pillW + gap, m, pillW, btnH,
-                "時間停止", ModernButton.Style.DEFAULT, () -> {
+                "NPC停止", ModernButton.Style.DEFAULT, () -> {
             SceneFreeze.toggle();
             refresh();
         }).setSelected(SceneFreeze.isFrozen()));
