@@ -170,12 +170,6 @@ public final class NpcManager {
             spawn(level, def);
         }
 
-        // アニメーションを一定位置に保つ必要があるエンティティ(エヴォーカーの牙など)
-        for (Entity live : LIVE.values()) {
-            if (live.isRemoved()) continue;
-            EntityTweaks.hold(live);
-        }
-
         if (dirty && --saveCooldown <= 0) {
             saveNow();
         }
@@ -196,8 +190,8 @@ public final class NpcManager {
         Entity e = createEntity(level, def);
         if (e == null) return;
         e.setId(nextEntityId++);
-        applyState(e, def);
-        EntityTweaks.prepare(e);
+        EntityTweaks.prepare(e);   // 牙など、そのままだと見えないものの対応
+        applyState(e, def);        // 時刻などの保存値は、これで上書きされる
         level.addEntity(e);
         LIVE.put(def.id(), e);
         SceneFreeze.register(e);
@@ -262,5 +256,6 @@ public final class NpcManager {
                 living.setItemSlot(slot, stack == null ? ItemStack.EMPTY : stack.copy());
             }
         }
+        EntityTweaks.applyAnim(e, d.animTickOrDefault());
     }
 }

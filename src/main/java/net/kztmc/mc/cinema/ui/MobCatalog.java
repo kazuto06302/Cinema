@@ -7,6 +7,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+
+import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.minecraft.core.registries.BuiltInRegistries;
 
 /** モブ選択リスト用のカタログ。MOD追加のモブも自動で含まれる。 */
@@ -47,15 +49,15 @@ public final class MobCatalog {
     }
 
     public static boolean isHidden(String id) {
-        return HIDDEN.contains(id);
+        return EntityProfiles.of(id).isHidden();
     }
 
-    /** includeHidden が true なら、HIDDEN のモブも含める(devモード用) */
+    /** includeHidden が true なら、非表示のモブも含める(devモード用) */
     public static List<Entry> filter(String query, boolean includeHidden) {
         ensure();
         String q = query == null ? "" : query.trim().toLowerCase(Locale.ROOT);
         return all.stream()
-                .filter(e -> includeHidden || !HIDDEN.contains(e.id()))
+                .filter(e -> includeHidden || !isHidden(e.id()))
                 .filter(e -> q.isEmpty()
                         || e.name().toLowerCase(Locale.ROOT).contains(q)
                         || e.id().toLowerCase(Locale.ROOT).contains(q))

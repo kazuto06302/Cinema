@@ -5,6 +5,8 @@ import java.util.*;
 
 import com.mojang.authlib.GameProfile;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityProfiles;
+import net.kztmc.mc.cinema.entity.IconStyle;
 import net.kztmc.mc.cinema.npc.EntityTweaks;
 import net.kztmc.mc.cinema.npc.NpcPlayer;
 import net.kztmc.mc.cinema.npc.SkinResolver;
@@ -58,52 +60,6 @@ public final class MobIcons {
         paint(g, font, playerId(name), name.isBlank() ? "NPC" : name, x, y, size);
     }
 
-    /**
-     * モブごとの表示スタイル。
-     *   fit   : 大きさの倍率(1.0が標準、小さいほど小さく描く)
-     *   yaw   : 横回転(度)。0=正面、90=真横。プラスで画面の左向き
-     *   pitch : 縦回転(度)。上下の傾き。符号が逆なら PITCH_SIGN を反転
-     *   roll  : Z軸回転(度)。画面の中心を軸にアイコン全体を傾ける。符号が逆なら ROLL_SIGN を反転
-     *   height: 高さ(%)。アイコン枠の高さに対する割合で上下にずらす。+で上。逆なら HEIGHT_SIGN を反転
-     */
-    public record IconStyle(float fit, float yaw, float pitch, float roll, float height) {
-        public static final IconStyle DEFAULT = new IconStyle(1f, 20f, 0f, 0f, 0f);
-
-        /** 従来の3項目だけの指定。roll と height は 0 */
-        public static IconStyle of(float fit, float yaw, float pitch) {
-            return new IconStyle(fit, yaw, pitch, 0f, 0f);
-        }
-
-        public static IconStyle of(float fit, float yaw, float pitch, float roll, float height) {
-            return new IconStyle(fit, yaw, pitch, roll, height);
-        }
-
-        /** 大きさだけ変えて、向きは標準のまま */
-        public static IconStyle fit(float fit) {
-            return new IconStyle(fit, DEFAULT.yaw, DEFAULT.pitch, 0f, 0f);
-        }
-
-        public IconStyle withFit(float v) {
-            return new IconStyle(v, yaw, pitch, roll, height);
-        }
-
-        public IconStyle withYaw(float v) {
-            return new IconStyle(fit, v, pitch, roll, height);
-        }
-
-        public IconStyle withPitch(float v) {
-            return new IconStyle(fit, yaw, v, roll, height);
-        }
-
-        public IconStyle withRoll(float v) {
-            return new IconStyle(fit, yaw, pitch, v, height);
-        }
-
-        public IconStyle withHeight(float v) {
-            return new IconStyle(fit, yaw, pitch, roll, v);
-        }
-    }
-
     /** IDを個別に指定するスタイル(最優先)。足りないモブはここに追加する */
     private static final Map<String, IconStyle> STYLES = Map.ofEntries(
             Map.entry("minecraft:acacia_boat", IconStyle.of(0.75f, 45f, 25f)),
@@ -112,8 +68,8 @@ public final class MobIcons {
             Map.entry("minecraft:armadillo", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:arrow", IconStyle.of(0.50f, 80f, 0f, 150f, -40f)),
             Map.entry("minecraft:axolotl", IconStyle.of(0.75f, 20f, 0f)),
-            Map.entry("minecraft:bamboo_raft", IconStyle.of(0.75f, 45f, 25f)),
-            Map.entry("minecraft:bamboo_chest_raft", IconStyle.of(0.75f, 45f, 25f)),
+            Map.entry("minecraft:bamboo_raft", IconStyle.of(0.75f, 45f, 25f, 0f, -10f)),
+            Map.entry("minecraft:bamboo_chest_raft", IconStyle.of(0.75f, 45f, 25f, 0f, -10f)),
             Map.entry("minecraft:bat", IconStyle.of(0.75f, 20f, 0f)),
             Map.entry("minecraft:bee", IconStyle.of(0.60f, 20f, -5f, 5f, -5f)),
             Map.entry("minecraft:birch_boat", IconStyle.of(0.75f, 45f, 25f)),
@@ -235,6 +191,8 @@ public final class MobIcons {
     public static IconStyle styleOf(String id) {
         IconStyle d = DEBUG_STYLES.get(id);
         if (d != null) return d;
+        IconStyle fromProfile = EntityProfiles.of(id).iconStyle();   // 追加: entity/ の設定が最優先
+        if (fromProfile != null) return fromProfile;
         IconStyle s = STYLES.get(id);
         if (s != null) return s;
         for (Map.Entry<String, IconStyle> en : SUFFIX_STYLES) {
@@ -278,17 +236,6 @@ public final class MobIcons {
      * 何も映らない・描画に必要な情報が無くて落ちる可能性があるもの。
      * 落ちるモブが見つかったら、ここにIDを足す。
      */
-    private static final Set<String> NO_RENDER = Set.of(
-            "minecraft:marker",
-            "minecraft:interaction",
-            "minecraft:area_effect_cloud",
-            "minecraft:block_display",
-            "minecraft:item_display",
-            "minecraft:text_display",
-            "minecraft:item",
-            "minecraft:lightning_bolt",
-            "minecraft:ominous_item_spawner"
-    );
 
     private static final Map<String, Optional<Entity>> CACHE = new HashMap<>();
     private static final Set<String> FAILED = new HashSet<>();
@@ -338,7 +285,7 @@ public final class MobIcons {
     /** x, y から size 四方にアイコンを描く */
     public static void paint(GuiGraphicsExtractor g, Font font, String entityId, String name,
                              int x, int y, int size) {
-        if (RENDER_ENTITIES && !NO_RENDER.contains(entityId) && !FAILED.contains(entityId)) {
+        if (RENDER_ENTITIES && !EntityProfiles.of(entityId).isNoRender() && !FAILED.contains(entityId)) {
             Entity e = entityOf(entityId);
             if (e != null && drawEntity(g, e, entityId, x, y, size)) return;
         }

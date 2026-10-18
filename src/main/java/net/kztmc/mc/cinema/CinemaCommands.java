@@ -37,12 +37,6 @@ public final class CinemaCommands {
                                 .then(ClientCommands.argument("entity", StringArgumentType.word())
                                         .executes(ctx -> spawn(NpcData.MOB,
                                                 StringArgumentType.getString(ctx, "entity"), null))))
-                        .then(ClientCommands.literal("freeze")
-                                .executes(ctx -> {
-                                    SceneFreeze.toggle();
-                                    say("時間停止 " + (SceneFreeze.isFrozen() ? "ON" : "OFF"));
-                                    return 1;
-                                }))
                         .then(ClientCommands.literal("clear")
                                 .executes(ctx -> {
                                     NpcManager.clear();

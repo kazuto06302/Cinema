@@ -3,10 +3,10 @@ package net.kztmc.mc.cinema.ui;
 import java.util.*;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.IconStyle;
 import net.kztmc.mc.cinema.npc.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.gui.components.EditBox;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
@@ -153,11 +153,6 @@ public class CinemaScreen extends Screen {
             collapsed = !collapsed;
             refresh();
         }));
-        addRenderableWidget(new ModernButton(pillX + pillW + gap, m, pillW, btnH,
-                "NPC停止", ModernButton.Style.DEFAULT, () -> {
-            SceneFreeze.toggle();
-            refresh();
-        }).setSelected(SceneFreeze.isFrozen()));
         if (collapsed) return;
 
         buildLeft();
@@ -251,6 +246,7 @@ public class CinemaScreen extends Screen {
             mobGrid.setHighlight(e -> devMode && e.id().equals(tuneId));
             mobGrid.setItems(MobCatalog.filter(search, devMode));
             mobGrid.setScroll(mobScroll);
+            mobGrid.setLabelScale(0.85f);
             box.setOnChange(s -> {
                 if (s.trim().equalsIgnoreCase(DEV_WORD)) {
                     toggleDevMode();
@@ -340,7 +336,7 @@ public class CinemaScreen extends Screen {
         }
 
         String id = tuneId;
-        MobIcons.IconStyle s = MobIcons.styleOf(id);
+        IconStyle s = MobIcons.styleOf(id);
 
         addRenderableWidget(new ModernSlider(x, y, w, sliderH, "このモブの大きさ", "%", 30, 150,
                 Math.round(s.fit() * 100f),
@@ -446,6 +442,14 @@ public class CinemaScreen extends Screen {
             }
             y += btnH + gap;
         }
+
+        // --- アニメーション(NPCは常に停止。時刻をtickで指定する) ---
+        labels.add(new Label("アニメーション", x, y, Theme.TEXT_DIM));
+        y += lh;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "時間", "tick", 0,
+                EntityTweaks.animTickMax(d.entityType()), d.animTickOrDefault(),
+                v -> edit(id, cur -> cur.withAnimTick((int) v))));
+        y += sliderH + gap;
 
         // --- 位置 ---
         addRenderableWidget(new ModernButton(x, y, w, btnH, "自分の前に移動",

@@ -110,4 +110,18 @@ public final class Theme {
     public static void textRight(GuiGraphicsExtractor g, Font font, String s, int right, int y, int color) {
         text(g, font, s, right - textWidth(font, s), y, color);
     }
+
+    public static int textWidth(Font font, String s, float scale) {
+        return Math.round(font.width(s) * scale);
+    }
+
+    public static String fit(Font font, String s, int maxWidth, float scale) {
+        if (textWidth(font, s, scale) <= maxWidth) return s;
+        int budget = (int) ((maxWidth - textWidth(font, "…", scale)) / scale);
+        return font.plainSubstrByWidth(s, Math.max(0, budget)) + "…";
+    }
+
+    public static void textCentered(GuiGraphicsExtractor g, Font font, String s, int cx, int y, int color, float scale) {
+        text(g, font, s, cx - textWidth(font, s, scale) / 2, y, color, scale);
+    }
 }

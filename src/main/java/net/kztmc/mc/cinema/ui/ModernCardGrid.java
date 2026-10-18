@@ -63,8 +63,24 @@ public class ModernCardGrid<T> extends AbstractWidget {
         return Math.max(4, Math.min(Theme.u(40), cardW() - gap() * 2));
     }
 
+    private float labelScale = 1.0f;
+
+    /** カードの名前の文字の大きさ(UI標準を1.0とした倍率) */
+    public ModernCardGrid<T> setLabelScale(float s) {
+        this.labelScale = s;
+        return this;
+    }
+
+    private float labelFontScale() {
+        return Theme.fontScale() * labelScale;
+    }
+
+    private int labelH() {
+        return Math.max(3, Math.round(8 * labelFontScale()));
+    }
+
     private int cardH() {
-        return gap() + iconSize() + Theme.u(3) + Theme.textH() + gap();
+        return gap() + iconSize() + Theme.u(3) + labelH() + gap();
     }
 
     private int rows() {
@@ -127,9 +143,10 @@ public class ModernCardGrid<T> extends AbstractWidget {
 
             painter.paint(g, item, cx + (cw - icon) / 2, cy + gap, icon);
 
-            String name = Theme.fit(font, label.apply(item), cw - Theme.u(6));
+            float ls = labelFontScale();
+            String name = Theme.fit(font, label.apply(item), cw - Theme.u(6), ls);
             Theme.textCentered(g, font, name, cx + cw / 2, cy + gap + icon + Theme.u(3),
-                    hov ? 0xFFFFFFFF : Theme.TEXT);
+                    hov ? 0xFFFFFFFF : Theme.TEXT, ls);
         }
         g.disableScissor();
 

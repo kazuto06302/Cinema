@@ -5,39 +5,18 @@ import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.world.entity.Entity;
 
 /**
- * NPCだけを止める。ワールドのほかのエンティティやサーバーには影響しない。
- * 実際の停止は、mixin 側(TickRateManagerMixin / EntityRendererMixin)が isFrozenNpc を見て行う。
+ * NPCをティックさせない/描画の補間値を固定するための登録簿。
+ * 実際の停止は mixin(TickRateManagerMixin / EntityRendererMixin)が isFrozenNpc を見て行う。
+ * NPCは常に停止していて、アニメーションの時刻は NpcData.animTick で指定する。
  */
 public final class SceneFreeze {
     private SceneFreeze() {}
 
-    /** 止めている間、NPCの描画に使う補間値。1.0で「ティックを進め切った位置」に固定する */
+    /** NPCの描画に使う補間値。1.0で「ティックを進め切った位置」に固定する */
     public static final float FROZEN_PARTIAL_TICK = 1.0f;
 
-    private static volatile boolean frozen;
-
-    // サーバースレッド(統合サーバー)から isEntityFrozen が呼ばれることがあるので、スレッドセーフにする
+    // 統合サーバーのスレッドから isEntityFrozen が呼ばれることがあるので、スレッドセーフにする
     private static final Set<Entity> NPC_ENTITIES = ConcurrentHashMap.newKeySet();
-
-    public static boolean isFrozen() {
-        return frozen;
-    }
-
-    public static void toggle() {
-        frozen = !frozen;
-    }
-
-    public static void set(boolean value) {
-        frozen = value;
-    }
-
-    /** 切断時に呼ぶ */
-    public static void reset() {
-        frozen = false;
-        NPC_ENTITIES.clear();
-    }
-
-    // ---- NPCの登録(NpcManager が呼ぶ) ----
 
     public static void register(Entity e) {
         NPC_ENTITIES.add(e);
@@ -51,8 +30,13 @@ public final class SceneFreeze {
         NPC_ENTITIES.clear();
     }
 
-    /** mixin から呼ばれる。止めている間の、登録済みNPCのときだけ true */
+    /** 切断時に呼ぶ */
+    public static void reset() {
+        NPC_ENTITIES.clear();
+    }
+
+    /** mixin から呼ばれる。登録済みのNPCなら常に true */
     public static boolean isFrozenNpc(Entity e) {
-        return frozen && NPC_ENTITIES.contains(e);
+        return NPC_ENTITIES.contains(e);
     }
 }

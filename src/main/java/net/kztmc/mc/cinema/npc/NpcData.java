@@ -11,6 +11,7 @@ import net.minecraft.world.item.ItemStack;
 /**
  * NPC 1体ぶんの「定義」。ワールド再入場時はこれを元にエンティティを作り直す。
  * 項目を増やすときは optionalFieldOf で追加すると旧ファイルも読める。
+ * (group の上限は16フィールド。今がちょうど16)
  */
 public record NpcData(
         UUID id,
@@ -22,6 +23,7 @@ public record NpcData(
         double x, double y, double z,
         float yRot, float xRot, float headYRot, float bodyYRot,
         Optional<String> pose,    // NpcPose の名前
+        Optional<Integer> animTick, // アニメーションの時刻(tick)。空なら種類ごとの初期値
         Map<String, ItemStack> equipment // EquipmentSlot#getName() -> ItemStack
 ) {
     public static final String PLAYER = "player";
@@ -42,6 +44,7 @@ public record NpcData(
             Codec.FLOAT.fieldOf("head_y_rot").forGetter(NpcData::headYRot),
             Codec.FLOAT.fieldOf("body_y_rot").forGetter(NpcData::bodyYRot),
             Codec.STRING.optionalFieldOf("pose").forGetter(NpcData::pose),
+            Codec.INT.optionalFieldOf("anim_tick").forGetter(NpcData::animTick),
             Codec.unboundedMap(Codec.STRING, ItemStack.OPTIONAL_CODEC)
                     .optionalFieldOf("equipment", Map.of()).forGetter(NpcData::equipment)
     ).apply(i, NpcData::new));
@@ -49,30 +52,40 @@ public record NpcData(
     public static NpcData create(String kind, String entityType, String skin,
                                  String dimension, double x, double y, double z, float yaw) {
         return new NpcData(UUID.randomUUID(), kind, entityType, Optional.ofNullable(skin), Optional.empty(),
-                dimension, x, y, z, yaw, 0f, yaw, yaw, Optional.empty(), Map.of());
+                dimension, x, y, z, yaw, 0f, yaw, yaw, Optional.empty(), Optional.empty(), Map.of());
     }
 
     public NpcPose npcPose() {
         return NpcPose.of(pose.orElse(null));
     }
 
+    /** 保存値が無ければ、種類ごとの初期値(牙は14、それ以外は0) */
+    public int animTickOrDefault() {
+        return animTick.orElse(EntityTweaks.defaultAnimTick(entityType));
+    }
+
     public NpcData withTransform(double x, double y, double z, float yRot, float xRot, float headYRot, float bodyYRot) {
         return new NpcData(id, kind, entityType, skin, model, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
-                pose, equipment);
+                pose, animTick, equipment);
     }
 
     public NpcData withPose(NpcPose p) {
         return new NpcData(id, kind, entityType, skin, model, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
-                Optional.of(p.name()), equipment);
+                Optional.of(p.name()), animTick, equipment);
     }
 
     public NpcData withEquipment(Map<String, ItemStack> eq) {
         return new NpcData(id, kind, entityType, skin, model, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
-                pose, Map.copyOf(eq));
+                pose, animTick, Map.copyOf(eq));
     }
 
     public NpcData withModel(Optional<String> m) {
         return new NpcData(id, kind, entityType, skin, m, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
-                pose, equipment);
+                pose, animTick, equipment);
+    }
+
+    public NpcData withAnimTick(int tick) {
+        return new NpcData(id, kind, entityType, skin, model, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
+                pose, Optional.of(tick), equipment);
     }
 }
