@@ -7,11 +7,15 @@ import net.minecraft.world.entity.Entity;
  * 1種類(または近い仲間)のエンティティの設定。
  * データだけなら EntityProfile.of(...) に設定をつなげて EntityProfiles に登録する。
  * 動きが必要なら、継承して prepare / applyAnim を実装する。
+ *
+ * 処理の層:
+ *   1. applyAnim: 時刻(tick)から、エンティティの状態を書き込む(entity/animation の部品を使う)
+ *   2. applyPose: その上に、部位ごとの調整を重ねる(将来。翼・頭など)
  */
 public class EntityProfile {
     private final Set<String> ids;
     private int defaultAnimTick = 0;
-    private int animTickMax = 20;
+    private int animTickMax = 40;
     private boolean hidden;
     private boolean noRender;
     private IconStyle iconStyle;
@@ -32,7 +36,7 @@ public class EntityProfile {
         return this;
     }
 
-    /** アニメーションのスライダーの上限(tick)。既定は20 */
+    /** アニメーションのスライダーの上限(tick)。既定は40 */
     public EntityProfile animMax(int tick) {
         this.animTickMax = tick;
         return this;
@@ -85,7 +89,7 @@ public class EntityProfile {
         return noRender;
     }
 
-    /** 未指定なら null(従来の MobIcons の表を使う) */
+    /** 未指定なら null(MobIcons の表を使う) */
     public IconStyle iconStyle() {
         return iconStyle;
     }
@@ -97,7 +101,15 @@ public class EntityProfile {
 
     /**
      * アニメーション時刻の反映。NPCはティックされないので、ここで状態を直接書き込む。
-     * tickCount の設定は、呼び出し側が済ませている。
+     * time は小数(0.1刻み)。n = floor(time) として、
+     * 「n回めの状態」を old、「n+1回めの状態」を current として書き込む(描画側が小数部分で補間する)。
+     * tickCount と補間値の設定は、呼び出し側(EntityTweaks)が済ませている。
      */
-    public void applyAnim(Entity e, int tick) {}
+    public void applyAnim(Entity e, float time) {}
+
+    /**
+     * Pose(部位ごとの調整)の反映。applyAnim の後に呼ばれる。今は何もしない。
+     * tick で動かした結果の上に、翼・頭などの位置を追加で調整する用。
+     */
+    public void applyPose(Entity e, float time) {}
 }

@@ -27,6 +27,8 @@ public final class EntityProfiles {
         register(new SquidProfile());
         register(new ChickenProfile());
         register(new ParrotProfile());
+        register(new CreeperProfile());
+        register(new ShulkerProfile());
 
         // ---- 何も映らない: モブ追加画面に出さず、アイコンも描かない ----
         for (String id : List.of(

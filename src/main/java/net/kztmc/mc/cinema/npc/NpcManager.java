@@ -190,11 +190,11 @@ public final class NpcManager {
         Entity e = createEntity(level, def);
         if (e == null) return;
         e.setId(nextEntityId++);
+        SceneFreeze.register(e);   // 先に登録する(時刻の補間値の保存先)
         EntityTweaks.prepare(e);   // 牙など、そのままだと見えないものの対応
         applyState(e, def);        // 時刻などの保存値は、これで上書きされる
         level.addEntity(e);
         LIVE.put(def.id(), e);
-        SceneFreeze.register(e);
     }
 
     private static void despawn(UUID id) {
@@ -225,9 +225,9 @@ public final class NpcManager {
     /** 何度呼んでも同じ結果になる(冪等)ようにしてある。生成時と編集時の両方で使う。 */
     private static void applyState(Entity e, NpcData d) {
         e.setPos(d.x(), d.y(), d.z());
-        e.xo = e.xOld = d.x();
-        e.yo = e.yOld = d.y();
-        e.zo = e.zOld = d.z();
+        e.xo = e.xOld = e.getX();
+        e.yo = e.yOld = e.getY();
+        e.zo = e.zOld = e.getZ();
         e.setYRot(d.yRot());
         e.setXRot(d.xRot());
         e.yRotO = d.yRot();

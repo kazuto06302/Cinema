@@ -12,7 +12,7 @@ public final class ChickenProfile extends EntityProfile {
     }
 
     @Override
-    public void applyAnim(Entity e, int tick) {
-        FlapAnimation.apply(e, tick);
+    public void applyAnim(Entity e, float time) {
+        FlapAnimation.apply(e, time);
     }
 }

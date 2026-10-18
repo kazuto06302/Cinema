@@ -1,25 +1,23 @@
 package net.kztmc.mc.cinema.npc;
 
-import java.util.Set;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import net.minecraft.world.entity.Entity;
 
 /**
  * NPCをティックさせない/描画の補間値を固定するための登録簿。
- * 実際の停止は mixin(TickRateManagerMixin / EntityRendererMixin)が isFrozenNpc を見て行う。
- * NPCは常に停止していて、アニメーションの時刻は NpcData.animTick で指定する。
+ * 実際の停止は mixin(TickRateManagerMixin / EntityRendererMixin)が参照する。
+ * NPCは常に停止していて、アニメーション時刻は NpcData.animTick で指定する。
+ * 補間値は、時刻の小数部分(0.1刻みの時刻を表すため)。
  */
 public final class SceneFreeze {
     private SceneFreeze() {}
 
-    /** NPCの描画に使う補間値。1.0で「ティックを進め切った位置」に固定する */
-    public static final float FROZEN_PARTIAL_TICK = 1.0f;
-
     // 統合サーバーのスレッドから isEntityFrozen が呼ばれることがあるので、スレッドセーフにする
-    private static final Set<Entity> NPC_ENTITIES = ConcurrentHashMap.newKeySet();
+    private static final Map<Entity, Float> NPC_ENTITIES = new ConcurrentHashMap<>();
 
     public static void register(Entity e) {
-        NPC_ENTITIES.add(e);
+        NPC_ENTITIES.putIfAbsent(e, 0.0f);
     }
 
     public static void unregister(Entity e) {
@@ -35,8 +33,19 @@ public final class SceneFreeze {
         NPC_ENTITIES.clear();
     }
 
+    /** 登録済みのNPCだけ、補間値を更新する(アイコン用のエンティティは対象外) */
+    public static void setPartialTick(Entity e, float partialTick) {
+        NPC_ENTITIES.computeIfPresent(e, (k, v) -> partialTick);
+    }
+
+    /** mixin から呼ばれる。このNPCの描画に使う補間値 */
+    public static float partialTickOf(Entity e) {
+        Float p = NPC_ENTITIES.get(e);
+        return p == null ? 0.0f : p;
+    }
+
     /** mixin から呼ばれる。登録済みのNPCなら常に true */
     public static boolean isFrozenNpc(Entity e) {
-        return NPC_ENTITIES.contains(e);
+        return NPC_ENTITIES.containsKey(e);
     }
 }

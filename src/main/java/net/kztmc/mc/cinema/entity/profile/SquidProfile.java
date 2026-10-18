@@ -7,8 +7,7 @@ import net.minecraft.world.entity.Entity;
 
 /**
  * イカとヒカリイカ。触手は tentacleMovement(0〜2π)が進むにつれて、
- * 水中では「開いてから閉じる」動きをする。
- * バニラの式を、固定の速さ(TENTACLE_SPEED)で進めたものを書き込む。
+ * 水中では「開いてから閉じる」動きをする。バニラの式を、固定の速さで進めたものを書き込む。
  */
 public final class SquidProfile extends EntityProfile {
     /** 1tickで進む位相(rad)。バニラは個体ごとに 0.1〜0.2 程度。大きいほど速く動く */
@@ -22,14 +21,15 @@ public final class SquidProfile extends EntityProfile {
     }
 
     @Override
-    public void applyAnim(Entity e, int tick) {
-        float move = Math.min(TENTACLE_SPEED * tick, TWO_PI);
-        float oldMove = Math.min(TENTACLE_SPEED * Math.max(0, tick - 1), TWO_PI);
+    public void applyAnim(Entity e, float time) {
+        int n = (int) Math.floor(time);
+        float oldMove = Math.min(TENTACLE_SPEED * n, TWO_PI);
+        float move = Math.min(TENTACLE_SPEED * (n + 1), TWO_PI);
 
-        EntityReflect.setFloat(e, "tentacleMovement", move);
         EntityReflect.setFloat(e, "oldTentacleMovement", oldMove);
-        EntityReflect.setFloat(e, "tentacleAngle", angle(move));
+        EntityReflect.setFloat(e, "tentacleMovement", move);
         EntityReflect.setFloat(e, "oldTentacleAngle", angle(oldMove));
+        EntityReflect.setFloat(e, "tentacleAngle", angle(move));
     }
 
     /** バニラの「水中」の式。前半(0〜π)で開いて、後半は閉じたまま */

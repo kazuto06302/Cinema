@@ -26,9 +26,8 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
 
         cinema$pinning = true;
         try {
-            @SuppressWarnings("unchecked")
             EntityRenderer<T, S> self = (EntityRenderer<T, S>) (Object) this;
-            cir.setReturnValue(self.createRenderState(entity, SceneFreeze.FROZEN_PARTIAL_TICK));
+            cir.setReturnValue(self.createRenderState(entity, SceneFreeze.partialTickOf(entity)));
         } finally {
             cinema$pinning = false;
         }

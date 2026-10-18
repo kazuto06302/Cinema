@@ -447,8 +447,8 @@ public class CinemaScreen extends Screen {
         labels.add(new Label("アニメーション", x, y, Theme.TEXT_DIM));
         y += lh;
         addRenderableWidget(new ModernSlider(x, y, w, sliderH, "時間", "tick", 0,
-                EntityTweaks.animTickMax(d.entityType()), d.animTickOrDefault(),
-                v -> edit(id, cur -> cur.withAnimTick((int) v))));
+                EntityTweaks.animTickMax(d.entityType()), 0.1, d.animTickOrDefault(),
+                v -> edit(id, cur -> cur.withAnimTick((float) v))));
         y += sliderH + gap;
 
         // --- 位置 ---

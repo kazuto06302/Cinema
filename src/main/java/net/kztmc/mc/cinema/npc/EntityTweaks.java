@@ -23,10 +23,19 @@ public final class EntityTweaks {
         applyAnim(e, profile.defaultAnimTick());
     }
 
-    /** アニメーション時刻を反映する。NPCはティックされないので、ここで直接書き込む */
-    public static void applyAnim(Entity e, int tick) {
-        int t = Math.max(0, tick);
-        e.tickCount = t;
-        EntityProfiles.of(e).applyAnim(e, t);
+    /**
+     * アニメーション時刻(小数)を反映する。NPCはティックされないので、ここで直接書き込む。
+     * 描画側の時刻は「tickCount + 補間値」なので、tickCount = floor(time)、補間値 = 小数部分にする。
+     * 順序: アニメーション(時刻から状態を書く) → Pose(その上に部位の調整を重ねる)
+     */
+    public static void applyAnim(Entity e, float time) {
+        float t = Math.max(0f, time);
+        int n = (int) Math.floor(t);
+        e.tickCount = n;
+        SceneFreeze.setPartialTick(e, t - n);
+
+        EntityProfile profile = EntityProfiles.of(e);
+        profile.applyAnim(e, t);
+        profile.applyPose(e, t);
     }
 }

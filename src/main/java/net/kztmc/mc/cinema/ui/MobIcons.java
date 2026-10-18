@@ -379,6 +379,6 @@ public final class MobIcons {
     private static EntityRenderState createState(Entity e) {
         EntityRenderDispatcher dispatcher = Minecraft.getInstance().getEntityRenderDispatcher();
         EntityRenderer renderer = dispatcher.getRenderer(e);
-        return renderer.createRenderState(e, 1.0f);
+        return renderer.createRenderState(e, 0.0f);   // 旧: 1.0f
     }
 }

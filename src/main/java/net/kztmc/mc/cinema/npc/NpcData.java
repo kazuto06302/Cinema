@@ -23,7 +23,7 @@ public record NpcData(
         double x, double y, double z,
         float yRot, float xRot, float headYRot, float bodyYRot,
         Optional<String> pose,    // NpcPose の名前
-        Optional<Integer> animTick, // アニメーションの時刻(tick)。空なら種類ごとの初期値
+        Optional<Float> animTick, // アニメーションの時刻(tick)。空なら種類ごとの初期値
         Map<String, ItemStack> equipment // EquipmentSlot#getName() -> ItemStack
 ) {
     public static final String PLAYER = "player";
@@ -44,7 +44,7 @@ public record NpcData(
             Codec.FLOAT.fieldOf("head_y_rot").forGetter(NpcData::headYRot),
             Codec.FLOAT.fieldOf("body_y_rot").forGetter(NpcData::bodyYRot),
             Codec.STRING.optionalFieldOf("pose").forGetter(NpcData::pose),
-            Codec.INT.optionalFieldOf("anim_tick").forGetter(NpcData::animTick),
+            Codec.FLOAT.optionalFieldOf("anim_tick").forGetter(NpcData::animTick),
             Codec.unboundedMap(Codec.STRING, ItemStack.OPTIONAL_CODEC)
                     .optionalFieldOf("equipment", Map.of()).forGetter(NpcData::equipment)
     ).apply(i, NpcData::new));
@@ -60,10 +60,10 @@ public record NpcData(
     }
 
     /** 保存値が無ければ、種類ごとの初期値(牙は14、それ以外は0) */
-    public int animTickOrDefault() {
-        return animTick.orElse(EntityTweaks.defaultAnimTick(entityType));
+    /** 保存値が無ければ、種類ごとの初期値 */
+    public float animTickOrDefault() {
+        return animTick.orElse((float) EntityTweaks.defaultAnimTick(entityType));
     }
-
     public NpcData withTransform(double x, double y, double z, float yRot, float xRot, float headYRot, float bodyYRot) {
         return new NpcData(id, kind, entityType, skin, model, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
                 pose, animTick, equipment);
@@ -84,8 +84,8 @@ public record NpcData(
                 pose, animTick, equipment);
     }
 
-    public NpcData withAnimTick(int tick) {
+    public NpcData withAnimTick(float tick) {
         return new NpcData(id, kind, entityType, skin, model, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
-                pose, Optional.of(tick), equipment);
+                pose, Optional.of(Math.round(tick * 10f) / 10f), equipment);
     }
 }
