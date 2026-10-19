@@ -1,6 +1,7 @@
 package net.kztmc.mc.cinema.entity;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -54,6 +55,19 @@ public final class EntityReflect {
                 c = c.getSuperclass();
                 if (c == null) throw ex;
             }
+        }
+    }
+
+    /** 公開メソッドの呼び出し(クラスを直接参照せずに済ませる)。失敗したらログを1回出して、以降は何もしない */
+    public static void invoke(Object target, String name, Class<?>[] types, Object... args) {
+        String key = target.getClass().getName() + "#" + name + "()";
+        if (FAILED.contains(key)) return;
+        try {
+            Method m = target.getClass().getMethod(name, types);
+            m.invoke(target, args);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            FAILED.add(key);
+            Cinema.LOGGER.warn("Could not call method '{}' on {}", name, target.getClass().getName(), ex);
         }
     }
 }

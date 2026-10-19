@@ -29,6 +29,7 @@ public final class EntityProfiles {
         register(new ParrotProfile());
         register(new CreeperProfile());
         register(new ShulkerProfile());
+        register(new SlimeProfile());
 
         // ---- 何も映らない: モブ追加画面に出さず、アイコンも描かない ----
         for (String id : List.of(

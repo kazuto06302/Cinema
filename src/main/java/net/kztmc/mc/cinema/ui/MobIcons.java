@@ -7,6 +7,7 @@ import com.mojang.authlib.GameProfile;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.kztmc.mc.cinema.entity.IconStyle;
+import net.kztmc.mc.cinema.npc.EntityIds;
 import net.kztmc.mc.cinema.npc.EntityTweaks;
 import net.kztmc.mc.cinema.npc.NpcPlayer;
 import net.kztmc.mc.cinema.npc.SkinResolver;
@@ -273,7 +274,7 @@ public final class MobIcons {
             if (type == null) return Optional.empty();
             Entity e = type.create(level, EntitySpawnReason.LOAD);
             if (e == null) return Optional.empty();
-            e.setId(nextIconId++);   // 未割り当てのまま描画すると IllegalStateException になる
+            nextIconId = EntityIds.assign(e, nextIconId);
             EntityTweaks.prepare(e);
             return Optional.of(e);
         } catch (Throwable t) {

@@ -10,6 +10,7 @@ import java.util.UUID;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -189,7 +190,7 @@ public final class NpcManager {
     private static void spawn(ClientLevel level, NpcData def) {
         Entity e = createEntity(level, def);
         if (e == null) return;
-        e.setId(nextEntityId++);
+        nextEntityId = EntityIds.assign(e, nextEntityId);
         SceneFreeze.register(e);   // 先に登録する(時刻の補間値の保存先)
         EntityTweaks.prepare(e);   // 牙など、そのままだと見えないものの対応
         applyState(e, def);        // 時刻などの保存値は、これで上書きされる
@@ -224,7 +225,9 @@ public final class NpcManager {
 
     /** 何度呼んでも同じ結果になる(冪等)ようにしてある。生成時と編集時の両方で使う。 */
     private static void applyState(Entity e, NpcData d) {
+        EntityProfiles.of(e).applyOptions(e, d.options());
         e.setPos(d.x(), d.y(), d.z());
+        for (Entity part : EntityIds.subEntities(e)) part.setPos(e.getX(), e.getY(), e.getZ());
         e.xo = e.xOld = e.getX();
         e.yo = e.yOld = e.getY();
         e.zo = e.zOld = e.getZ();

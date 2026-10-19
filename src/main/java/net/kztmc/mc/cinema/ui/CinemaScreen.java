@@ -3,6 +3,8 @@ package net.kztmc.mc.cinema.ui;
 import java.util.*;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityOption;
+import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.kztmc.mc.cinema.entity.IconStyle;
 import net.kztmc.mc.cinema.npc.*;
 import net.minecraft.client.Minecraft;
@@ -450,6 +452,20 @@ public class CinemaScreen extends Screen {
                 EntityTweaks.animTickMax(d.entityType()), 0.1, d.animTickOrDefault(),
                 v -> edit(id, cur -> cur.withAnimTick((float) v))));
         y += sliderH + gap;
+
+        // --- エンティティ固有のオプション(プロフィールが宣言したものだけ) ---
+        List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
+        if (!specs.isEmpty()) {
+            labels.add(new Label("オプション", x, y, Theme.TEXT_DIM));
+            y += lh;
+            for (EntityOption spec : specs) {
+                addRenderableWidget(new ModernSlider(x, y, w, sliderH, spec.label(), "",
+                        spec.min(), spec.max(), d.option(spec.key(), spec.def()),
+                        v -> edit(id, cur -> cur.withOption(spec.key(), (int) v))));
+                y += sliderH;
+            }
+            y += gap;
+        }
 
         // --- 位置 ---
         addRenderableWidget(new ModernButton(x, y, w, btnH, "自分の前に移動",

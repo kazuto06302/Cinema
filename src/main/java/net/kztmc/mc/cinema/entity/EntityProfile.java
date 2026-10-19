@@ -1,5 +1,8 @@
 package net.kztmc.mc.cinema.entity;
 
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import net.minecraft.world.entity.Entity;
 
@@ -112,4 +115,19 @@ public class EntityProfile {
      * tick で動かした結果の上に、翼・頭などの位置を追加で調整する用。
      */
     public void applyPose(Entity e, float time) {}
+
+    private final List<EntityOption> options = new ArrayList<>();
+
+    /** 右パネルに出す整数スライダーを1つ足す。値は NpcData に保存され、applyOptions で反映する */
+    public EntityProfile option(String key, String label, int min, int max, int def) {
+        options.add(new EntityOption(key, label, min, max, def));
+        return this;
+    }
+
+    public List<EntityOption> options() {
+        return options;
+    }
+
+    /** オプションの反映。保存値のあるキーだけ入っている。NPCの生成時と、スライダーを動かすたびに呼ばれる */
+    public void applyOptions(Entity e, Map<String, Integer> values) {}
 }
