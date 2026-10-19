@@ -130,4 +130,7 @@ public class EntityProfile {
 
     /** オプションの反映。保存値のあるキーだけ入っている。NPCの生成時と、スライダーを動かすたびに呼ばれる */
     public void applyOptions(Entity e, Map<String, Integer> values) {}
+
+    /** 位置・向きの設定が終わった後に呼ばれる。位置や向きに合わせて動く部品(エンダードラゴンの当たり判定など)の配置用 */
+    public void applyTransform(Entity e) {}
 }

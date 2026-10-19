@@ -227,7 +227,10 @@ public final class NpcManager {
     private static void applyState(Entity e, NpcData d) {
         EntityProfiles.of(e).applyOptions(e, d.options());
         e.setPos(d.x(), d.y(), d.z());
-        for (Entity part : EntityIds.subEntities(e)) part.setPos(e.getX(), e.getY(), e.getZ());
+        for (Entity part : EntityIds.subEntities(e)) {
+            part.setPos(e.getX(), e.getY(), e.getZ());
+            part.setOldPosAndRot();
+        }
         e.xo = e.xOld = e.getX();
         e.yo = e.yOld = e.getY();
         e.zo = e.zOld = e.getZ();
@@ -259,6 +262,7 @@ public final class NpcManager {
                 living.setItemSlot(slot, stack == null ? ItemStack.EMPTY : stack.copy());
             }
         }
+        EntityProfiles.of(e).applyTransform(e);   // 位置に合わせて動かす部品(ドラゴンの当たり判定)の配置
         EntityTweaks.applyAnim(e, d.animTickOrDefault());
     }
 }

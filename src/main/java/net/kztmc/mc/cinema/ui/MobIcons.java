@@ -83,7 +83,7 @@ public final class MobIcons {
             Map.entry("minecraft:cherry_chest_boat", IconStyle.of(0.75f, 45f, 25f)),
             Map.entry("minecraft:chicken", IconStyle.of(0.65f, 20f, 0f)),
             Map.entry("minecraft:cod", IconStyle.of(0.75f, 90f, -75f, 0f, 15f)),
-            Map.entry("minecraft:copper_golem", IconStyle.of(0.60f, 20f, 0f)),
+            Map.entry("minecraft:copper_golem", IconStyle.of(0.60f, 20f, 0f, 0f, -10f)),
             Map.entry("minecraft:cow", IconStyle.of(0.80f, 20f, 0f)),
             Map.entry("minecraft:creaking", IconStyle.of(1.20f, 20f, 0f)),
             Map.entry("minecraft:cushion", IconStyle.of(1.00f, 0f, 30f)),
