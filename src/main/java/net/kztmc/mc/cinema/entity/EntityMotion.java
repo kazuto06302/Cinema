@@ -43,7 +43,7 @@ public final class EntityMotion {
         EntityReflect.setFloat(walk, "position", phase + amount * (1.0f - partialTick));
 
         // 腕を振る(old と同じ値にして、補間値に左右されないようにする)
-        living.attackAnim = swing;
-        living.oAttackAnim = swing;
+        EntityReflect.trySetFloat(living, swing, "attackAnim", "swingProgress", "handSwingProgress");
+        EntityReflect.trySetFloat(living, swing, "oAttackAnim", "oSwingProgress", "lastHandSwingProgress");
     }
 }
