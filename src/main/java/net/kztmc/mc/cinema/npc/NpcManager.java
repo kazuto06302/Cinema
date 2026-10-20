@@ -10,6 +10,7 @@ import java.util.UUID;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -264,5 +265,6 @@ public final class NpcManager {
         }
         EntityProfiles.of(e).applyTransform(e);   // 位置に合わせて動かす部品(ドラゴンの当たり判定)の配置
         EntityTweaks.applyAnim(e, d.animTickOrDefault());
+        EntityMotion.apply(e, d.options(), SceneFreeze.partialTickOf(e));
     }
 }

@@ -3,6 +3,7 @@ package net.kztmc.mc.cinema.ui;
 import java.util.*;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityOption;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.kztmc.mc.cinema.entity.IconStyle;
@@ -452,6 +453,23 @@ public class CinemaScreen extends Screen {
                 EntityTweaks.animTickMax(d.entityType()), 0.1, d.animTickOrDefault(),
                 v -> edit(id, cur -> cur.withAnimTick((float) v))));
         y += sliderH + gap;
+
+        // --- 動き(歩行・腕を振る)。アニメーションの時間とは独立 ---
+        labels.add(new Label("動き", x, y, Theme.TEXT_DIM));
+        y += lh;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行の位相", "°", 0, 360,
+                d.option(EntityMotion.WALK_PHASE, 0),
+                v -> edit(id, cur -> cur.withOption(EntityMotion.WALK_PHASE, (int) v))));
+        y += sliderH;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行の強さ", "%", 0, 100,
+                d.option(EntityMotion.WALK_AMOUNT, 0),
+                v -> edit(id, cur -> cur.withOption(EntityMotion.WALK_AMOUNT, (int) v))));
+        y += sliderH;
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "腕を振る", "%", 0, 100,
+                d.option(EntityMotion.SWING, 0),
+                v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))));
+        y += sliderH + gap;
+
 
         // --- エンティティ固有のオプション(プロフィールが宣言したものだけ) ---
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
