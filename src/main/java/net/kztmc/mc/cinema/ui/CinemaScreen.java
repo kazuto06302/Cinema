@@ -457,19 +457,15 @@ public class CinemaScreen extends Screen {
         // --- 動き(歩行・腕を振る)。アニメーションの時間とは独立 ---
         labels.add(new Label("動き", x, y, Theme.TEXT_DIM));
         y += lh;
-        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行の位相", "°", 0, 360,
-                d.option(EntityMotion.WALK_PHASE, 0),
-                v -> edit(id, cur -> cur.withOption(EntityMotion.WALK_PHASE, (int) v))));
-        y += sliderH;
-        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行の強さ", "%", 0, 100,
-                d.option(EntityMotion.WALK_AMOUNT, 0),
-                v -> edit(id, cur -> cur.withOption(EntityMotion.WALK_AMOUNT, (int) v))));
+
+        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行", "%", -100, 100,
+                d.option(EntityMotion.WALK, 0),
+                v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v))));
         y += sliderH;
         addRenderableWidget(new ModernSlider(x, y, w, sliderH, "腕を振る", "%", 0, 100,
                 d.option(EntityMotion.SWING, 0),
                 v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))));
         y += sliderH + gap;
-
 
         // --- エンティティ固有のオプション(プロフィールが宣言したものだけ) ---
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();

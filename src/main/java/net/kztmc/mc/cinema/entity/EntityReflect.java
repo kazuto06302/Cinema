@@ -3,12 +3,8 @@ package net.kztmc.mc.cinema.entity;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+
 import net.kztmc.mc.cinema.Cinema;
 
 /**
@@ -21,6 +17,8 @@ public final class EntityReflect {
 
     private static final Map<String, Field> FIELDS = new HashMap<>();
     private static final Set<String> FAILED = new HashSet<>();
+    private static final Map<String, List<Field>> MATCHED = new HashMap<>();
+    private static final Set<Class<?>> DUMPED = new HashSet<>();
 
     @FunctionalInterface
     private interface Setter {
@@ -119,5 +117,114 @@ public final class EntityReflect {
             }
         }
         return out;
+    }
+    public static boolean setFloatsMatching(Object target, float value, List<String> anyOfA, List<String> anyOfB) {
+        Class<?> cls = target.getClass();
+        String key = cls.getName() + "#match" + anyOfA + anyOfB;
+
+        List<Field> fields = MATCHED.get(key);
+        if (fields == null) {
+            fields = new ArrayList<>();
+            for (Class<?> c = cls; c != null && c != Object.class; c = c.getSuperclass()) {
+                for (Field f : c.getDeclaredFields()) {
+                    if (f.getType() != float.class || Modifier.isStatic(f.getModifiers())) continue;
+                    String n = f.getName().toLowerCase(Locale.ROOT);
+                    if (containsAny(n, anyOfA) && containsAny(n, anyOfB)) {
+                        try {
+                            f.setAccessible(true);
+                            fields.add(f);
+                        } catch (RuntimeException ex) {
+                            Cinema.LOGGER.warn("Cannot access field {}", f, ex);
+                        }
+                    }
+                }
+            }
+            MATCHED.put(key, fields);
+
+            if (fields.isEmpty()) {
+                Cinema.LOGGER.warn("[Cinema] no float field matched {} x {} on {}. Related fields: {}",
+                        anyOfA, anyOfB, cls.getName(), related(cls, anyOfA));
+            } else {
+                List<String> names = new ArrayList<>();
+                for (Field f : fields) names.add(f.getDeclaringClass().getSimpleName() + "." + f.getName());
+                Cinema.LOGGER.info("[Cinema] writing {} on {}: {}", anyOfA, cls.getSimpleName(), names);
+            }
+        }
+
+        for (Field f : fields) {
+            try {
+                f.setFloat(target, value);
+            } catch (IllegalAccessException | RuntimeException ignored) {
+                // 次回以降も同じ失敗になるので、ここでは何もしない
+            }
+        }
+        return !fields.isEmpty();
+    }
+
+    private static boolean containsAny(String lowerName, List<String> keywords) {
+        for (String k : keywords) {
+            if (lowerName.contains(k.toLowerCase(Locale.ROOT))) return true;
+        }
+        return false;
+    }
+
+    /** 診断用: キーワードのどれかを名前に含む、あらゆる型のフィールドの一覧("宣言クラス.名前(型)") */
+    private static List<String> related(Class<?> start, List<String> keywords) {
+        List<String> out = new ArrayList<>();
+        for (Class<?> c = start; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if (containsAny(f.getName().toLowerCase(Locale.ROOT), keywords)) {
+                    out.add(c.getSimpleName() + "." + f.getName() + "(" + f.getType().getSimpleName() + ")");
+                }
+            }
+        }
+        return out;
+    }
+
+    public static Object getObject(Object target, String name) {
+        String key = target.getClass().getName() + "#" + name;
+        String getKey = key + "#get";
+        if (FAILED.contains(getKey)) return null;
+        try {
+            return field(target.getClass(), name, key).get(target);
+        } catch (NoSuchFieldException ex) {
+            FAILED.add(getKey);
+            Cinema.LOGGER.warn("[Cinema] field '{}' not found on {}", name, target.getClass().getName());
+            return null;
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            FAILED.add(getKey);
+            Cinema.LOGGER.warn("[Cinema] could not read field '{}' on {}", name, target.getClass().getName(), ex);
+            return null;
+        }
+    }
+
+    public static boolean setBoolean(Object target, String name, boolean value) {
+        return set(target, name, boolean.class, f -> f.setBoolean(target, value));
+    }
+
+    /** 診断用: 全フィールドの名前・型・現在値を、クラスごとに1回だけログに出す */
+    public static void dumpOnce(Object target) {
+        Class<?> cls = target.getClass();
+        if (!DUMPED.add(cls)) return;
+        List<String> out = new ArrayList<>();
+        for (Class<?> c = cls; c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Field f : c.getDeclaredFields()) {
+                if (Modifier.isStatic(f.getModifiers())) continue;
+                String v;
+                try {
+                    f.setAccessible(true);
+                    v = String.valueOf(f.get(target));
+                } catch (ReflectiveOperationException | RuntimeException ex) {
+                    v = "?";
+                }
+                out.add(c.getSimpleName() + "." + f.getName() + "(" + f.getType().getSimpleName() + ")=" + v);
+            }
+        }
+        Cinema.LOGGER.warn("[Cinema] fields of {}: {}", cls.getName(), out);
+    }
+
+    /** オブジェクト型のフィールドへの書き込み(null も可) */
+    public static boolean setObject(Object target, String name, Object value) {
+        return set(target, name, Object.class, f -> f.set(target, value));
     }
 }
