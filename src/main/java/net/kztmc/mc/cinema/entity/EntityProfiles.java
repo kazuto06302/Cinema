@@ -47,6 +47,25 @@ public final class EntityProfiles {
         register(new PandaProfile());
         register(new SheepProfile());
 
+        // ---- 腕のポーズが効くモデル(プレイヤーは種類で判定) ----
+        register(EntityProfile.of(
+                "minecraft:zombie",
+                "minecraft:husk",
+                "minecraft:drowned",
+                "minecraft:zombie_villager",
+                "minecraft:skeleton",
+                "minecraft:stray",
+                "minecraft:bogged",
+                "minecraft:wither_skeleton",
+                "minecraft:piglin",
+                "minecraft:piglin_brute",
+                "minecraft:zombified_piglin",
+                "minecraft:pillager",
+                "minecraft:vindicator",
+                "minecraft:illusioner",
+                "minecraft:giant"
+        ).humanoid());
+
         // ---- 何も映らない: モブ追加画面に出さず、アイコンも描かない ----
         for (String id : List.of(
                 "minecraft:marker",
@@ -63,8 +82,6 @@ public final class EntityProfiles {
 
         // ---- 選択画面には出すが、アイコンは描かない ----
         register(EntityProfile.of("minecraft:lightning_bolt").noRender());
-
-        // ↓ ここに足していく
     }
 
     public static void register(EntityProfile profile) {

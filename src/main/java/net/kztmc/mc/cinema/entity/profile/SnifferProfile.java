@@ -8,5 +8,7 @@ public final class SnifferProfile extends AnimationModeProfile {
                 new String[] {null, "feelingHappyAnimationState", "scentingAnimationState",
                         "sniffingAnimationState", "diggingAnimationState", "risingAnimationState"},
                 "minecraft:sniffer");
+        // 歩行は、キーフレームのアニメーション。1周期は約2秒、animateWalk の係数は9.0(どちらも推測値)
+        walkKeyframe(2.0f, 9.0f);
     }
 }

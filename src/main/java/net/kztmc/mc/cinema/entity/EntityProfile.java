@@ -22,6 +22,8 @@ public class EntityProfile {
     private boolean hidden;
     private boolean noRender;
     private IconStyle iconStyle;
+    private boolean humanoid;
+    private float walkCyclePosition;
 
     protected EntityProfile(String... ids) {
         this.ids = Set.of(ids);
@@ -146,5 +148,31 @@ public class EntityProfile {
      */
     public void applyAnim(Entity e, float time, Map<String, Integer> options) {
         applyAnim(e, time);
+    }
+
+    public EntityProfile humanoid() {
+        this.humanoid = true;
+        return this;
+    }
+
+    public boolean isHumanoid() {
+        return humanoid;
+    }
+
+    /**
+     * キーフレームで歩くモデル用(スニッファーなど)。
+     * 手足を cos で振るモデルと違い、歩行の位置(時間)が0だと、アニメーションの最初の1コマ(ほぼ直立)になるので、
+     * 歩行スライダーを「周期のどこにいるか」として扱う。
+     * @param cycleSeconds      歩行アニメーションの1周期の長さ(秒)
+     * @param maxAnimationSpeed モデルが animateWalk に渡している係数(ふつう 9.0)
+     */
+    public EntityProfile walkKeyframe(float cycleSeconds, float maxAnimationSpeed) {
+        this.walkCyclePosition = cycleSeconds * 1000f / (50f * maxAnimationSpeed);
+        return this;
+    }
+
+    /** 0なら cos で振るモデル。0より大きければ、キーフレームの1周期ぶんの歩行位置 */
+    public float walkCyclePosition() {
+        return walkCyclePosition;
     }
 }

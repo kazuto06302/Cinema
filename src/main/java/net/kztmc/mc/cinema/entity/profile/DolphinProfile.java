@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Entity;
  */
 public final class DolphinProfile extends WaterProfile {
     public DolphinProfile() {
-        super(true, "minecraft:dolphin");
+        super(true, false, "minecraft:dolphin");
         choice("swim", "泳ぎ", 1, "止まる", "泳ぐ");
     }
 

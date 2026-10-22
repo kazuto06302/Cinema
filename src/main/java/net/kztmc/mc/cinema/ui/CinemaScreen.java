@@ -457,21 +457,20 @@ public class CinemaScreen extends Screen {
         // --- 動き(歩行・腕を振る)。アニメーションの時間とは独立 ---
         labels.add(new Label("動き", x, y, Theme.TEXT_DIM));
         y += lh;
-
         addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行", "%", -100, 100,
                 d.option(EntityMotion.WALK, 0),
                 v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v))));
         y += sliderH;
-        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "腕を振る", "%", 0, 100,
-                d.option(EntityMotion.SWING, 0),
-                v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))));
-        y += sliderH + gap;
-        ModernSlider aggressive = new ModernSlider(x, y, w, sliderH, "構え(攻撃姿勢)", "", 0, 1,
-                d.option(EntityMotion.AGGRESSIVE, 0),
-                v -> edit(id, cur -> cur.withOption(EntityMotion.AGGRESSIVE, (int) v)));
-        aggressive.setValueFormatter(v -> v >= 0.5 ? "あり" : "なし");
-        addRenderableWidget(aggressive);
-        y += sliderH;
+        if (NpcData.PLAYER.equals(d.kind()) || EntityProfiles.of(d.entityType()).isHumanoid()) {
+            int last = EntityMotion.ARM_NAMES.length - 1;
+            ModernSlider arms = new ModernSlider(x, y, w, sliderH, "腕", "", 0, last,
+                    d.option(EntityMotion.ARMS, 0),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, (int) v)));
+            arms.setValueFormatter(v -> EntityMotion.ARM_NAMES[Math.max(0, Math.min(last, (int) Math.round(v)))]);
+            addRenderableWidget(arms);
+            y += sliderH;
+        }
+        y += gap;
 
         // --- エンティティ固有のオプション(プロフィールが宣言したものだけ) ---
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
@@ -489,6 +488,7 @@ public class CinemaScreen extends Screen {
                 addRenderableWidget(slider);
                 y += sliderH;
             }
+            y += gap;
         }
 
         // --- 位置 ---

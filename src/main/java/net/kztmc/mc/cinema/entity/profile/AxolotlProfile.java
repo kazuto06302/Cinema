@@ -7,12 +7,15 @@ import net.minecraft.world.entity.Entity;
 
 /**
  * ウーパールーパー。姿勢は、BinaryAnimator(0〜1の切り替え。ticks / ticksOld が進み具合)の組み合わせで決まる。
- * ティックされないので、目標の値を直接書き込む。
+ * ティックされないので、目標の値を直接書き込む。色は enum の定数名で指定する。
  */
 public final class AxolotlProfile extends EntityProfile {
+    private static final String[] COLORS = {"LUCY", "WILD", "GOLD", "CYAN", "BLUE"};
+
     public AxolotlProfile() {
         super("minecraft:axolotl");
         choice("mode", "状態", 0, "水中", "地上", "死んだふり");
+        choice("color", "色", 0, "ピンク", "茶", "金", "シアン", "青");
     }
 
     @Override
@@ -22,6 +25,9 @@ public final class AxolotlProfile extends EntityProfile {
         setFactor(e, "onGroundAnimator", mode == 1 ? 1f : 0f);
         setFactor(e, "playingDeadAnimator", mode == 2 ? 1f : 0f);
         setFactor(e, "movingAnimator", 0f);
+
+        int color = Math.max(0, Math.min(COLORS.length - 1, options.getOrDefault("color", 0)));
+        EntityReflect.invokeWithEnumArg(e, "setVariant", COLORS[color]);
     }
 
     private static void setFactor(Entity e, String field, float factor) {

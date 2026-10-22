@@ -8,7 +8,7 @@ import net.minecraft.world.entity.Entity;
 /** フグ。膨らみ(0〜2)と、水中。 */
 public final class PufferfishProfile extends WaterProfile {
     public PufferfishProfile() {
-        super(true, "minecraft:pufferfish");
+        super(true, false, "minecraft:pufferfish");
         choice("puff", "膨らみ", 2, "しぼむ", "半分", "ふくらむ");
     }
 

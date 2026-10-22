@@ -8,7 +8,7 @@ import net.minecraft.world.entity.Entity;
 /** カメ。水中かどうか(泳ぐ/歩く)と、卵を抱えているか。 */
 public final class TurtleProfile extends WaterProfile {
     public TurtleProfile() {
-        super(false, "minecraft:turtle");
+        super(false, true, "minecraft:turtle");
         choice("egg", "卵", 0, "なし", "あり");
     }
 
