@@ -22,7 +22,7 @@ public class ModernSlider extends AbstractWidget {
     private final DoubleConsumer onChange;
     private double value;
     private boolean dragging;
-
+    private java.util.function.DoubleFunction<String> formatter;
     /** 整数刻み */
     public ModernSlider(int x, int y, int w, int h, String label, String unit,
                         double min, double max, double value, DoubleConsumer onChange) {
@@ -49,6 +49,7 @@ public class ModernSlider extends AbstractWidget {
     }
 
     private String valueText() {
+        if (formatter != null) return formatter.apply(value);
         return String.format(Locale.ROOT, "%." + decimals + "f", value) + unit;
     }
 
@@ -117,4 +118,9 @@ public class ModernSlider extends AbstractWidget {
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput output) {}
+
+    public ModernSlider setValueFormatter(java.util.function.DoubleFunction<String> formatter) {
+        this.formatter = formatter;
+        return this;
+    }
 }

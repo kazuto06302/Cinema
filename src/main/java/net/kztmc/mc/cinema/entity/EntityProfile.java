@@ -133,4 +133,18 @@ public class EntityProfile {
 
     /** 位置・向きの設定が終わった後に呼ばれる。位置や向きに合わせて動く部品(エンダードラゴンの当たり判定など)の配置用 */
     public void applyTransform(Entity e) {}
+
+    /** 名前つきの選択肢(スライダーに数字ではなく名前が出る)。0番目から順に番号が付く */
+    public EntityProfile choice(String key, String label, int def, String... names) {
+        options.add(new EntityOption(key, label, 0, names.length - 1, def, List.of(names)));
+        return this;
+    }
+
+    /**
+     * 設定(options)も受け取る版。既定では、2引数版を呼ぶ。
+     * 選択肢で動きを切り替えるプロフィールは、こちらを上書きする。options に無いキーは、宣言した初期値として扱う。
+     */
+    public void applyAnim(Entity e, float time, Map<String, Integer> options) {
+        applyAnim(e, time);
+    }
 }

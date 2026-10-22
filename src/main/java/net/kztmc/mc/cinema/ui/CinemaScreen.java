@@ -466,19 +466,29 @@ public class CinemaScreen extends Screen {
                 d.option(EntityMotion.SWING, 0),
                 v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))));
         y += sliderH + gap;
+        ModernSlider aggressive = new ModernSlider(x, y, w, sliderH, "構え(攻撃姿勢)", "", 0, 1,
+                d.option(EntityMotion.AGGRESSIVE, 0),
+                v -> edit(id, cur -> cur.withOption(EntityMotion.AGGRESSIVE, (int) v)));
+        aggressive.setValueFormatter(v -> v >= 0.5 ? "あり" : "なし");
+        addRenderableWidget(aggressive);
+        y += sliderH;
 
         // --- エンティティ固有のオプション(プロフィールが宣言したものだけ) ---
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
         if (!specs.isEmpty()) {
-            labels.add(new Label("オプション", x, y, Theme.TEXT_DIM));
-            y += lh;
             for (EntityOption spec : specs) {
-                addRenderableWidget(new ModernSlider(x, y, w, sliderH, spec.label(), "",
+                ModernSlider slider = new ModernSlider(x, y, w, sliderH, spec.label(), "",
                         spec.min(), spec.max(), d.option(spec.key(), spec.def()),
-                        v -> edit(id, cur -> cur.withOption(spec.key(), (int) v))));
+                        v -> edit(id, cur -> cur.withOption(spec.key(), (int) v)));
+                if (!spec.names().isEmpty()) {
+                    slider.setValueFormatter(v -> {
+                        int i = Math.max(0, Math.min(spec.names().size() - 1, (int) Math.round(v)));
+                        return spec.names().get(i);
+                    });
+                }
+                addRenderableWidget(slider);
                 y += sliderH;
             }
-            y += gap;
         }
 
         // --- 位置 ---

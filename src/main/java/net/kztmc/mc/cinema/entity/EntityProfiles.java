@@ -31,6 +31,21 @@ public final class EntityProfiles {
         register(new ShulkerProfile());
         register(new SlimeProfile());
         register(new EnderDragonProfile());
+        register(new BatProfile());
+        register(new FrogProfile());
+        register(new SnifferProfile());
+        register(new FishProfile());
+        register(new PufferfishProfile());
+        register(new DolphinProfile());
+        register(new TurtleProfile());
+        register(new AxolotlProfile());
+        register(new PhantomProfile());
+        register(new EvokerProfile());
+        register(new HoglinProfile());
+        register(new IronGolemProfile());
+        register(new SnowGolemProfile());
+        register(new PandaProfile());
+        register(new SheepProfile());
 
         // ---- 何も映らない: モブ追加画面に出さず、アイコンも描かない ----
         for (String id : List.of(

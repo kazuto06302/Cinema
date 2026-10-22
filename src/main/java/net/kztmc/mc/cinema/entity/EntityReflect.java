@@ -227,4 +227,168 @@ public final class EntityReflect {
     public static boolean setObject(Object target, String name, Object value) {
         return set(target, name, Object.class, f -> f.set(target, value));
     }
+
+    private static final Set<String> STOP = Set.of(
+            "net.minecraft.world.entity.LivingEntity", "net.minecraft.world.entity.Mob",
+            "net.minecraft.world.entity.Entity", "java.lang.Object");
+
+    private static void warnOnce(String key, String message, Object... args) {
+        if (FAILED.add(key)) Cinema.LOGGER.warn(message, args);
+    }
+
+    /** int フィールドの値。見つからなければ fallback(ログは出さない) */
+    public static int getIntQuiet(Object target, String name, int fallback) {
+        try {
+            return field(target.getClass(), name, target.getClass().getName() + "#" + name).getInt(target);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return fallback;
+        }
+    }
+
+    /** long フィールドへの書き込み。版によって型や名前が違うので、見つからなくてもログは出さない */
+    public static boolean setLongQuiet(Object target, String name, long value) {
+        try {
+            field(target.getClass(), name, target.getClass().getName() + "#" + name).setLong(target, value);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return false;
+        }
+    }
+
+    /** 名前の候補を順に試して、最初に見つかった boolean フィールドに書き込む。全部無ければ警告を1回出す */
+    public static boolean setBooleanFirst(Object target, boolean value, String... names) {
+        for (String name : names) {
+            try {
+                field(target.getClass(), name, target.getClass().getName() + "#" + name).setBoolean(target, value);
+                return true;
+            } catch (NoSuchFieldException ignored) {
+                // 次の候補へ
+            } catch (ReflectiveOperationException | RuntimeException ex) {
+                warnOnce(target.getClass().getName() + "#bool:" + name, "[Cinema] could not write '{}'", name, ex);
+                return false;
+            }
+        }
+        warnOnce(target.getClass().getName() + "#bool:" + List.of(names),
+                "[Cinema] none of the boolean fields {} were found on {}", List.of(names), target.getClass().getName());
+        return false;
+    }
+
+    /** 名前の候補を順に試して、最初に見つかったメソッドを呼ぶ(非公開でもよい)。全部無ければ、候補の一覧つきで警告を1回出す */
+    public static boolean invokeFirst(Object target, List<String> names, Object... args) {
+        for (String name : names) {
+            Boolean r = tryInvoke(target, name, args);
+            if (r != null) return r;
+        }
+        warnOnce(target.getClass().getName() + "#none:" + names,
+                "[Cinema] none of the methods {} were found on {}. Declared methods there: {}",
+                names, target.getClass().getName(), methodNames(target.getClass()));
+        return false;
+    }
+
+    /** 引数が enum のメソッドを、定数名で呼ぶ(enum のクラスを直接参照しなくて済む) */
+    public static boolean invokeWithEnumArg(Object target, String name, String constantName) {
+        for (Class<?> c = target.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (!m.getName().equals(name) || m.getParameterCount() != 1 || !m.getParameterTypes()[0].isEnum()) continue;
+                for (Object k : m.getParameterTypes()[0].getEnumConstants()) {
+                    if (((Enum<?>) k).name().equals(constantName)) {
+                        try {
+                            m.setAccessible(true);
+                            m.invoke(target, k);
+                            return true;
+                        } catch (ReflectiveOperationException | RuntimeException ex) {
+                            warnOnce(target.getClass().getName() + "#enum:" + name, "[Cinema] call to {} failed", name, ex);
+                            return false;
+                        }
+                    }
+                }
+            }
+        }
+        warnOnce(target.getClass().getName() + "#enum:" + name + constantName,
+                "[Cinema] method {}({}) was not found on {}", name, constantName, target.getClass().getName());
+        return false;
+    }
+
+    /** 診断用(/cinema fields): LivingEntity より下のクラスの、全フィールド(現在値つき)とメソッドをログに出す */
+    public static void dumpEntity(Object e) {
+        Cinema.LOGGER.info("[Cinema] ===== {} =====", e.getClass().getName());
+        for (Class<?> c = e.getClass(); c != null && !STOP.contains(c.getName()); c = c.getSuperclass()) {
+            List<String> fields = new ArrayList<>();
+            for (Field f : c.getDeclaredFields()) {
+                if (Modifier.isStatic(f.getModifiers())) continue;
+                String v;
+                try {
+                    f.setAccessible(true);
+                    v = String.valueOf(f.get(e));
+                } catch (ReflectiveOperationException | RuntimeException ex) {
+                    v = "?";
+                }
+                fields.add(f.getName() + "(" + f.getType().getSimpleName() + ")=" + v);
+            }
+            List<String> methods = new ArrayList<>();
+            for (Method m : c.getDeclaredMethods()) {
+                if (!Modifier.isStatic(m.getModifiers()) && !m.isSynthetic()) {
+                    methods.add(m.getName() + "/" + m.getParameterCount());
+                }
+            }
+            Cinema.LOGGER.info("[Cinema] {} fields: {}", c.getSimpleName(), fields);
+            Cinema.LOGGER.info("[Cinema] {} methods: {}", c.getSimpleName(), methods);
+        }
+    }
+
+    /** 見つかって呼べたら TRUE、見つかったが失敗したら FALSE、見つからなければ null */
+    private static Boolean tryInvoke(Object target, String name, Object[] args) {
+        for (Class<?> c = target.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (!m.getName().equals(name) || m.getParameterCount() != args.length) continue;
+                if (!accepts(m.getParameterTypes(), args)) continue;
+                try {
+                    m.setAccessible(true);
+                    m.invoke(target, args);
+                    return Boolean.TRUE;
+                } catch (ReflectiveOperationException | RuntimeException ex) {
+                    warnOnce(target.getClass().getName() + "#call:" + name,
+                            "[Cinema] call to {} failed on {}", name, target.getClass().getName(), ex);
+                    return Boolean.FALSE;
+                }
+            }
+        }
+        return null;
+    }
+
+    private static boolean accepts(Class<?>[] types, Object[] args) {
+        for (int i = 0; i < types.length; i++) {
+            Object a = args[i];
+            if (a == null) {
+                if (types[i].isPrimitive()) return false;
+            } else if (!wrap(types[i]).isInstance(a)) {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static Class<?> wrap(Class<?> t) {
+        if (!t.isPrimitive()) return t;
+        if (t == boolean.class) return Boolean.class;
+        if (t == int.class) return Integer.class;
+        if (t == float.class) return Float.class;
+        if (t == double.class) return Double.class;
+        if (t == long.class) return Long.class;
+        if (t == byte.class) return Byte.class;
+        if (t == short.class) return Short.class;
+        return Character.class;
+    }
+
+    private static List<String> methodNames(Class<?> start) {
+        List<String> out = new ArrayList<>();
+        for (Class<?> c = start; c != null && !STOP.contains(c.getName()); c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (!Modifier.isStatic(m.getModifiers()) && !m.isSynthetic()) {
+                    out.add(c.getSimpleName() + "." + m.getName() + "/" + m.getParameterCount());
+                }
+            }
+        }
+        return out;
+    }
 }

@@ -4,6 +4,7 @@ import java.util.Map;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.WalkAnimationState;
 import net.minecraft.world.item.component.SwingAnimation;
 
@@ -23,6 +24,9 @@ public final class EntityMotion {
     /** 腕を振る動作の進み具合(%、0〜100) */
     public static final String SWING = "swing";
 
+    /** 攻撃姿勢(0/1)。ゾンビが腕を上げる、スケルトンが弓を構える、など。Mob のみ */
+    public static final String AGGRESSIVE = "aggressive";
+
     /**
      * NPCの状態に反映する。
      * partialTick は、描画に使う補間値(時間スライダーの小数部分)。
@@ -41,6 +45,9 @@ public final class EntityMotion {
         EntityReflect.setFloat(state, "position", walk * (1.0f - partialTick));
 
         applySwing(living, swing);
+        if (e instanceof Mob mob) {
+            mob.setAggressive(options.getOrDefault(AGGRESSIVE, 0) == 1);
+        }
     }
 
     /**

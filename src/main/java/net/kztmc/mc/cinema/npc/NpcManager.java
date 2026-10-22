@@ -264,7 +264,7 @@ public final class NpcManager {
             }
         }
         EntityProfiles.of(e).applyTransform(e);   // 位置に合わせて動かす部品(ドラゴンの当たり判定)の配置
-        EntityTweaks.applyAnim(e, d.animTickOrDefault());
+        EntityTweaks.applyAnim(e, d.animTickOrDefault(), d.options());
         EntityMotion.apply(e, d.options(), SceneFreeze.partialTickOf(e));
     }
 }
