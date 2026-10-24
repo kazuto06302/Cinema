@@ -6,21 +6,19 @@ import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.minecraft.world.entity.Entity;
 
 /**
- * ホグリンとゾグリン。攻撃の頭突きは、残り tick(10→0)で決まる。
- * 時間が0〜10の間に頭を下げて突き上げる(5で最も下がる)。
+ * ホグリンとゾグリン。頭突きのアニメーションを、常に時間で進める(選択肢なし)。
+ * 描画は残り tick(10〜0)で頭の傾きを決めるので、10tickで1周する。
  */
 public final class HoglinProfile extends EntityProfile {
     private static final int ATTACK_TICKS = 10;
 
     public HoglinProfile() {
         super("minecraft:hoglin", "minecraft:zoglin");
-        choice("attack", "攻撃", 0, "しない", "する");
     }
 
     @Override
     public void applyAnim(Entity e, float time, Map<String, Integer> options) {
         int n = (int) Math.floor(time);
-        boolean attack = options.getOrDefault("attack", 0) == 1;
-        EntityReflect.setInt(e, "attackAnimationRemainingTicks", attack ? Math.max(0, ATTACK_TICKS - n) : 0);
+        EntityReflect.setInt(e, "attackAnimationRemainingTicks", ATTACK_TICKS - (n % ATTACK_TICKS));
     }
 }

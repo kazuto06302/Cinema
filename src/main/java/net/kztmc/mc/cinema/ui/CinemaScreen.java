@@ -73,6 +73,7 @@ public class CinemaScreen extends Screen {
     private static final String DEV_WORD = "cinema";   // 検索欄にこれを入力するとdevモードが切り替わる
     private static boolean devMode;                    // 保存されない(ゲームを閉じると通常に戻る)
     private static boolean focusSearch;                // 切り替え後に検索欄へ入力を戻す
+    private ModernDropdown openDropdown;
 
     public CinemaScreen() {
         super(Component.literal("Cinema"));
@@ -106,8 +107,19 @@ public class CinemaScreen extends Screen {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         boolean handled = super.mouseClicked(event, doubleClick);
-        Cinema.LOGGER.info("[Cinema] click x={} y={} button={} handled={}",
-                event.x(), event.y(), event.button(), handled);
+        // 開いているドロップダウンの選択肢が、他のウィジェットより先にクリックを受ける
+        if (openDropdown != null && openDropdown.isOpen()) {
+            if (openDropdown.popupClicked(event)) {
+                openDropdown = null;
+                return true;
+            }
+            if (!openDropdown.isMouseOver(event.x(), event.y())) {
+                openDropdown.close();   // 外をクリックしたら閉じる(ボタン自身のクリックは、ボタンが開閉する)
+                openDropdown = null;
+            }
+        }
+//        Cinema.LOGGER.info("[Cinema] click x={} y={} button={} handled={}",
+//                event.x(), event.y(), event.button(), handled);
         return handled;
     }
 
@@ -135,6 +147,8 @@ public class CinemaScreen extends Screen {
         mobGrid = null;
         hasRight = false;
         hasTuner = false;
+
+        openDropdown = null;
 
         // 寸法は文字サイズに連動
         th = Theme.textH();
@@ -493,6 +507,15 @@ public class CinemaScreen extends Screen {
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
         if (!specs.isEmpty()) {
             for (EntityOption spec : specs) {
+                if (spec.dropdown()) {
+                    addRenderableWidget(new ModernDropdown(x, y, w, sliderH, spec.label(), spec.names(),
+                            d.option(spec.key(), spec.def()),
+                            i -> edit(id, cur -> cur.withOption(spec.key(), i)),
+                            this::onDropdownOpen));
+                    y += sliderH;
+                    continue;
+                }
+
                 ModernSlider slider = new ModernSlider(x, y, w, sliderH, spec.label(), "",
                         spec.min(), spec.max(), d.option(spec.key(), spec.def()),
                         v -> edit(id, cur -> cur.withOption(spec.key(), (int) v)));
@@ -588,5 +611,14 @@ public class CinemaScreen extends Screen {
             }
         }
         super.extractRenderState(g, mouseX, mouseY, delta);
+
+        if (openDropdown != null && openDropdown.isOpen()) {
+            openDropdown.extractPopup(g, mouseX, mouseY);
+        }
+    }
+
+    private void onDropdownOpen(ModernDropdown dropdown) {
+        if (openDropdown != null && openDropdown != dropdown) openDropdown.close();
+        openDropdown = dropdown;
     }
 }

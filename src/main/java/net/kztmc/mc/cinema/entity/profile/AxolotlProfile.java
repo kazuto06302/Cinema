@@ -1,6 +1,8 @@
 package net.kztmc.mc.cinema.entity.profile;
 
 import java.util.Map;
+
+import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityProfile;
 import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.minecraft.world.entity.Entity;
@@ -24,7 +26,7 @@ public final class AxolotlProfile extends EntityProfile {
         setFactor(e, "inWaterAnimator", mode == 0 || mode == 2 ? 1f : 0f);
         setFactor(e, "onGroundAnimator", mode == 1 ? 1f : 0f);
         setFactor(e, "playingDeadAnimator", mode == 2 ? 1f : 0f);
-        setFactor(e, "movingAnimator", 0f);
+        setFactor(e, "movingAnimator", options.getOrDefault(EntityMotion.WALK, 0) != 0 ? 1f : 0f);
 
         int color = Math.max(0, Math.min(COLORS.length - 1, options.getOrDefault("color", 0)));
         EntityReflect.invokeWithEnumArg(e, "setVariant", COLORS[color]);

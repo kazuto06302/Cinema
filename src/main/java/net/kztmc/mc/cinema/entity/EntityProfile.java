@@ -28,6 +28,7 @@ public class EntityProfile {
     private float walkCyclePosition;
     private List<NpcPose> poses = List.of();
     private boolean walks = true;
+    private boolean noHitbox;
 
     protected EntityProfile(String... ids) {
         this.ids = Set.of(ids);
@@ -201,4 +202,29 @@ public class EntityProfile {
     public boolean walks() {
         return walks;
     }
+
+    /** 当たり判定を無効にする(ボート・イカダ・プレイヤーなど)。押し出し・クリック・乗れる判定がなくなる */
+    public EntityProfile noHitbox() {
+        this.noHitbox = true;
+        return this;
+    }
+
+    public boolean hasNoHitbox() {
+        return noHitbox;
+    }
+
+    /** ドロップダウンで切り替える選択肢。choice と同じ値の持ち方で、画面での表示だけが違う */
+    public EntityProfile dropdownChoice(String key, String label, int def, String... names) {
+        options.add(new EntityOption(key, label, 0, names.length - 1, def, List.of(names), true));
+        return this;
+    }
+
+    /**
+     * 描画用の状態(EntityRenderState)ができた直後に呼ばれる(NPCとアイコンの両方)。
+     * state の値(ボートのオールの位相、ghast の ageInTicks など)を、直接書き換えられる。
+     * 将来のPose(部位ごとの調整)も、ここで行える。
+     * @param time    アニメーション時刻(tickCount + 補間値)
+     * @param options NPCごとの設定(アイコンでは空)
+     */
+    public void adjustRenderState(Entity e, Object state, float time, Map<String, Integer> options) {}
 }

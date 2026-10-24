@@ -27,6 +27,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.phys.AABB;
 
 /**
  * NPC定義(NpcData)を保持し、クライアントのレベルに偽エンティティとして出し入れする。
@@ -232,6 +233,10 @@ public final class NpcManager {
             part.setPos(e.getX(), e.getY(), e.getZ());
             part.setOldPosAndRot();
         }
+        e.noPhysics = true;
+        if (e instanceof NpcPlayer || EntityProfiles.of(e).hasNoHitbox()) {
+            e.setBoundingBox(new AABB(e.getX(), e.getY(), e.getZ(), e.getX(), e.getY(), e.getZ()));
+        }
         e.xo = e.xOld = e.getX();
         e.yo = e.yOld = e.getY();
         e.zo = e.zOld = e.getZ();
@@ -260,7 +265,7 @@ public final class NpcManager {
                 living.setItemSlot(slot, stack == null ? ItemStack.EMPTY : stack.copy());
             }
         }
-        EntityProfiles.of(e).applyTransform(e);   // 位置に合わせて動かす部品(ドラゴンの当たり判定)の配置
+        EntityProfiles.of(e).applyTransform(e);
         EntityTweaks.applyAnim(e, d.animTickOrDefault(), d.options());
         EntityMotion.apply(e, d.options(), SceneFreeze.partialTickOf(e));
     }

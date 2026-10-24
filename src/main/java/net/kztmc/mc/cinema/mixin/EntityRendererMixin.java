@@ -1,5 +1,6 @@
 package net.kztmc.mc.cinema.mixin;
 
+import net.kztmc.mc.cinema.npc.EntityTweaks;
 import net.kztmc.mc.cinema.npc.SceneFreeze;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
@@ -26,8 +27,12 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
 
         cinema$pinning = true;
         try {
+            @SuppressWarnings("unchecked")
             EntityRenderer<T, S> self = (EntityRenderer<T, S>) (Object) this;
-            cir.setReturnValue(self.createRenderState(entity, SceneFreeze.partialTickOf(entity)));
+            float pinned = SceneFreeze.partialTickOf(entity);
+            S state = self.createRenderState(entity, pinned);
+            EntityTweaks.adjustRenderState(entity, state, pinned);   // プロフィールが描画状態を書き換えられる
+            cir.setReturnValue(state);
         } finally {
             cinema$pinning = false;
         }

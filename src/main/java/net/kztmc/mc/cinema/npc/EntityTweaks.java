@@ -38,9 +38,15 @@ public final class EntityTweaks {
         int n = (int) Math.floor(t);
         e.tickCount = n;
         SceneFreeze.setPartialTick(e, t - n);
+        SceneFreeze.setOptions(e, options);
 
         EntityProfile profile = EntityProfiles.of(e);
         profile.applyAnim(e, t, options);
         profile.applyPose(e, t);
+    }
+
+    /** 描画状態ができた直後に呼ぶ(mixin とアイコン描画から)。時刻は tickCount + 補間値 */
+    public static void adjustRenderState(Entity e, Object state, float partialTick) {
+        EntityProfiles.of(e).adjustRenderState(e, state, e.tickCount + partialTick, SceneFreeze.optionsOf(e));
     }
 }

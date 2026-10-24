@@ -48,6 +48,20 @@ public final class EntityProfiles {
         register(new PandaProfile());
         register(new SheepProfile());
         register(new EndCrystalProfile());
+        register(new ArmadilloProfile());
+        register(new CamelProfile());
+        register(new CopperGolemProfile());
+        register(new CushionProfile());
+        register(new FoxProfile());
+        register(new GhastProfile("minecraft:ghast", true));
+        register(new GhastProfile("minecraft:happy_ghast", false));
+        register(new MooshroomProfile());
+        register(new PolarBearProfile());
+        register(new StriderProfile());
+        register(new WardenProfile());
+        register(new WolfProfile());
+        register(new CatProfile());
+        register(new BeeProfile());
 
         // ---- 腕のポーズが効くモデル(プレイヤーは種類で判定) ----
         register(EntityProfile.of(
@@ -89,7 +103,7 @@ public final class EntityProfiles {
         for (String id : List.of(
                 "minecraft:cod", "minecraft:salmon", "minecraft:tropical_fish", "minecraft:pufferfish",
                 "minecraft:dolphin", "minecraft:squid", "minecraft:glow_squid",
-                "minecraft:guardian", "minecraft:elder_guardian", "minecraft:ghast", "minecraft:happy_ghast",
+                "minecraft:guardian", "minecraft:elder_guardian",
                 "minecraft:bat", "minecraft:phantom", "minecraft:vex", "minecraft:allay", "minecraft:bee",
                 "minecraft:blaze", "minecraft:slime", "minecraft:magma_cube", "minecraft:shulker",
                 "minecraft:ender_dragon", "minecraft:wither")) {
@@ -97,9 +111,12 @@ public final class EntityProfiles {
         }
 
         // ---- 座れるモブ ----
-        for (String id : List.of("minecraft:wolf", "minecraft:cat", "minecraft:fox", "minecraft:parrot")) {
+        for (String id : List.of("minecraft:wolf", "minecraft:cat", "minecraft:parrot")) {
             ensure(id).poses(NpcPose.STANDING, NpcPose.SITTING);
         }
+
+        // クリーキング: 歩行はキーフレーム。1周期は約1.1秒、animateWalk の係数は7.0(どちらも推測値)
+        ensure("minecraft:creaking").walkKeyframe(1.1f, 7.0f);
     }
 
     public static void register(EntityProfile profile) {
@@ -109,8 +126,16 @@ public final class EntityProfiles {
     }
 
     /** 登録が無いエンティティには、何も設定していない既定の設定が返る */
+    private static final EntityProfile BOAT = new BoatProfile();
+
     public static EntityProfile of(String id) {
-        return BY_ID.getOrDefault(id, DEFAULT);
+        EntityProfile p = BY_ID.get(id);
+        if (p != null) return p;
+        if (id.endsWith("_boat") || id.endsWith("_raft")) {   // チェスト付きも、この末尾で当たる
+            BY_ID.put(id, BOAT);
+            return BOAT;
+        }
+        return DEFAULT;
     }
 
     public static EntityProfile of(Entity e) {
