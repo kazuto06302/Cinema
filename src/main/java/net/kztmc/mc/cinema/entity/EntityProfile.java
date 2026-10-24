@@ -28,6 +28,8 @@ public class EntityProfile {
     private float walkCyclePosition;
     private List<NpcPose> poses = List.of();
     private boolean walks = true;
+    private float walkPhase;
+    private float walkSpeedMax = 1f;
     private boolean noHitbox;
 
     protected EntityProfile(String... ids) {
@@ -183,6 +185,25 @@ public class EntityProfile {
         return walkCyclePosition;
     }
 
+    public EntityProfile walkPhase(float limbSwingOffset) {
+        this.walkPhase = limbSwingOffset;
+        return this;
+    }
+
+    /** モデルが歩行の強さに上限を設けているとき(ストライダーは 0.25)に、歩行スライダーの100%を、その値に合わせる */
+    public EntityProfile walkSpeedMax(float max) {
+        this.walkSpeedMax = max;
+        return this;
+    }
+
+    public float walkPhase() {
+        return walkPhase;
+    }
+
+    public float walkSpeedMax() {
+        return walkSpeedMax;
+    }
+
     /** 右パネルのポーズ欄に出す姿勢。2つ以上宣言したときだけ、欄が出る */
     public EntityProfile poses(NpcPose... poses) {
         this.poses = List.of(poses);
@@ -213,9 +234,15 @@ public class EntityProfile {
         return noHitbox;
     }
 
-    /** ドロップダウンで切り替える選択肢。choice と同じ値の持ち方で、画面での表示だけが違う */
+    /** ドロップダウンで切り替える選択肢(今は使っていないが、仕組みは残してある) */
     public EntityProfile dropdownChoice(String key, String label, int def, String... names) {
-        options.add(new EntityOption(key, label, 0, names.length - 1, def, List.of(names), true));
+        options.add(new EntityOption(key, label, 0, names.length - 1, def, List.of(names), EntityOption.Kind.DROPDOWN));
+        return this;
+    }
+
+    /** オン/オフのチェックボックス。値は 0(オフ)と 1(オン)。options に無いときは def として扱う */
+    public EntityProfile toggle(String key, String label, boolean def) {
+        options.add(new EntityOption(key, label, 0, 1, def ? 1 : 0, List.of("オフ", "オン"), EntityOption.Kind.CHECKBOX));
         return this;
     }
 

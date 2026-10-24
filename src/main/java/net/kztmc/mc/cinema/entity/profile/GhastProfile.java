@@ -21,7 +21,7 @@ public final class GhastProfile extends EntityProfile {
         super(id);
         this.hasAttack = hasAttack;
         if (hasAttack) {
-            dropdownChoice("attack", "攻撃モード", 0, "なし", "あり");
+            toggle("attack", "攻撃モード", false);
         }
     }
 

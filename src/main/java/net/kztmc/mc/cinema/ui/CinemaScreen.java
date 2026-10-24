@@ -507,7 +507,14 @@ public class CinemaScreen extends Screen {
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
         if (!specs.isEmpty()) {
             for (EntityOption spec : specs) {
-                if (spec.dropdown()) {
+                if (spec.kind() == EntityOption.Kind.CHECKBOX) {
+                    addRenderableWidget(new ModernCheckbox(x, y, w, sliderH, spec.label(),
+                            d.option(spec.key(), spec.def()) == 1,
+                            on -> edit(id, cur -> cur.withOption(spec.key(), on ? 1 : 0))));
+                    y += sliderH;
+                    continue;
+                }
+                if (spec.kind() == EntityOption.Kind.DROPDOWN) {
                     addRenderableWidget(new ModernDropdown(x, y, w, sliderH, spec.label(), spec.names(),
                             d.option(spec.key(), spec.def()),
                             i -> edit(id, cur -> cur.withOption(spec.key(), i)),

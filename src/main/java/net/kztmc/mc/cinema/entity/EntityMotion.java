@@ -62,8 +62,8 @@ public final class EntityMotion {
             speed = amount > 0f ? 1f : 0f;
             position = amount * cycle;
         } else {
-            speed = walk;
-            position = 0f;
+            speed = walk * EntityProfiles.of(living).walkSpeedMax();
+            position = EntityProfiles.of(living).walkPhase();
         }
 
         EntityReflect.setFloat(state, "speedOld", speed);

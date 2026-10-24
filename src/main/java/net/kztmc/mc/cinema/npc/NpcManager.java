@@ -234,9 +234,6 @@ public final class NpcManager {
             part.setOldPosAndRot();
         }
         e.noPhysics = true;
-        if (e instanceof NpcPlayer || EntityProfiles.of(e).hasNoHitbox()) {
-            e.setBoundingBox(new AABB(e.getX(), e.getY(), e.getZ(), e.getX(), e.getY(), e.getZ()));
-        }
         e.xo = e.xOld = e.getX();
         e.yo = e.yOld = e.getY();
         e.zo = e.zOld = e.getZ();

@@ -1,0 +1,60 @@
+package net.kztmc.mc.cinema.entity.profile;
+
+import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityProfile;
+import net.kztmc.mc.cinema.entity.profile.animation.AnimationStates;
+import net.minecraft.world.entity.AnimationState;
+import net.minecraft.world.entity.Entity;
+
+/**
+ * AnimationState のフィールド名が分からないモブ用。クラスの AnimationState をすべて探して、
+ * 「アニメ1」「アニメ2」…の番号で選べるようにする。対応は、初回にログへ出る。
+ */
+public class AutoAnimationProfile extends EntityProfile {
+    private static final int MAX_STATES = 8;
+    private static final Map<Class<?>, List<String>> FIELDS = new HashMap<>();
+
+    protected AutoAnimationProfile(String... ids) {
+        super(ids);
+        String[] names = new String[MAX_STATES + 1];
+        names[0] = "なし";
+        for (int i = 1; i <= MAX_STATES; i++) names[i] = "アニメ" + i;
+        choice("anim", "動作", 0, names);
+    }
+
+    @Override
+    public void applyAnim(Entity e, float time, Map<String, Integer> options) {
+        List<String> fields = discover(e);
+        int mode = options.getOrDefault("anim", 0);
+        for (int i = 0; i < fields.size(); i++) {
+            if (i + 1 == mode) {
+                AnimationStates.play(e, fields.get(i), time);
+            } else {
+                AnimationStates.stop(e, fields.get(i));
+            }
+        }
+    }
+
+    private static List<String> discover(Entity e) {
+        return FIELDS.computeIfAbsent(e.getClass(), c -> {
+            List<String> out = new ArrayList<>();
+            for (Class<?> k = c; k != null && k != Object.class; k = k.getSuperclass()) {
+                for (Field f : k.getDeclaredFields()) {
+                    if (!Modifier.isStatic(f.getModifiers()) && AnimationState.class.isAssignableFrom(f.getType())) {
+                        out.add(f.getName());
+                    }
+                }
+            }
+            List<String> listing = new ArrayList<>();
+            for (int i = 0; i < out.size(); i++) listing.add("アニメ" + (i + 1) + " = " + out.get(i));
+            Cinema.LOGGER.info("[Cinema] animation states of {}: {}", c.getSimpleName(), listing);
+            return out;
+        });
+    }
+}

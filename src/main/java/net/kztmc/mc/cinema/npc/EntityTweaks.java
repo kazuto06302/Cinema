@@ -49,4 +49,9 @@ public final class EntityTweaks {
     public static void adjustRenderState(Entity e, Object state, float partialTick) {
         EntityProfiles.of(e).adjustRenderState(e, state, e.tickCount + partialTick, SceneFreeze.optionsOf(e));
     }
+
+    /** 当たり判定を無効にするNPCか(ボート・イカダ・プレイヤー)。mixin から呼ばれる */
+    public static boolean hasNoHitbox(Entity e) {
+        return SceneFreeze.isFrozenNpc(e) && (e instanceof NpcPlayer || EntityProfiles.of(e).hasNoHitbox());
+    }
 }

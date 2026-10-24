@@ -337,14 +337,16 @@ public final class EntityReflect {
     }
 
     /** 見つかって呼べたら TRUE、見つかったが失敗したら FALSE、見つからなければ null */
+    /** 見つかって呼べたら TRUE、見つかったが失敗したら FALSE、見つからなければ null */
     private static Boolean tryInvoke(Object target, String name, Object[] args) {
         for (Class<?> c = target.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
             for (Method m : c.getDeclaredMethods()) {
                 if (!m.getName().equals(name) || m.getParameterCount() != args.length) continue;
-                if (!accepts(m.getParameterTypes(), args)) continue;
+                Object[] converted = coerce(m.getParameterTypes(), args);
+                if (converted == null) continue;
                 try {
                     m.setAccessible(true);
-                    m.invoke(target, args);
+                    m.invoke(target, converted);
                     return Boolean.TRUE;
                 } catch (ReflectiveOperationException | RuntimeException ex) {
                     warnOnce(target.getClass().getName() + "#call:" + name,
@@ -356,16 +358,38 @@ public final class EntityReflect {
         return null;
     }
 
-    private static boolean accepts(Class<?>[] types, Object[] args) {
+    /** 引数を、メソッドの引数の型に合わせる。数値は、int / long / float / double の間で変換する。合わなければ null */
+    private static Object[] coerce(Class<?>[] types, Object[] args) {
+        Object[] out = new Object[args.length];
         for (int i = 0; i < types.length; i++) {
             Object a = args[i];
+            Class<?> w = wrap(types[i]);
             if (a == null) {
-                if (types[i].isPrimitive()) return false;
-            } else if (!wrap(types[i]).isInstance(a)) {
-                return false;
+                if (types[i].isPrimitive()) return null;
+            } else if (w.isInstance(a)) {
+                out[i] = a;
+            } else if (a instanceof Number n && w == Long.class) {
+                out[i] = n.longValue();
+            } else if (a instanceof Number n && w == Integer.class) {
+                out[i] = n.intValue();
+            } else if (a instanceof Number n && w == Float.class) {
+                out[i] = n.floatValue();
+            } else if (a instanceof Number n && w == Double.class) {
+                out[i] = n.doubleValue();
+            } else {
+                return null;
             }
         }
-        return true;
+        return out;
+    }
+
+    /** 警告を出さずに、見つかったメソッドを呼ぶ。呼べたら true */
+    public static boolean invokeQuiet(Object target, List<String> names, Object... args) {
+        for (String name : names) {
+            Boolean r = tryInvoke(target, name, args);
+            if (Boolean.TRUE.equals(r)) return true;
+        }
+        return false;
     }
 
     private static Class<?> wrap(Class<?> t) {

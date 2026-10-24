@@ -14,7 +14,7 @@ import net.minecraft.world.entity.Entity;
 public final class EntityProfiles {
     private EntityProfiles() {}
 
-    private static final Map<String, EntityProfile> BY_ID = new HashMap<>();
+    private static final Map<String, EntityProfile> BY_ID = new java.util.concurrent.ConcurrentHashMap<>();
     private static final EntityProfile DEFAULT = EntityProfile.of();
 
     static {
@@ -22,7 +22,6 @@ public final class EntityProfiles {
     }
 
     private static void registerAll() {
-        // ---- 動きのあるもの ----
         register(new EvokerFangsProfile());
         register(new GuardianProfile());
         register(new SquidProfile());
@@ -115,8 +114,8 @@ public final class EntityProfiles {
             ensure(id).poses(NpcPose.STANDING, NpcPose.SITTING);
         }
 
-        // クリーキング: 歩行はキーフレーム。1周期は約1.1秒、animateWalk の係数は7.0(どちらも推測値)
-        ensure("minecraft:creaking").walkKeyframe(1.1f, 7.0f);
+        // クリーキング: 歩行はキーフレーム。1周期は約2秒、animateWalk の係数は7.0(どちらも推測値。足が1周しきらなければ、秒数を増やす)
+        ensure("minecraft:creaking").walkKeyframe(2.0f, 7.0f);
     }
 
     public static void register(EntityProfile profile) {

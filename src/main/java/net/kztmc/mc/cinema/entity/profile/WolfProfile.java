@@ -5,6 +5,7 @@ import java.util.Map;
 import net.kztmc.mc.cinema.entity.EntityProfile;
 import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.kztmc.mc.cinema.entity.RegistryHolders;
+import net.kztmc.mc.cinema.entity.profile.animation.NeutralMobs;
 import net.minecraft.core.Holder;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.world.entity.Entity;
@@ -21,7 +22,7 @@ public final class WolfProfile extends EntityProfile {
                 "ペール", "スポット", "スノー", "ブラック", "アッシュ", "ラスティ", "ウッズ", "チェスナット", "ストライプ");
         choice("tame", "飼い犬", 0, "野生", "飼い犬");
         option("collar", "首輪の色", 0, 15, 14);   // 14 = 赤
-        dropdownChoice("attack", "攻撃モード", 0, "なし", "あり");
+        toggle("attack", "攻撃モード", false);
     }
 
     @Override
@@ -37,9 +38,6 @@ public final class WolfProfile extends EntityProfile {
         if (tame) {
             EntityReflect.invokeFirst(e, List.of("setCollarColor"), DyeColor.byId(options.getOrDefault("collar", 14)));
         }
-
-        // 怒っている状態(目つきと体勢が変わる)
-        boolean attack = options.getOrDefault("attack", 0) == 1;
-        EntityReflect.invokeFirst(e, List.of("setRemainingPersistentAngerTime"), attack ? 400 : 0);
+        NeutralMobs.setAngry(e, options.getOrDefault("attack", 0) == 1);
     }
 }

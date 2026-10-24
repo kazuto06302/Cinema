@@ -11,6 +11,8 @@ public final class StriderProfile extends EntityProfile {
     public StriderProfile() {
         super("minecraft:strider");
         choice("lava", "マグマ", 1, "なし(寒い)", "あり");
+        walkPhase(2.1f);
+        walkSpeedMax(0.25f);
     }
 
     @Override

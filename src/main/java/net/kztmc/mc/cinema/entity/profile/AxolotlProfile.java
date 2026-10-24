@@ -12,6 +12,7 @@ import net.minecraft.world.entity.Entity;
  * ティックされないので、目標の値を直接書き込む。色は enum の定数名で指定する。
  */
 public final class AxolotlProfile extends EntityProfile {
+    private static final float CYCLE_TICKS = 40f;
     private static final String[] COLORS = {"LUCY", "WILD", "GOLD", "CYAN", "BLUE"};
 
     public AxolotlProfile() {
@@ -39,5 +40,14 @@ public final class AxolotlProfile extends EntityProfile {
         int ticks = Math.round(factor * length);
         EntityReflect.setInt(animator, "ticks", ticks);
         EntityReflect.setInt(animator, "ticksOld", ticks);
+    }
+
+    @Override
+    public void adjustRenderState(Entity e, Object state, float time, Map<String, Integer> options) {
+        float walk = options.getOrDefault(EntityMotion.WALK, 0) / 100f;
+        if (walk != 0f) {
+            // 足・尾・えらの動きは ageInTicks で決まるので、歩行スライダーの値で置き換える
+            EntityReflect.setFloat(state, "ageInTicks", Math.abs(walk) * CYCLE_TICKS);
+        }
     }
 }

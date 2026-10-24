@@ -62,4 +62,14 @@ public class NpcPlayer extends RemotePlayer {
     public void setModelName(String modelName) {
         this.modelName = modelName;
     }
+
+    @Override
+    public boolean isPickable() {
+        return false;
+    }
+
+    @Override
+    public boolean isPushable() {
+        return false;
+    }
 }
