@@ -14,7 +14,9 @@ import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemStack;
 
 /**
@@ -412,21 +414,24 @@ public class CinemaScreen extends Screen {
                         cur.headYRot(), cur.bodyYRot()))));
         y += sliderH + gap;
 
-        // --- ポーズ ---
-        labels.add(new Label("ポーズ", x, y, Theme.TEXT_DIM));
-        y += lh;
-        NpcPose[] poses = NpcPose.values();
+        // --- ポーズ(姿勢)。モブごとに、意味のあるものだけを出す(選べるものがなければ、欄ごと出さない) ---
         int pgap = Math.max(1, Theme.u(3));
-        int pw = (w - pgap * (poses.length - 1)) / poses.length;
-        for (int i = 0; i < poses.length; i++) {
-            NpcPose p = poses[i];
-            addRenderableWidget(new ModernButton(x + i * (pw + pgap), y, pw, btnH, p.label,
-                    ModernButton.Style.DEFAULT, () -> {
-                edit(id, cur -> cur.withPose(p));
-                refresh();
-            }).setSelected(d.npcPose() == p));
+        List<NpcPose> poses = NpcData.PLAYER.equals(d.kind())
+                ? NpcPose.PLAYER : EntityProfiles.of(d.entityType()).poses();
+        if (poses.size() > 1) {
+            labels.add(new Label("ポーズ", x, y, Theme.TEXT_DIM));
+            y += lh;
+            int pw = (w - pgap * (poses.size() - 1)) / poses.size();
+            for (int i = 0; i < poses.size(); i++) {
+                NpcPose p = poses.get(i);
+                addRenderableWidget(new ModernButton(x + i * (pw + pgap), y, pw, btnH, p.label,
+                        ModernButton.Style.DEFAULT, () -> {
+                    edit(id, cur -> cur.withPose(p));
+                    refresh();
+                }).setSelected(d.npcPose() == p));
+            }
+            y += btnH + gap;
         }
-        y += btnH + gap;
 
         // --- モデル(腕の太さ): プレイヤーのみ ---
         if (NpcData.PLAYER.equals(d.kind())) {
@@ -454,14 +459,24 @@ public class CinemaScreen extends Screen {
                 v -> edit(id, cur -> cur.withAnimTick((float) v))));
         y += sliderH + gap;
 
-        // --- 動き(歩行・腕を振る)。アニメーションの時間とは独立 ---
-        labels.add(new Label("動き", x, y, Theme.TEXT_DIM));
-        y += lh;
-        addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行", "%", -100, 100,
-                d.option(EntityMotion.WALK, 0),
-                v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v))));
-        y += sliderH;
-        if (NpcData.PLAYER.equals(d.kind()) || EntityProfiles.of(d.entityType()).isHumanoid()) {
+        // --- 動き(歩行・腕)。アニメーションの時間とは独立。将来のPose(部位ごとの調整)は、この上に重ねる ---
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;   // エンドクリスタルやボートは、生き物ではない
+        boolean isPlayer = NpcData.PLAYER.equals(d.kind());
+        boolean showWalk = living && (isPlayer || EntityProfiles.of(d.entityType()).walks());
+        boolean showArms = living && (isPlayer || EntityProfiles.of(d.entityType()).isHumanoid());
+
+        if (showWalk || showArms) {
+            labels.add(new Label("動き", x, y, Theme.TEXT_DIM));
+            y += lh;
+        }
+        if (showWalk) {
+            addRenderableWidget(new ModernSlider(x, y, w, sliderH, "歩行", "%", -100, 100,
+                    d.option(EntityMotion.WALK, 0),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v))));
+            y += sliderH;
+        }
+        if (showArms) {
             int last = EntityMotion.ARM_NAMES.length - 1;
             ModernSlider arms = new ModernSlider(x, y, w, sliderH, "腕", "", 0, last,
                     d.option(EntityMotion.ARMS, 0),
@@ -470,7 +485,9 @@ public class CinemaScreen extends Screen {
             addRenderableWidget(arms);
             y += sliderH;
         }
-        y += gap;
+        if (showWalk || showArms) {
+            y += gap;
+        }
 
         // --- エンティティ固有のオプション(プロフィールが宣言したものだけ) ---
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();

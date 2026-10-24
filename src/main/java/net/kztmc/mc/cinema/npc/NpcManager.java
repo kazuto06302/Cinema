@@ -241,11 +241,8 @@ public final class NpcManager {
         e.xRotO = d.xRot();
         e.setNoGravity(true);
 
-        // ポーズ: Player は tick で姿勢が再計算されるので、フラグ側も合わせる
         NpcPose pose = d.npcPose();
-        e.setShiftKeyDown(pose == NpcPose.CROUCHING);
-        e.setSwimming(pose == NpcPose.SWIMMING);
-        e.setPose(pose.pose);
+        pose.apply(e, EntityProfiles.of(e).poses().contains(NpcPose.SITTING));
 
         if (e instanceof NpcPlayer player) {
             player.setModelName(d.model().orElse(null));
@@ -266,5 +263,9 @@ public final class NpcManager {
         EntityProfiles.of(e).applyTransform(e);   // 位置に合わせて動かす部品(ドラゴンの当たり判定)の配置
         EntityTweaks.applyAnim(e, d.animTickOrDefault(), d.options());
         EntityMotion.apply(e, d.options(), SceneFreeze.partialTickOf(e));
+    }
+
+    public static Entity entityOf(UUID id) {
+        return LIVE.get(id);
     }
 }

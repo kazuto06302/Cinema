@@ -4,6 +4,8 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+
+import net.kztmc.mc.cinema.npc.NpcPose;
 import net.minecraft.world.entity.Entity;
 
 /**
@@ -24,6 +26,8 @@ public class EntityProfile {
     private IconStyle iconStyle;
     private boolean humanoid;
     private float walkCyclePosition;
+    private List<NpcPose> poses = List.of();
+    private boolean walks = true;
 
     protected EntityProfile(String... ids) {
         this.ids = Set.of(ids);
@@ -150,8 +154,10 @@ public class EntityProfile {
         applyAnim(e, time);
     }
 
+    /** 腕のポーズ(構える・振る)が効くモデル。右パネルに「腕」が出る。ポーズの既定は、立ち/しゃがみ/水泳 */
     public EntityProfile humanoid() {
         this.humanoid = true;
+        if (poses.isEmpty()) poses = NpcPose.HUMANOID;
         return this;
     }
 
@@ -174,5 +180,25 @@ public class EntityProfile {
     /** 0なら cos で振るモデル。0より大きければ、キーフレームの1周期ぶんの歩行位置 */
     public float walkCyclePosition() {
         return walkCyclePosition;
+    }
+
+    /** 右パネルのポーズ欄に出す姿勢。2つ以上宣言したときだけ、欄が出る */
+    public EntityProfile poses(NpcPose... poses) {
+        this.poses = List.of(poses);
+        return this;
+    }
+
+    public List<NpcPose> poses() {
+        return poses;
+    }
+
+    /** 歩かないモブ(魚・クラゲ・浮遊するモブなど)。右パネルに「歩行」を出さない */
+    public EntityProfile noWalk() {
+        this.walks = false;
+        return this;
+    }
+
+    public boolean walks() {
+        return walks;
     }
 }

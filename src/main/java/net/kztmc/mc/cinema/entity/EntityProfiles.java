@@ -6,6 +6,7 @@ import java.util.Map;
 
 import net.kztmc.mc.cinema.entity.profile.*;
 
+import net.kztmc.mc.cinema.npc.NpcPose;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.world.entity.Entity;
 
@@ -46,6 +47,7 @@ public final class EntityProfiles {
         register(new SnowGolemProfile());
         register(new PandaProfile());
         register(new SheepProfile());
+        register(new EndCrystalProfile());
 
         // ---- 腕のポーズが効くモデル(プレイヤーは種類で判定) ----
         register(EntityProfile.of(
@@ -82,6 +84,22 @@ public final class EntityProfiles {
 
         // ---- 選択画面には出すが、アイコンは描かない ----
         register(EntityProfile.of("minecraft:lightning_bolt").noRender());
+
+        // ---- 歩かないモブ: 右パネルに「歩行」を出さない ----
+        for (String id : List.of(
+                "minecraft:cod", "minecraft:salmon", "minecraft:tropical_fish", "minecraft:pufferfish",
+                "minecraft:dolphin", "minecraft:squid", "minecraft:glow_squid",
+                "minecraft:guardian", "minecraft:elder_guardian", "minecraft:ghast", "minecraft:happy_ghast",
+                "minecraft:bat", "minecraft:phantom", "minecraft:vex", "minecraft:allay", "minecraft:bee",
+                "minecraft:blaze", "minecraft:slime", "minecraft:magma_cube", "minecraft:shulker",
+                "minecraft:ender_dragon", "minecraft:wither")) {
+            ensure(id).noWalk();
+        }
+
+        // ---- 座れるモブ ----
+        for (String id : List.of("minecraft:wolf", "minecraft:cat", "minecraft:fox", "minecraft:parrot")) {
+            ensure(id).poses(NpcPose.STANDING, NpcPose.SITTING);
+        }
     }
 
     public static void register(EntityProfile profile) {
@@ -97,5 +115,15 @@ public final class EntityProfiles {
 
     public static EntityProfile of(Entity e) {
         return of(BuiltInRegistries.ENTITY_TYPE.getKey(e.getType()).toString());
+    }
+
+    /** すでに登録があればそれを返し、なければ作って登録する(個別の設定を後から足すとき用) */
+    private static EntityProfile ensure(String id) {
+        EntityProfile p = BY_ID.get(id);
+        if (p == null) {
+            p = EntityProfile.of(id);
+            register(p);
+        }
+        return p;
     }
 }
