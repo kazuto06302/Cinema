@@ -19,21 +19,21 @@ Mob固有のNBTTag
 エクスポート
 カメラ位置
 
-犬の防具、サドルの部分は未実装です
-犬・馬の防具がプレイヤーの胴、サドルはズボンのところに入れたら反映されるように
-銅ゴーレムのアニメ5,6,7が表示されてない、tick数に収まりきってない
-ウォーデン・ラクダ・クリーキングのアニメーションって元に戻るまでにできない？
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.world.entity.animal.fox.Fox =====
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] Fox fields: [landTargetGoal(Goal)=null, turtleEggTargetGoal(Goal)=null, fishTargetGoal(Goal)=null, interestedAngle(float)=0.0, interestedAngleO(float)=0.0, crouchAmount(float)=0.0, crouchAmountO(float)=0.0, ticksSinceEaten(int)=0]
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] Fox methods: [get/1, setTarget/1, tick/0, getVariant/0, setVariant/1, addTrustedEntity/1, addTrustedEntity/1, isDefending/0, getTrustedEntities/0, setIsCrouching/1, clearTrusted/0, setSleeping/1, spitOutItem/1, setIsInterested/1, isConsumableFood/1, setTargetGoals/0, isFullyCrouched/0, clearStates/0, isInterested/0, isFaceplanted/0, setIsPouncing/1, getHeadRollAngle/1, setDefending/1, getCrouchAmount/1, setFaceplanted/1, canDispenserEquipIntoSlot/1, playAmbientSound/0, finalizeSpawn/4, isSitting/0, registerGoals/0, getBreedOffspring/2, getAmbientSound/0, canHoldItem/1, onOffspringSpawnedFromEgg/2, getLeashOffset/0, getDefaultDimensions/1, defineSynchedData/1, isCrouching/0, readAdditionalSaveData/1, addAdditionalSaveData/1, handleEntityEvent/1, applyImplicitComponents/1, applyImplicitComponent/2, getHurtSound/1, getDeathSound/0, dropAllDeathLoot/2, aiStep/0, isSleeping/0, isImmobile/0, canEat/1, populateDefaultEquipmentSlots/2, pickUpItem/2, setFlag/2, trusts/1, wakeUp/0, setSitting/1, isPouncing/0, canMove/0, getFlag/1, dropItemStack/1, isFood/1, playEatingSound/0]
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] Animal fields: [inLove(int)=0, loveCause(EntityReference)=null]
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] Animal methods: [getDismountLocationForPassenger/1, getWalkTargetValue/2, mobInteract/2, getAmbientSoundInterval/0, customServerAiStep/1, removeWhenFarAway/1, readAdditionalSaveData/1, addAdditionalSaveData/1, handleEntityEvent/1, actuallyHurt/3, getBaseExperienceReward/1, aiStep/0, finalizeSpawnChildFromBreeding/3, isFood/1, isInLove/0, canMate/1, resetLove/0, setInLove/1, setInLoveTime/1, spawnChildFromBreeding/2, playEatingSound/0, canFallInLove/0, getInLoveTime/0, getLoveCause/0]
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] AgeableMob fields: [age(int)=0, forcedAge(int)=0, forcedAgeTimer(int)=0, ageLockParticleTimer(int)=0]
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] AgeableMob methods: [setAge/1, getAge/0, isBaby/0, finalizeSpawn/4, isAgeLocked/0, getForcedAgeTimer/0, mobInteract/2, getForcedAge/0, setAgeLocked/1, ageBoundaryReached/0, setAgeLockedData/0, getBabyStartAge/0, getBreedOffspring/2, defineSynchedData/1, readAdditionalSaveData/1, addAdditionalSaveData/1, onSyncedDataUpdated/1, aiStep/0, canAgeUp/0, ageUp/2, ageUp/1, canBreed/0, setBaby/1, canBeABaby/0]
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] PathfinderMob fields: []
-[08:47:27] [Render thread/INFO] (cinema) [Cinema] PathfinderMob methods: [getWalkTargetValue/2, getWalkTargetValue/1, closeRangeLeashBehaviour/1, followLeashSpeed/0, whenLeashedTo/1, isPanicking/0, checkSpawnRules/2, isPathFinding/0, shouldStayCloseToLeashHolder/0]
+ウォーデンの攻撃アニメーションがプルプル震えてる
+ウォーデン・クリーキングの歩行部分の動きがやや変？
+馬のバリエーション
+銅ゴーレムのアニメ6,7,8が変わらず表示されず（再生倍率関係無しの模様）
+[23:45:59] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.world.entity.animal.golem.CopperGolem =====
+[23:45:59] [Render thread/INFO] (cinema) [Cinema] CopperGolem fields: [openedChestPos(BlockPos)=null, lastLightningBoltUUID(UUID)=null, nextWeatheringTick(long)=-1, idleAnimationStartTick(int)=0, idleAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1dd303f2, interactionGetItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@3730578, interactionGetNoItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1cbe84cc, interactionDropItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1a5bef86, interactionDropNoItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1f92b3ac]
+[23:45:59] [Render thread/INFO] (cinema) [Cinema] CopperGolem methods: [getState/0, setState/1, tick/0, getBrain/0, makeBrain/1, spawn/1, finalizeSpawn/4, getInteractionGetNoItemAnimationState/0, getInteractionDropItemAnimationState/0, getInteractionDropNoItemAnimationState/0, getInteractionGetItemAnimationState/0, shear/3, getContainerInteractionRange/0, getHurtSound/1, getDeathSound/0, dropEquipment/1, actuallyHurt/3, hasContainerOpen/2, thunderHit/2, readyForShearing/0, turnToStatue/1, clearOpenedChestPos/0, getIdleAnimationState/0, getWeatherState/0, setWeatherState/1, getSpinHeadSound/0, playSpawnSound/0, setOpenedChestPos/1, setupAnimationStates/0, canTurnToStatue/1, playHeadSpinSound/0, updateWeathering/3, mobInteract/2, customServerAiStep/1, getLeashOffset/0, defineSynchedData/1, playStepSound/2, addAdditionalSaveData/1, readAdditionalSaveData/1]
+[23:45:59] [Render thread/INFO] (cinema) [Cinema] AbstractGolem fields: []
+[23:45:59] [Render thread/INFO] (cinema) [Cinema] AbstractGolem methods: [getHurtSound/1, getDeathSound/0, removeWhenFarAway/1, getAmbientSound/0, getAmbientSoundInterval/0]
+[23:45:59] [Render thread/INFO] (cinema) [Cinema] PathfinderMob fields: []
+[23:45:59] [Render thread/INFO] (cinema) [Cinema] PathfinderMob methods: [shouldStayCloseToLeashHolder/0, getWalkTargetValue/2, getWalkTargetValue/1, whenLeashedTo/1, closeRangeLeashBehaviour/1, isPanicking/0, followLeashSpeed/0, isPathFinding/0, checkSpawnRules/2]
+帯電クリーパーにするかどうかチェックボックスで指定できるように
+ウィザー・ウィザーの頭を青くするかどうかチェックボックスで指定できるように
+buildRightの部分の幅を210に、あと背景をやや透明にして
 
-帯電クリーパー
 絵画
 ウィザー
 子ども

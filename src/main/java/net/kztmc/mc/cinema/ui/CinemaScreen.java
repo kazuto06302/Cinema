@@ -3,10 +3,7 @@ package net.kztmc.mc.cinema.ui;
 import java.util.*;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
-import net.kztmc.mc.cinema.entity.EntityMotion;
-import net.kztmc.mc.cinema.entity.EntityOption;
-import net.kztmc.mc.cinema.entity.EntityProfiles;
-import net.kztmc.mc.cinema.entity.IconStyle;
+import net.kztmc.mc.cinema.entity.*;
 import net.kztmc.mc.cinema.npc.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -29,11 +26,17 @@ import net.minecraft.world.item.ItemStack;
  * 寸法はすべて Theme.u() 経由で、文字サイズ(Theme.FONT_PX)に連動して縮む。
  */
 public class CinemaScreen extends Screen {
-    private static final EquipmentSlot[] SLOTS = {
-            EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
-            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET
-    };
-    private static final String[] SLOT_LABELS = {"メイン", "オフ", "頭", "胴", "脚", "足"};
+    private static String slotLabel(EquipmentSlot slot, boolean animalGear) {
+        return switch (slot) {
+            case MAINHAND -> "メイン";
+            case OFFHAND -> "オフ";
+            case HEAD -> "頭";
+            case CHEST -> animalGear ? "胴(防具)" : "胴";
+            case LEGS -> animalGear ? "脚(鞍)" : "脚";
+            case FEET -> "足";
+            default -> slot.getName();
+        };
+    }
 
     private static final int MOB_COLS = 3;
 
@@ -499,6 +502,26 @@ public class CinemaScreen extends Screen {
             addRenderableWidget(arms);
             y += sliderH;
         }
+
+        if (devMode && showWalk) {
+            EntityProfile walker = EntityProfiles.of(d.entityType());
+            if (walker.walkCyclePosition() > 0f) {
+                addRenderableWidget(new ModernSlider(x, y, w, sliderH, "[DEV] 歩行周期", "秒", 0.2, 6.0, 0.05,
+                        walker.walkCycleSeconds(), v -> {
+                    walker.setWalkCycleSeconds((float) v);
+                    edit(id, cur -> cur);   // 歩行を、新しい周期で反映し直す
+                }));
+                y += sliderH;
+                addRenderableWidget(new ModernButton(x, y, w, btnH, "周期をコピー", ModernButton.Style.DEFAULT, () -> {
+                    String line = String.format(java.util.Locale.ROOT, "walkKeyframe(%.2ff, %.1ff);",
+                            walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed());
+                    Minecraft.getInstance().keyboardHandler.setClipboard(line);
+                    Cinema.LOGGER.info("[Cinema] {} -> {}", d.entityType(), line);
+                }));
+                y += btnH + gap;
+            }
+        }
+
         if (showWalk || showArms) {
             y += gap;
         }
@@ -550,16 +573,18 @@ public class CinemaScreen extends Screen {
         }));
         y += btnH + gap;
 
-        // --- 装備 ---
+        // --- 装備(動物は、胴(犬の防具・ウマの鎧・ラマのカーペット)と鞍も) ---
         labels.add(new Label("装備(手持ちを設定)", x, y, Theme.TEXT_DIM));
         y += lh;
+        boolean animalGear = EntityProfiles.of(d.entityType()).hasAnimalGear();
+        List<EquipmentSlot> slots = List.of(EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
+                EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET);
         int clearW = btnH;
         int rowGap = Math.max(1, Theme.u(2));
-        for (int i = 0; i < SLOTS.length; i++) {
-            EquipmentSlot slot = SLOTS[i];
+        for (EquipmentSlot slot : slots) {
             ItemStack cur = d.equipment().get(slot.getName());
             String item = (cur == null || cur.isEmpty()) ? "-" : cur.getHoverName().getString();
-            addRenderableWidget(new ModernButton(x, y, w - clearW - rowGap, btnH, SLOT_LABELS[i] + "  " + item,
+            addRenderableWidget(new ModernButton(x, y, w - clearW - rowGap, btnH, slotLabel(slot, animalGear) + "  " + item,
                     ModernButton.Style.DEFAULT, () -> {
                 Minecraft mc = Minecraft.getInstance();
                 if (mc.player == null) return;

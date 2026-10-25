@@ -114,6 +114,15 @@ public final class EntityProfiles {
             ensure(id).poses(NpcPose.STANDING, NpcPose.SITTING);
         }
 
+        // ---- 動物の装備(胴=防具・カーペット・ハーネス、脚のスロット=鞍) ----
+        for (String id : List.of(
+                "minecraft:wolf", "minecraft:horse", "minecraft:donkey", "minecraft:mule",
+                "minecraft:skeleton_horse", "minecraft:zombie_horse", "minecraft:llama", "minecraft:trader_llama",
+                "minecraft:camel", "minecraft:camel_husk", "minecraft:pig", "minecraft:strider",
+                "minecraft:happy_ghast", "minecraft:nautilus", "minecraft:zombie_nautilus")) {
+            ensure(id).animalGear();
+        }
+
         // クリーキング: 歩行はキーフレーム。1周期は約2秒、animateWalk の係数は7.0(どちらも推測値。足が1周しきらなければ、秒数を増やす)
         ensure("minecraft:creaking").walkKeyframe(2.0f, 7.0f);
     }

@@ -45,7 +45,7 @@ public abstract class AnimationModeProfile extends EntityProfile {
             if (fields[i] == null) continue;
             if (i == mode) {
                 float scale = seconds != null && seconds[i] > 0f ? seconds[i] * 20f / FIT_TICKS : 1f;
-                AnimationStates.play(e, fields[i], time * scale);
+                AnimationStates.play(e, fields[i], time, time * scale);
             } else {
                 AnimationStates.stop(e, fields[i]);
             }

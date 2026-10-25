@@ -5,20 +5,26 @@ import net.minecraft.world.entity.AnimationState;
 
 /**
  * キーフレームアニメーション(AnimationState)の操作。
- * NPCはティックされないので、再生の開始は自分で行う。時刻は、描画側が「tickCount + 補間値」で求めるので、
- * 開始時刻を0にして、経過時間も時刻に合わせておけば、時間スライダーがそのままアニメーションの位置になる。
+ * 描画側の経過時間は「(ageInTicks - 開始tick) × 50ms」。NPCはティックされないので、
+ * 開始tickを逆算して、「いま、動作の何tick目か」を指定する。
  */
 public final class AnimationStates {
     private AnimationStates() {}
 
-    /** owner のフィールド field(AnimationState)を、timeTicks の位置で再生中にする */
-    public static void play(Object owner, String field, float timeTicks) {
+    /**
+     * owner のフィールド field(AnimationState)を、再生中にする。
+     * @param ageTicks     いまの時刻(tickCount + 補間値)。描画側が ageInTicks として使う値
+     * @param elapsedTicks 動作の何tick目を表示するか。時間を伸縮するときは、ageTicks と違う値にする
+     */
+    public static void play(Object owner, String field, float ageTicks, float elapsedTicks) {
         if (!(EntityReflect.getObject(owner, field) instanceof AnimationState state)) return;
-        state.start(0);
-        // 経過時間を溜めて進める版では、現在の時刻と同じ値にしておく(差分が0になり、位置が時刻から決まる)。版が違えば無視される
-        long millis = Math.round(timeTicks * 50f);
-        EntityReflect.setLongQuiet(state, "accumulatedTime", millis);
-        EntityReflect.setLongQuiet(state, "lastTime", millis);
+        // 開始tickは整数なので、誤差は1tick未満。伸縮しないとき(elapsed = age)は、開始tickが0で、誤差はない
+        state.start((int) Math.floor(ageTicks - elapsedTicks));
+    }
+
+    /** 伸縮しない版(動作の時刻 = いまの時刻) */
+    public static void play(Object owner, String field, float timeTicks) {
+        play(owner, field, timeTicks, timeTicks);
     }
 
     public static void stop(Object owner, String field) {

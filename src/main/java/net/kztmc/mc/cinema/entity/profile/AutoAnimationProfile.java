@@ -15,9 +15,11 @@ import net.minecraft.world.entity.Entity;
 /**
  * AnimationState のフィールド名が分からないモブ用。クラスの AnimationState をすべて探して、
  * 「アニメ1」「アニメ2」…の番号で選べるようにする。対応は、初回にログへ出る。
+ * 長いアニメーションは、「再生倍率」を上げると、時間スライダーの範囲に収まる(×4なら、スライダー40tickで160tickぶん進む)。
  */
 public class AutoAnimationProfile extends EntityProfile {
     private static final int MAX_STATES = 8;
+    private static final int[] SPEEDS = {1, 2, 3, 4, 6, 8, 12, 16};
     private static final Map<Class<?>, List<String>> FIELDS = new HashMap<>();
 
     protected AutoAnimationProfile(String... ids) {
@@ -26,15 +28,17 @@ public class AutoAnimationProfile extends EntityProfile {
         names[0] = "なし";
         for (int i = 1; i <= MAX_STATES; i++) names[i] = "アニメ" + i;
         choice("anim", "動作", 0, names);
+        choice("speed", "再生倍率", 0, "×1", "×2", "×3", "×4", "×6", "×8", "×12", "×16");
     }
 
     @Override
     public void applyAnim(Entity e, float time, Map<String, Integer> options) {
         List<String> fields = discover(e);
         int mode = options.getOrDefault("anim", 0);
+        int speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, options.getOrDefault("speed", 0)))];
         for (int i = 0; i < fields.size(); i++) {
             if (i + 1 == mode) {
-                AnimationStates.play(e, fields.get(i), time);
+                AnimationStates.play(e, fields.get(i), time, time * speed);
             } else {
                 AnimationStates.stop(e, fields.get(i));
             }

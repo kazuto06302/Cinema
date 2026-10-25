@@ -257,9 +257,9 @@ public final class NpcManager {
             living.yHeadRotO = d.headYRot();
             living.yBodyRot = d.bodyYRot();
             living.yBodyRotO = d.bodyYRot();
+            boolean animalGear = EntityProfiles.of(e).hasAnimalGear();
             for (EquipmentSlot slot : EquipmentSlot.values()) {
-                ItemStack stack = d.equipment().get(slot.getName());
-                living.setItemSlot(slot, stack == null ? ItemStack.EMPTY : stack.copy());
+                living.setItemSlot(slot, stackFor(d, slot, animalGear));
             }
         }
         EntityProfiles.of(e).applyTransform(e);
@@ -269,5 +269,25 @@ public final class NpcManager {
 
     public static Entity entityOf(UUID id) {
         return LIVE.get(id);
+    }
+
+    /**
+     * スロットに入れる装備。動物の装備があるモブでは、右パネルの「胴」を動物の胴(BODY)に、「脚」を鞍(SADDLE)に割り当てる。
+     * その場合、本物の胴・脚のスロットは使わない。
+     */
+    private static ItemStack stackFor(NpcData d, EquipmentSlot slot, boolean animalGear) {
+        EquipmentSlot source = slot;
+        if (animalGear) {
+            switch (slot) {
+                case BODY -> source = EquipmentSlot.CHEST;
+                case SADDLE -> source = EquipmentSlot.LEGS;
+                case CHEST, LEGS -> {
+                    return ItemStack.EMPTY;
+                }
+                default -> { }
+            }
+        }
+        ItemStack stack = d.equipment().get(source.getName());
+        return stack == null ? ItemStack.EMPTY : stack.copy();
     }
 }

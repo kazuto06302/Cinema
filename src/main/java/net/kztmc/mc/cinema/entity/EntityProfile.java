@@ -31,6 +31,9 @@ public class EntityProfile {
     private float walkPhase;
     private float walkSpeedMax = 1f;
     private boolean noHitbox;
+    private boolean animalGear;
+    private float walkCycleSeconds;
+    private float walkMaxAnimationSpeed = 1f;
 
     protected EntityProfile(String... ids) {
         this.ids = Set.of(ids);
@@ -169,31 +172,34 @@ public class EntityProfile {
     }
 
     /**
-     * キーフレームで歩くモデル用(スニッファーなど)。
+     * キーフレームで歩くモデル用(スニッファー・カエル・ラクダ・クリーキングなど)。
      * 手足を cos で振るモデルと違い、歩行の位置(時間)が0だと、アニメーションの最初の1コマ(ほぼ直立)になるので、
-     * 歩行スライダーを「周期のどこにいるか」として扱う。
-     * @param cycleSeconds      歩行アニメーションの1周期の長さ(秒)
-     * @param maxAnimationSpeed モデルが animateWalk に渡している係数(ふつう 9.0)
+     * 歩行スライダーを「周期のどこにいるか」として扱う。100%が、ちょうど1周期。
+     * @param cycleSeconds      歩行アニメーションの1周期の長さ(秒)。devモードの画面で合わせられる
+     * @param maxAnimationSpeed モデルが animateWalk に渡している係数(ふつう 1.5〜9.0)
      */
     public EntityProfile walkKeyframe(float cycleSeconds, float maxAnimationSpeed) {
-        this.walkCyclePosition = cycleSeconds * 1000f / (50f * maxAnimationSpeed);
+        this.walkCycleSeconds = cycleSeconds;
+        this.walkMaxAnimationSpeed = maxAnimationSpeed;
         return this;
     }
 
     /** 0なら cos で振るモデル。0より大きければ、キーフレームの1周期ぶんの歩行位置 */
     public float walkCyclePosition() {
-        return walkCyclePosition;
+        return walkCycleSeconds <= 0f ? 0f : walkCycleSeconds * 1000f / (50f * walkMaxAnimationSpeed);
     }
 
-    public EntityProfile walkPhase(float limbSwingOffset) {
-        this.walkPhase = limbSwingOffset;
-        return this;
+    public float walkCycleSeconds() {
+        return walkCycleSeconds;
     }
 
-    /** モデルが歩行の強さに上限を設けているとき(ストライダーは 0.25)に、歩行スライダーの100%を、その値に合わせる */
-    public EntityProfile walkSpeedMax(float max) {
-        this.walkSpeedMax = max;
-        return this;
+    public float walkMaxAnimationSpeed() {
+        return walkMaxAnimationSpeed;
+    }
+
+    /** devモードの調整用。実行中に、周期を変える(保存はされない。決まった値は、コードに書く) */
+    public void setWalkCycleSeconds(float seconds) {
+        this.walkCycleSeconds = seconds;
     }
 
     public float walkPhase() {
@@ -254,4 +260,13 @@ public class EntityProfile {
      * @param options NPCごとの設定(アイコンでは空)
      */
     public void adjustRenderState(Entity e, Object state, float time, Map<String, Integer> options) {}
+
+    public EntityProfile animalGear() {
+        this.animalGear = true;
+        return this;
+    }
+
+    public boolean hasAnimalGear() {
+        return animalGear;
+    }
 }
