@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityProfile;
+import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.kztmc.mc.cinema.entity.profile.animation.AnimationStates;
 import net.minecraft.world.entity.AnimationState;
 import net.minecraft.world.entity.Entity;
@@ -35,13 +36,20 @@ public class AutoAnimationProfile extends EntityProfile {
     public void applyAnim(Entity e, float time, Map<String, Integer> options) {
         List<String> fields = discover(e);
         int mode = options.getOrDefault("anim", 0);
-        int speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, options.getOrDefault("speed", 0)))];
         for (int i = 0; i < fields.size(); i++) {
             if (i + 1 == mode) {
-                AnimationStates.play(e, fields.get(i), time, time * speed);
+                AnimationStates.play(e, fields.get(i));
             } else {
                 AnimationStates.stop(e, fields.get(i));
             }
+        }
+    }
+
+    @Override
+    public void adjustRenderState(Entity e, Object state, float time, Map<String, Integer> options) {
+        if (options.getOrDefault("anim", 0) > 0) {
+            int speed = SPEEDS[Math.max(0, Math.min(SPEEDS.length - 1, options.getOrDefault("speed", 0)))];
+            EntityReflect.setFloat(state, "ageInTicks", time * speed);
         }
     }
 

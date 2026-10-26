@@ -34,6 +34,7 @@ public class EntityProfile {
     private boolean animalGear;
     private float walkCycleSeconds;
     private float walkMaxAnimationSpeed = 1f;
+    private float walkKeyframeIntensity = 1f;
 
     protected EntityProfile(String... ids) {
         this.ids = Set.of(ids);
@@ -202,6 +203,17 @@ public class EntityProfile {
         this.walkCycleSeconds = seconds;
     }
 
+    public EntityProfile walkPhase(float limbSwingOffset) {
+        this.walkPhase = limbSwingOffset;
+        return this;
+    }
+
+    /** モデルが歩行の強さに上限を設けているとき(ストライダーは 0.25)に、歩行スライダーの100%を、その値に合わせる */
+    public EntityProfile walkSpeedMax(float max) {
+        this.walkSpeedMax = max;
+        return this;
+    }
+
     public float walkPhase() {
         return walkPhase;
     }
@@ -209,7 +221,6 @@ public class EntityProfile {
     public float walkSpeedMax() {
         return walkSpeedMax;
     }
-
     /** 右パネルのポーズ欄に出す姿勢。2つ以上宣言したときだけ、欄が出る */
     public EntityProfile poses(NpcPose... poses) {
         this.poses = List.of(poses);
@@ -268,5 +279,18 @@ public class EntityProfile {
 
     public boolean hasAnimalGear() {
         return animalGear;
+    }
+
+    public EntityProfile walkKeyframe(float cycleSeconds, float maxAnimationSpeed, float intensity) {
+        this.walkKeyframeIntensity = intensity;
+        return walkKeyframe(cycleSeconds, maxAnimationSpeed);
+    }
+
+    public float walkKeyframeIntensity() {
+        return walkKeyframeIntensity;
+    }
+
+    public void setWalkKeyframeIntensity(float intensity) {
+        this.walkKeyframeIntensity = intensity;
     }
 }

@@ -4,6 +4,7 @@ import java.util.*;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.*;
+import net.kztmc.mc.cinema.entity.profile.AnimationModeProfile;
 import net.kztmc.mc.cinema.npc.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -158,7 +159,7 @@ public class CinemaScreen extends Screen {
         m = Theme.u(6);
         pad = Theme.u(6);
         gap = Theme.u(4);
-        panelW = Theme.u(150);
+        panelW = Theme.u(210);
         leftW = Theme.u(210);
         btnH = Math.max(th + 3, Theme.u(14));
         sliderH = th + Theme.u(11);
@@ -511,10 +512,16 @@ public class CinemaScreen extends Screen {
                     walker.setWalkCycleSeconds((float) v);
                     edit(id, cur -> cur);   // 歩行を、新しい周期で反映し直す
                 }));
+                addRenderableWidget(new ModernSlider(x, y, w, sliderH, "[DEV] 歩行の強さ", "", 0.05, 1.0, 0.05,
+                        walker.walkKeyframeIntensity(), v -> {
+                    walker.setWalkKeyframeIntensity((float) v);
+                    edit(id, cur -> cur);
+                }));
+                y += sliderH;
                 y += sliderH;
                 addRenderableWidget(new ModernButton(x, y, w, btnH, "周期をコピー", ModernButton.Style.DEFAULT, () -> {
-                    String line = String.format(java.util.Locale.ROOT, "walkKeyframe(%.2ff, %.1ff);",
-                            walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed());
+                    String line = String.format(java.util.Locale.ROOT, "walkKeyframe(%.2ff, %.1ff, %.2ff);",
+                            walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed(), walker.walkKeyframeIntensity());
                     Minecraft.getInstance().keyboardHandler.setClipboard(line);
                     Cinema.LOGGER.info("[Cinema] {} -> {}", d.entityType(), line);
                 }));
@@ -597,6 +604,24 @@ public class CinemaScreen extends Screen {
                 refresh();
             }));
             y += btnH + rowGap;
+        }
+
+        // --- [DEV] 動作の長さの調整(AnimationState を使うモブ)---
+        if (devMode && EntityProfiles.of(d.entityType()) instanceof AnimationModeProfile moded) {
+            int m = d.option(moded.optionKey(), 0);
+            if (moded.hasField(m)) {
+                addRenderableWidget(new ModernSlider(x, y, w, sliderH, "[DEV] 動作の長さ", "秒", 0.0, 12.0, 0.05,
+                        moded.secondsOf(m), v -> {
+                    moded.setSeconds(m, (float) v);
+                    edit(id, cur -> cur);   // 新しい長さで反映し直す
+                }));
+                y += sliderH;
+                addRenderableWidget(new ModernButton(x, y, w, btnH, "長さをコピー", ModernButton.Style.DEFAULT, () -> {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(moded.secondsLine());
+                    Cinema.LOGGER.info("[Cinema] {} seconds -> {}", d.entityType(), moded.secondsLine());
+                }));
+                y += btnH + gap;
+            }
         }
 
         // --- 削除(下端固定) ---

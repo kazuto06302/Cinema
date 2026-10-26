@@ -6,6 +6,8 @@ import java.lang.reflect.Modifier;
 import java.util.*;
 
 import net.kztmc.mc.cinema.Cinema;
+import net.minecraft.network.syncher.EntityDataAccessor;
+import net.minecraft.world.entity.Entity;
 
 /**
  * 非公開・名前が不確かなフィールドやメソッドへの書き込み。
@@ -414,5 +416,67 @@ public final class EntityReflect {
             }
         }
         return out;
+    }
+
+    /** 引数がすべて enum のメソッドを、定数名で呼ぶ(馬の setVariantAndMarkings など) */
+    public static boolean invokeWithEnumArgs(Object target, String name, String... constantNames) {
+        for (Class<?> c = target.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (!m.getName().equals(name) || m.getParameterCount() != constantNames.length) continue;
+                Class<?>[] types = m.getParameterTypes();
+                Object[] args = new Object[types.length];
+                boolean ok = true;
+                for (int i = 0; i < types.length && ok; i++) {
+                    Object found = null;
+                    if (types[i].isEnum()) {
+                        for (Object k : types[i].getEnumConstants()) {
+                            if (((Enum<?>) k).name().equals(constantNames[i])) found = k;
+                        }
+                    }
+                    args[i] = found;
+                    ok = found != null;
+                }
+                if (!ok) continue;
+                try {
+                    m.setAccessible(true);
+                    m.invoke(target, args);
+                    return true;
+                } catch (ReflectiveOperationException | RuntimeException ex) {
+                    warnOnce(target.getClass().getName() + "#enums:" + name, "[Cinema] call to {} failed", name, ex);
+                    return false;
+                }
+            }
+        }
+        warnOnce(target.getClass().getName() + "#enums:" + name + List.of(constantNames),
+                "[Cinema] method {}({}) was not found on {}", name, List.of(constantNames), target.getClass().getName());
+        return false;
+    }
+
+    /**
+     * エンティティの同期データ(EntityDataAccessor。帯電クリーパーなど)に、値を書き込む。
+     * @param accessorField データの識別子を持つ static フィールドの名前(例: DATA_IS_POWERED)
+     */
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public static boolean setSyncedData(Entity e, String accessorField, Object value) {
+        String key = e.getClass().getName() + "#data:" + accessorField;
+        if (FAILED.contains(key)) return false;
+        try {
+            Field f = null;
+            for (Class<?> c = e.getClass(); c != null && f == null; c = c.getSuperclass()) {
+                try {
+                    f = c.getDeclaredField(accessorField);
+                } catch (NoSuchFieldException ignored) {
+                    // 親クラスも探す
+                }
+            }
+            if (f == null) throw new NoSuchFieldException(accessorField);
+            f.setAccessible(true);
+            e.getEntityData().set((EntityDataAccessor) f.get(null), value);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            FAILED.add(key);
+            Cinema.LOGGER.warn("[Cinema] could not write synced data '{}' on {}", accessorField, e.getClass().getName(), ex);
+            return false;
+        }
     }
 }

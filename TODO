@@ -19,21 +19,27 @@ Mob固有のNBTTag
 エクスポート
 カメラ位置
 
-ウォーデンの攻撃アニメーションがプルプル震えてる
-ウォーデン・クリーキングの歩行部分の動きがやや変？
-馬のバリエーション
-銅ゴーレムのアニメ6,7,8が変わらず表示されず（再生倍率関係無しの模様）
-[23:45:59] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.world.entity.animal.golem.CopperGolem =====
-[23:45:59] [Render thread/INFO] (cinema) [Cinema] CopperGolem fields: [openedChestPos(BlockPos)=null, lastLightningBoltUUID(UUID)=null, nextWeatheringTick(long)=-1, idleAnimationStartTick(int)=0, idleAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1dd303f2, interactionGetItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@3730578, interactionGetNoItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1cbe84cc, interactionDropItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1a5bef86, interactionDropNoItemAnimationState(AnimationState)=net.minecraft.world.entity.AnimationState@1f92b3ac]
-[23:45:59] [Render thread/INFO] (cinema) [Cinema] CopperGolem methods: [getState/0, setState/1, tick/0, getBrain/0, makeBrain/1, spawn/1, finalizeSpawn/4, getInteractionGetNoItemAnimationState/0, getInteractionDropItemAnimationState/0, getInteractionDropNoItemAnimationState/0, getInteractionGetItemAnimationState/0, shear/3, getContainerInteractionRange/0, getHurtSound/1, getDeathSound/0, dropEquipment/1, actuallyHurt/3, hasContainerOpen/2, thunderHit/2, readyForShearing/0, turnToStatue/1, clearOpenedChestPos/0, getIdleAnimationState/0, getWeatherState/0, setWeatherState/1, getSpinHeadSound/0, playSpawnSound/0, setOpenedChestPos/1, setupAnimationStates/0, canTurnToStatue/1, playHeadSpinSound/0, updateWeathering/3, mobInteract/2, customServerAiStep/1, getLeashOffset/0, defineSynchedData/1, playStepSound/2, addAdditionalSaveData/1, readAdditionalSaveData/1]
-[23:45:59] [Render thread/INFO] (cinema) [Cinema] AbstractGolem fields: []
-[23:45:59] [Render thread/INFO] (cinema) [Cinema] AbstractGolem methods: [getHurtSound/1, getDeathSound/0, removeWhenFarAway/1, getAmbientSound/0, getAmbientSoundInterval/0]
-[23:45:59] [Render thread/INFO] (cinema) [Cinema] PathfinderMob fields: []
-[23:45:59] [Render thread/INFO] (cinema) [Cinema] PathfinderMob methods: [shouldStayCloseToLeashHolder/0, getWalkTargetValue/2, getWalkTargetValue/1, whenLeashedTo/1, closeRangeLeashBehaviour/1, isPanicking/0, followLeashSpeed/0, isPathFinding/0, checkSpawnRules/2]
-帯電クリーパーにするかどうかチェックボックスで指定できるように
-ウィザー・ウィザーの頭を青くするかどうかチェックボックスで指定できるように
-buildRightの部分の幅を210に、あと背景をやや透明にして
+[BUG FIX]
+銅ゴーレムにアイテムをもたせた状態で右クリックをすると取れてしまう
+パネルが薄くなってない気がする
+[NEW]
+**装備装着の大規模アップデート**
+アイテムのところを文字じゃなくてアイテムで表示
+インベントリを開くでインベントリを開き、そこからドラックできる方式に変更
+クリックしたら手持ちのアイテムを入れられるようにもしておこう
+uiは以下。文字ではなく、アイコンでこれらを表現する形にしよう
+<インベントリを開く><メインハンド><オフハンド><全削除>
+<頭><胸><脚><足>
+そして装備ごとに入れられるアイテムじゃないと入らないように
+メインハンド・オフハンドのアニメーション（弓・クロスボウ・トライデントなど）
+また装備には鍛冶型・エンチャント（オンオフでいい）・鍛冶型の鉱石などを右クリックから簡単に設定できるようにしよう
+
+**位置(Position)欄の追加**
+向きの上に文字入力が可能な欄を追加。
+そこからXYZを入力できるようにしよう
+入力欄は検索のところを流用しておく方がいいかもね
+入力欄を左右にドラッグ、もしくはマウスホイールを操作すると動くようにしてください（ショートカットキーで10ごととかを設定できるように）
+
 
 絵画
-ウィザー
 子ども

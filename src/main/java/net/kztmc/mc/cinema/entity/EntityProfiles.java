@@ -61,6 +61,10 @@ public final class EntityProfiles {
         register(new WolfProfile());
         register(new CatProfile());
         register(new BeeProfile());
+        register(new HorseProfile());
+        register(new LlamaProfile());
+        register(new WitherProfile());
+        register(new WitherSkullProfile());
 
         // ---- 腕のポーズが効くモデル(プレイヤーは種類で判定) ----
         register(EntityProfile.of(
@@ -123,8 +127,11 @@ public final class EntityProfiles {
             ensure(id).animalGear();
         }
 
-        // クリーキング: 歩行はキーフレーム。1周期は約2秒、animateWalk の係数は7.0(どちらも推測値。足が1周しきらなければ、秒数を増やす)
-        ensure("minecraft:creaking").walkKeyframe(2.0f, 7.0f);
+        // クリーキング: 歩行はキーフレーム。周期2秒・係数7.0・振れ幅0.6は、仮の値(devモードで合わせる)
+        ensure("minecraft:creaking").walkKeyframe(2.0f, 7.0f, 0.6f);
+
+        // ウォーデン: 歩行は、min(0.5, 3×強さ) で制限される。歩行スライダー100%を、その上限(強さ 1/6)に合わせる
+        ensure("minecraft:warden").walkSpeedMax(1f / 6f);
     }
 
     public static void register(EntityProfile profile) {

@@ -11,7 +11,7 @@ public final class Theme {
 
     public static final float FONT_PX = 18f;
 
-    public static final int PANEL = 0xEB0F1218;
+    public static final int PANEL = 0xB80F1218;
     public static final int PANEL_BORDER = 0xFF262C38;
     public static final int SURFACE = 0xFF191D26;
     public static final int SURFACE_HOVER = 0xFF232938;

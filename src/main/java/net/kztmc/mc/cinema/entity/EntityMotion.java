@@ -57,9 +57,9 @@ public final class EntityMotion {
         float speed;
         float position;
         if (cycle > 0f) {
-            // キーフレームの歩行は、強さが少しで飽和するので、スライダーは周期の位置として使う
+            // キーフレームの歩行は、強さが少しで飽和するので、スライダーは周期の位置として使う。振れ幅は、プロフィールの値
             float amount = Math.min(1f, Math.abs(walk));
-            speed = amount > 0f ? 1f : 0f;
+            speed = amount > 0f ? EntityProfiles.of(living).walkKeyframeIntensity() : 0f;
             position = amount * cycle;
         } else {
             speed = walk * EntityProfiles.of(living).walkSpeedMax();

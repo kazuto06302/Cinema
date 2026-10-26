@@ -32,7 +32,7 @@ public final class ArmadilloProfile extends EntityProfile {
 
         for (int i = 1; i < ANIMS.length; i++) {
             if (i == mode) {
-                AnimationStates.play(e, ANIMS[i], time);
+                AnimationStates.play(e, ANIMS[i]);
             } else {
                 AnimationStates.stop(e, ANIMS[i]);
             }
