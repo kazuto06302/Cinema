@@ -7,6 +7,7 @@ import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
@@ -137,12 +138,21 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     // ---- 文字入力 ----
 
     private void startEditing() {
+        // 先にフォーカスを移す。フォーカスの切り替えで setFocused(false) が呼ばれて、確定してしまうので、
+        // 編集を始める前に行う(すでにフォーカスがあれば、何もしない)
+        Screen screen = Minecraft.getInstance().gui.screen();
+        if (screen != null && !isFocused()) {
+            screen.setFocused(this);
+        }
         editing = true;
         text.setLength(0);
         text.append(format(value));
         cursor = text.length();
         replaceAll = true;
-        Minecraft.getInstance().gui.screen().setFocused(this);   // キー入力を、この欄へ届ける
+    }
+
+    public boolean isEditing() {
+        return editing;
     }
 
     private void cancelEditing() {
@@ -228,8 +238,4 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput output) {}
-
-    public boolean isEditing() {
-        return editing;
-    }
 }

@@ -1,11 +1,8 @@
 翻訳キーの追加
-アニメーション
-ポジション
 サイズ
 NPC、NPC(2)、NPC(3)とナンバリング
 GUIを透過させる
 右側GUIの拡張・機能追加(Tab)
-装備装着をもっと簡単に
 ダメージ/炎エフェクト/発光
 NPCリスト、左クリックは選択のトグル、右クリックは小さいメニューで複製/削除など
 NPCリストショートカットキー（del、ctrl+C/V）
@@ -19,13 +16,18 @@ Mob固有のNBTTag
 エクスポート
 カメラ位置
 
-インベントリは独自の物じゃなくてマイクラデフォルトのやつでクリエとかから持ってこれるように
-座標は入力できるように
-ChargedProjectiles.ofに必要なの型はItemStackTemplate
-NPCを削除をパネルの一番上の名前が書いてあるところの右に配置しよう
-手持ちが食べ物系アイテムだったら食べるモーションにしよう
-装備のところをクリックしたら手持ちのアイテムが配置されるのではなく、削除するようにしよう
-クロスボウの装填っていう欄は何のため？あと槍の攻撃方法の2種類を分けれるようにしておこう
+[BUG FIX]
+演算子 '!=' は 'net.minecraft.world.entity.LivingEntity.@org.jspecify.annotations.Nullable SwingDescription'、'net.minecraft.world.item.component.SwingAnimation' に適用できません
+それで、.animation()を付けたらぬるぽで落ちるという事象が発生してしまったので対処してほしい
+インベントリから装着させようとしたら、アイテムを外に投げてしまう
+xyzがまだ入力できない キーボードから入力できるようにしたいんだけど
+SWING_ANIMATIONがなかったのでDataComponents.ATTACK_ANIMATIONにしたけど大丈夫？
+攻撃アニメーションのスライダーが外にはみ出てる
+
+[NEW]
+NPCリスト、左クリックは選択のトグル、右クリックは小さいメニューで複製/削除など
+NPCリストショートカットキー（del、ctrl+C/V）
+NPCリスト、名前の文字の前にそのMob/Playerの画像を配置させたい
 
 絵画
 子ども

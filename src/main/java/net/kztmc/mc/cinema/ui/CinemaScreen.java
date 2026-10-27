@@ -11,6 +11,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
+import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
@@ -29,22 +30,6 @@ import net.minecraft.world.item.Items;
  * 寸法はすべて Theme.u() 経由で、文字サイズ(Theme.FONT_PX)に連動して縮む。
  */
 public class CinemaScreen extends Screen {
-    private static String slotLabel(EquipmentSlot slot, boolean animalGear) {
-        return switch (slot) {
-            case MAINHAND -> "メイン";
-            case OFFHAND -> "オフ";
-            case HEAD -> "頭";
-            case CHEST -> animalGear ? "胴(防具)" : "胴";
-            case LEGS -> animalGear ? "脚(鞍)" : "脚";
-            case FEET -> "足";
-            default -> slot.getName();
-        };
-    }
-
-    /** 右パネルで扱う装備スロット(全削除で使う) */
-    private static final EquipmentSlot[] SLOTS = {EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND,
-            EquipmentSlot.HEAD, EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
-
     private static final int MOB_COLS = 3;
 
     private enum Tab { NPCS, MOBS, PLAYERS }
@@ -85,16 +70,10 @@ public class CinemaScreen extends Screen {
     private static boolean focusSearch;                // 切り替え後に検索欄へ入力を戻す
     private ModernDropdown openDropdown;
 
-    // ---- 装備: つかんでいるアイテム、スロットの一覧、ステータス ----
-    private ItemStack held = ItemStack.EMPTY;
-    private boolean heldSticky;                 // 動かさずに離した(つかんだまま。次のクリックで置く)
-    private double pressX, pressY;
-    private static boolean inventoryOpen;       // インベントリの一覧を出しているか(画面を開き直しても保持)
-    private final Map<ItemButton, EquipmentSlot> slotButtons = new LinkedHashMap<>();
+    // ---- 装備のメッセージ ----
     private String status = "";
     private long statusUntil;
     private int statusY;
-    private int equipY;                         // 装備の節の上端(インベントリの一覧の位置合わせ用)
 
     // ---- ドラッグ: 押されているウィジェット、位置欄の現在値 ----
     private Draggable pressed;
@@ -132,17 +111,7 @@ public class CinemaScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        // 1) つかんだアイテムを、クリックで置く(動かさずに離して、つかんだままの状態)。右クリックは取り消し
-        if (!held.isEmpty() && heldSticky) {
-            if (!Theme.isRightClick(event.button())) {
-                EquipmentSlot target = slotAt(event.x(), event.y());
-                if (target != null) placeInto(target, held);
-            }
-            held = ItemStack.EMPTY;
-            return true;
-        }
-
-        // 2) 開いているドロップダウンの選択肢が、他のウィジェットより先にクリックを受ける
+        // 開いているドロップダウンの選択肢が、他のウィジェットより先にクリックを受ける
         if (openDropdown != null && openDropdown.isOpen()) {
             if (openDropdown.popupClicked(event)) {
                 openDropdown = null;
@@ -154,7 +123,7 @@ public class CinemaScreen extends Screen {
             }
         }
 
-        // 3) 通常。ドラッグできるウィジェット(数値欄)を押したら、覚えておく
+        // 通常。ドラッグできるウィジェット(数値欄)を押したら、覚えておく
         boolean handled = super.mouseClicked(event, doubleClick);
         pressed = null;
         if (handled && Theme.isClick(event.button())) {
@@ -177,19 +146,6 @@ public class CinemaScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        // つかんでいるアイテムを、離した場所のスロットへ入れる
-        if (!held.isEmpty() && !heldSticky && Theme.isClick(event.button())) {
-            EquipmentSlot target = slotAt(event.x(), event.y());
-            if (target != null) {
-                placeInto(target, held);
-                held = ItemStack.EMPTY;
-            } else if (Math.abs(event.x() - pressX) < 4 && Math.abs(event.y() - pressY) < 4) {
-                heldSticky = true;   // 動かさずに離した: つかんだまま。次のクリックで置く
-            } else {
-                held = ItemStack.EMPTY;
-            }
-            return true;
-        }
         if (pressed != null) {
             Draggable p = pressed;
             pressed = null;
@@ -205,18 +161,7 @@ public class CinemaScreen extends Screen {
         if (getFocused() instanceof ModernNumberField field && field.isEditing()) {
             return field.keyPressed(event);
         }
-        if (!held.isEmpty() && event.key() == 27) {   // Esc(SDLのキーコード): つかんだアイテムを戻す
-            held = ItemStack.EMPTY;
-            return true;
-        }
         return super.keyPressed(event);
-    }
-
-    private EquipmentSlot slotAt(double x, double y) {
-        for (Map.Entry<ItemButton, EquipmentSlot> e : slotButtons.entrySet()) {
-            if (e.getKey().isMouseOver(x, y)) return e.getValue();
-        }
-        return null;
     }
 
     /** ウィジェットのクリック処理中に作り直すと危ないので、次の描画の頭で実行する */
@@ -245,7 +190,6 @@ public class CinemaScreen extends Screen {
         hasTuner = false;
 
         openDropdown = null;
-        slotButtons.clear();
         pressed = null;
 
         // 寸法は文字サイズに連動
@@ -496,11 +440,18 @@ public class CinemaScreen extends Screen {
         int bottom = panelY + panelH - pad;
         int lh = th + Theme.u(3);   // ラベル1行ぶんの送り
 
+        // --- 最上段: 名前(左)と、削除(右) ---
         String name = NpcData.PLAYER.equals(d.kind()) ? d.skin().orElse("NPC") : MobCatalog.nameOf(d.entityType());
-        labels.add(new Label(Theme.fit(this.font, name, w), x, y, Theme.TEXT));
-        y += th + Theme.u(5);
+        int delW = Theme.u(44);
+        labels.add(new Label(Theme.fit(this.font, name, w - delW - gap), x, y + (btnH - th) / 2, Theme.TEXT));
+        addRenderableWidget(new ModernButton(x + w - delW, y, delW, btnH, "削除",
+                ModernButton.Style.DANGER, () -> {
+            NpcManager.remove(id);
+            refresh();
+        }));
+        y += btnH + Theme.u(5);
 
-        // --- 位置(Position): X/Y/Z。入力・左右ドラッグ・ホイールで動かせる(Shiftで×10、Ctrlで×100)---
+        // --- 位置(Position): X/Y/Z。入力・左右ドラッグ・マウスホイールで動かせる(Shiftで×10、Ctrlで×100)---
         labels.add(new Label("位置", x, y, Theme.TEXT_DIM));
         y += lh;
         pos[0] = d.x();
@@ -691,8 +642,8 @@ public class CinemaScreen extends Screen {
         }
 
         // --- 装備(アイコン)。上段: インベントリ / メイン / オフ / 全削除、下段: 頭 / 胸 / 脚 / 足 ---
-        equipY = y;
-        labels.add(new Label("装備", x, y, Theme.TEXT_DIM));
+        // スロットは、クリックで外す。右クリックで装飾(エンチャント光沢・トリム)。入れるのは、インベントリの画面から
+        labels.add(new Label("装備(クリックで外す・右クリックで装飾)", x, y, Theme.TEXT_DIM));
         y += lh;
 
         boolean animalGear = EntityProfiles.of(d.entityType()).hasAnimalGear();
@@ -700,15 +651,13 @@ public class CinemaScreen extends Screen {
         int cw = (w - cgap * 3) / 4;
         int ch = Math.max(Theme.u(26), 26);
 
-        addRenderableWidget(new ItemButton(x, y, cw, ch, ItemStack.EMPTY, new ItemStack(Items.CHEST), b -> {
-            inventoryOpen = !inventoryOpen;
-            refresh();
-        }).setSelected(inventoryOpen).tip("インベントリを開く"));
+        addRenderableWidget(new ItemButton(x, y, cw, ch, ItemStack.EMPTY, new ItemStack(Items.CHEST), b ->
+                openInventory()).tip("インベントリを開く(アイテムを持ってきて、装備させる)"));
         addSlotButton(d, EquipmentSlot.MAINHAND, x + (cw + cgap), y, cw, ch, animalGear);
         addSlotButton(d, EquipmentSlot.OFFHAND, x + (cw + cgap) * 2, y, cw, ch, animalGear);
         addRenderableWidget(new ItemButton(x + (cw + cgap) * 3, y, cw, ch, ItemStack.EMPTY,
                 new ItemStack(Items.BARRIER), b -> {
-            for (EquipmentSlot s : SLOTS) setEquipment(id, s, ItemStack.EMPTY);
+            for (EquipmentSlot s : EquipmentEdit.SLOTS) EquipmentEdit.set(id, s, ItemStack.EMPTY);
             refresh();
         }).tip("装備をすべて外す"));
         y += ch + cgap;
@@ -719,44 +668,41 @@ public class CinemaScreen extends Screen {
         addSlotButton(d, EquipmentSlot.FEET, x + (cw + cgap) * 3, y, cw, ch, animalGear);
         y += ch + cgap;
 
-        // --- 手の動作(使えるアイテムを持っているときだけ) ---
-        ItemStack mainItem = stackOf(d, EquipmentSlot.MAINHAND);
-        ItemStack offItem = stackOf(d, EquipmentSlot.OFFHAND);
-        if (hasUseMotion(mainItem)) {
+        // --- 手の動作(使えるアイテムを持っているときだけ)---
+        ItemStack mainItem = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
+        ItemStack offItem = EquipmentEdit.stackOf(d, EquipmentSlot.OFFHAND);
+
+        if (EntityMotion.isSpear(mainItem)) {
+            // 槍: 突き(ジャブ)と突進(チャージ)は、別の動作。どちらの進み具合も、同じスライダーで決める
+            addRenderableWidget(new ModernDropdown(x, y, w, sliderH, "槍の攻撃", List.of(EntityMotion.SPEAR_NAMES),
+                    d.option(EntityMotion.SPEAR, 0),
+                    i -> edit(id, cur -> cur.withOption(EntityMotion.SPEAR, i)),
+                    this::onDropdownOpen));
+            y += sliderH;
+            addRenderableWidget(new ModernSlider(x, y, w, sliderH, "槍の進み具合", "%", 0, 100,
+                    d.option(EntityMotion.SPEAR_AMOUNT, 50),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.SPEAR_AMOUNT, (int) v))));
+            y += sliderH;
+        } else if (hasUseMotion(mainItem)) {
             addRenderableWidget(new ModernSlider(x, y, w, sliderH, "メイン 使用モーション", "%", 0, 100,
-                    d.option(EntityMotion.USE_MAIN, 0),
+                    d.option(EntityMotion.USE_MAIN, EntityMotion.defaultUse(mainItem)),
                     v -> edit(id, cur -> cur.withOption(EntityMotion.USE_MAIN, (int) v))));
             y += sliderH;
         }
         if (hasUseMotion(offItem)) {
             addRenderableWidget(new ModernSlider(x, y, w, sliderH, "オフ 使用モーション", "%", 0, 100,
-                    d.option(EntityMotion.USE_OFF, 0),
+                    d.option(EntityMotion.USE_OFF, EntityMotion.defaultUse(offItem)),
                     v -> edit(id, cur -> cur.withOption(EntityMotion.USE_OFF, (int) v))));
             y += sliderH;
         }
         if (mainItem.is(Items.CROSSBOW) || offItem.is(Items.CROSSBOW)) {
-            addRenderableWidget(new ModernCheckbox(x, y, w, sliderH, "クロスボウ装填",
+            addRenderableWidget(new ModernCheckbox(x, y, w, sliderH, "装填済み(矢をつがえて構える)",
                     d.option(EntityMotion.LOADED, 0) == 1,
                     on -> edit(id, cur -> cur.withOption(EntityMotion.LOADED, on ? 1 : 0))));
             y += sliderH;
         }
         statusY = y + Theme.u(2);
-        y += th + Theme.u(6);   // ステータス行(入れられなかったときの理由)
-
-        // --- インベントリの一覧(右パネルの左に、浮かべて表示する) ---
-        if (inventoryOpen) {
-            int icell = Math.max(Theme.u(22), 22);
-            int pw = icell * 9 + Math.max(2, Theme.u(5)) * 2;
-            InventoryPicker picker = new InventoryPicker(rightX - pw - Theme.u(8), equipY, icell,
-                    (stack, mx, my) -> {
-                        held = stack;
-                        heldSticky = false;
-                        pressX = mx;
-                        pressY = my;
-                    });
-            picker.setY(Math.max(panelY, Math.min(equipY, panelY + panelH - picker.getHeight())));
-            addRenderableWidget(picker);
-        }
+        y += th + Theme.u(6);   // メッセージの行
 
         // --- [DEV] 動作の長さの調整(AnimationState を使うモブ)---
         if (devMode && EntityProfiles.of(d.entityType()) instanceof AnimationModeProfile moded) {
@@ -775,94 +721,48 @@ public class CinemaScreen extends Screen {
                 y += btnH + gap;
             }
         }
-
-        // --- 削除(下端固定) ---
-        addRenderableWidget(new ModernButton(x, bottom - btnH, w, btnH, "このNPCを削除",
-                ModernButton.Style.DANGER, () -> {
-            NpcManager.remove(id);
-            refresh();
-        }));
     }
 
     // ================= 装備 =================
-
-    private static ItemStack stackOf(NpcData d, EquipmentSlot slot) {
-        ItemStack s = d.equipment().get(slot.getName());
-        return s == null ? ItemStack.EMPTY : s;
-    }
 
     /** 使用モーション(弓・クロスボウ・トライデント・盾・食べ物など)があるアイテムか */
     private static boolean hasUseMotion(ItemStack stack) {
         return !stack.isEmpty() && !"NONE".equals(stack.getUseAnimation().name());
     }
 
-    /** 空のスロットに、薄く出す見本のアイテム */
-    private static ItemStack ghostOf(EquipmentSlot slot) {
-        return switch (slot) {
-            case MAINHAND -> new ItemStack(Items.IRON_SWORD);
-            case OFFHAND -> new ItemStack(Items.SHIELD);
-            case HEAD -> new ItemStack(Items.IRON_HELMET);
-            case CHEST -> new ItemStack(Items.IRON_CHESTPLATE);
-            case LEGS -> new ItemStack(Items.IRON_LEGGINGS);
-            case FEET -> new ItemStack(Items.IRON_BOOTS);
-            default -> ItemStack.EMPTY;
-        };
+    /** 標準のインベントリを開く。クリエイティブなら、タブつきのクリエイティブ画面 */
+    private static void openInventory() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null) return;
+        if (player.getAbilities().instabuild) {
+            mc.setScreenAndShow(new CinemaCreativeScreen(player, player.connection.enabledFeatures(),
+                    mc.options.operatorItemsTab().get()));
+        } else {
+            mc.setScreenAndShow(new CinemaInventoryScreen(player));
+        }
     }
 
     private void addSlotButton(NpcData d, EquipmentSlot slot, int bx, int by, int bw, int bh, boolean animalGear) {
         UUID id = d.id();
-        ItemStack stack = stackOf(d, slot);
-        String label = slotLabel(slot, animalGear);
-        ItemButton button = new ItemButton(bx, by, bw, bh, stack, ghostOf(slot), b -> {
-            if (b == 0) onSlotLeftClick(id, slot);
-            else onSlotRightClick(id, slot, animalGear);
+        ItemStack stack = EquipmentEdit.stackOf(d, slot);
+        String label = EquipmentEdit.label(slot, animalGear);
+        ItemButton button = new ItemButton(bx, by, bw, bh, stack, EquipmentEdit.ghostOf(slot), b -> {
+            if (stack.isEmpty()) {
+                say(label + "は空です(インベントリを開いて、アイテムを入れられます)");
+                return;
+            }
+            if (b == 0) {   // 左クリック: 外す
+                EquipmentEdit.set(id, slot, ItemStack.EMPTY);
+                refresh();
+            } else {        // 右クリック: 装飾
+                Minecraft.getInstance().setScreenAndShow(new EquipmentMenuScreen(this, label,
+                        () -> NpcManager.get(id).map(cur -> EquipmentEdit.stackOf(cur, slot)).orElse(ItemStack.EMPTY),
+                        s -> EquipmentEdit.set(id, slot, s)));
+            }
         });
-        button.tip(stack.isEmpty() ? label : label + ": " + stack.getHoverName().getString() + "(右クリックで装飾)");
-        slotButtons.put(button, slot);
+        button.tip(stack.isEmpty() ? label : label + ": " + stack.getHoverName().getString());
         addRenderableWidget(button);
-    }
-
-    /** 左クリック: つかんでいるアイテム、なければ手持ちのアイテムを入れる。Shiftを押していれば、外す */
-    private void onSlotLeftClick(UUID id, EquipmentSlot slot) {
-        if (Modifiers.shift()) {
-            setEquipment(id, slot, ItemStack.EMPTY);
-            refresh();
-            return;
-        }
-        Minecraft mc = Minecraft.getInstance();
-        ItemStack source = !held.isEmpty() ? held : (mc.player == null ? ItemStack.EMPTY : mc.player.getMainHandItem());
-        if (source.isEmpty()) {
-            say("手に何も持っていません(インベントリから、ドラッグして入れられます)");
-            return;
-        }
-        placeInto(slot, source);
-        held = ItemStack.EMPTY;
-    }
-
-    /** 右クリック: 装飾の画面(エンチャント光沢・トリム) */
-    private void onSlotRightClick(UUID id, EquipmentSlot slot, boolean animalGear) {
-        ItemStack current = NpcManager.get(id).map(cur -> stackOf(cur, slot)).orElse(ItemStack.EMPTY);
-        if (current.isEmpty()) {
-            say("アイテムが入っていません");
-            return;
-        }
-        Minecraft.getInstance().setScreenAndShow(new EquipmentMenuScreen(this, slotLabel(slot, animalGear),
-                () -> NpcManager.get(id).map(cur -> stackOf(cur, slot)).orElse(ItemStack.EMPTY),
-                s -> setEquipment(id, slot, s)));
-    }
-
-    /** 選択中のNPCのスロットに入れる(合わないアイテムは、理由を表示して、入れない) */
-    private void placeInto(EquipmentSlot slot, ItemStack stack) {
-        UUID id = NpcManager.selectedId();
-        if (id == null) return;
-        boolean animalGear = NpcManager.get(id)
-                .map(cur -> EntityProfiles.of(cur.entityType()).hasAnimalGear()).orElse(false);
-        if (!EquipmentRules.accepts(slot, stack, animalGear)) {
-            say(slotLabel(slot, animalGear) + "には入れられません: " + stack.getHoverName().getString());
-            return;
-        }
-        setEquipment(id, slot, stack.copy());
-        refresh();
     }
 
     private void say(String text) {
@@ -874,15 +774,6 @@ public class CinemaScreen extends Screen {
 
     private static void edit(UUID id, UnaryOperator<NpcData> fn) {
         NpcManager.get(id).ifPresent(cur -> NpcManager.replace(fn.apply(cur)));
-    }
-
-    private static void setEquipment(UUID id, EquipmentSlot slot, ItemStack stack) {
-        NpcManager.get(id).ifPresent(cur -> {
-            Map<String, ItemStack> map = new HashMap<>(cur.equipment());
-            if (stack.isEmpty()) map.remove(slot.getName());
-            else map.put(slot.getName(), stack);
-            NpcManager.replace(cur.withEquipment(map));
-        });
     }
 
     // ================= 描画 =================
@@ -911,14 +802,10 @@ public class CinemaScreen extends Screen {
             openDropdown.extractPopup(g, mouseX, mouseY);
         }
 
-        // 装備: 入れられなかった理由と、つかんでいるアイテム(カーソルについてくる)
+        // 装備: 操作できなかった理由
         if (hasRight && !collapsed && System.currentTimeMillis() < statusUntil) {
             Theme.text(g, this.font, Theme.fit(this.font, status, panelW - pad * 2),
                     rightX + pad, statusY, 0xFFE5A04B);
-        }
-        if (!held.isEmpty()) {
-            g.item(held, mouseX - 8, mouseY - 8);
-            g.itemDecorations(this.font, held, mouseX - 8, mouseY - 8);
         }
     }
 
