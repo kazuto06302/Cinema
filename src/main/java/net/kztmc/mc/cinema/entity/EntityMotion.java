@@ -1,11 +1,14 @@
 package net.kztmc.mc.cinema.entity;
 
+import java.util.List;
 import java.util.Map;
+
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.WalkAnimationState;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+import net.minecraft.world.item.component.ChargedProjectiles;
 import net.minecraft.world.item.component.SwingAnimation;
 
 /**
@@ -31,6 +34,13 @@ public final class EntityMotion {
     /** 腕のポーズごとの、振りの進み具合(0〜1)。0は振らない */
     private static final float[] SWING_OF_ARMS = {0f, 0f, 0.25f, 0.5f, 0.8f};
 
+    /** 手に持つものの使用モーションの進み具合(%)。0なら使っていない。メインとオフのどちらか1つだけが有効(メイン優先) */
+    public static final String USE_MAIN = "use_main";
+    public static final String USE_OFF = "use_off";
+
+    /** クロスボウを装填済みにするか(0/1) */
+    public static final String LOADED = "loaded";
+
     /**
      * NPCの状態に反映する。
      * partialTick は、描画に使う補間値(時間スライダーの小数部分)。
@@ -45,6 +55,7 @@ public final class EntityMotion {
             mob.setAggressive(arms == 1);   // 構える: ゾンビは腕を上げ、スケルトンは弓を構える
         }
         applySwing(living, SWING_OF_ARMS[arms]);
+        applyHandUse(living, options);
     }
 
     /**
@@ -88,5 +99,61 @@ public final class EntityMotion {
 
         EntityReflect.setFloat(swingState, "oldAnimation", swing);
         EntityReflect.setFloat(swingState, "animation", swing);
+    }
+
+    /**
+     * 手に持つものの使用モーション(弓を引く・トライデントを構える・盾を構える・食べる、など)。
+     * NPCはティックされないので、使用中の状態(使っているアイテム・残り時間・フラグ)を直接書く。
+     * 描画側は「使用時間 - 残り時間」で、引き絞りの進み具合を決める。
+     */
+    private static void applyHandUse(LivingEntity living, Map<String, Integer> options) {
+        // クロスボウの装填(装填済みのものは、矢をつがえた姿になる)
+        boolean loaded = options.getOrDefault(LOADED, 0) == 1;
+        for (EquipmentSlot s : List.of(EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND)) {
+            ItemStack held = living.getItemBySlot(s);
+            if (held.is(Items.CROSSBOW)) {
+                if (loaded) held.set(DataComponents.CHARGED_PROJECTILES, ChargedProjectiles.of(new ItemStack(Items.ARROW).getCraftingRemainder()));
+                else held.remove(DataComponents.CHARGED_PROJECTILES);
+            }
+        }
+
+        int main = options.getOrDefault(USE_MAIN, 0);
+        int off = options.getOrDefault(USE_OFF, 0);
+        EquipmentSlot slot;
+        InteractionHand hand;
+        int percent;
+        if (main > 0 && !living.getItemBySlot(EquipmentSlot.MAINHAND).isEmpty()) {
+            slot = EquipmentSlot.MAINHAND;
+            hand = InteractionHand.MAIN_HAND;
+            percent = main;
+        } else if (off > 0 && !living.getItemBySlot(EquipmentSlot.OFFHAND).isEmpty()) {
+            slot = EquipmentSlot.OFFHAND;
+            hand = InteractionHand.OFF_HAND;
+            percent = off;
+        } else {
+            if (living.isUsingItem()) {   // 使用を解除する
+                EntityReflect.setObject(living, "useItem", ItemStack.EMPTY);
+                EntityReflect.setInt(living, "useItemRemaining", 0);
+                EntityReflect.invokeFirst(living, List.of("setLivingEntityFlag"), 1, false);
+                EntityReflect.invokeFirst(living, List.of("setLivingEntityFlag"), 2, false);
+            }
+            return;
+        }
+
+        ItemStack stack = living.getItemBySlot(slot);
+        int duration = stack.getUseDuration(living);
+        int used = Math.round(fullUseTicks(stack, duration) * percent / 100f);
+        EntityReflect.setObject(living, "useItem", stack);
+        EntityReflect.setInt(living, "useItemRemaining", duration - used);
+        EntityReflect.invokeFirst(living, List.of("setLivingEntityFlag"), 1, true);                          // 使用中
+        EntityReflect.invokeFirst(living, List.of("setLivingEntityFlag"), 2, hand == InteractionHand.OFF_HAND);  // オフハンドか
+    }
+
+    /** 100%に当たる、使用の時間(tick) */
+    private static int fullUseTicks(ItemStack stack, int duration) {
+        if (stack.is(Items.BOW)) return 20;
+        if (stack.is(Items.CROSSBOW)) return 25;
+        if (stack.is(Items.TRIDENT)) return 10;
+        return duration > 0 && duration < 400 ? duration : 20;   // 食べ物などは、本来の使用時間。盾などの長いものは、20
     }
 }

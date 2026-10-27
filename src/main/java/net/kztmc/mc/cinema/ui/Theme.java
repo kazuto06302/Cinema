@@ -63,8 +63,11 @@ public final class Theme {
 
     /** 枠つきパネル */
     public static void panel(GuiGraphicsExtractor g, int x, int y, int w, int h) {
-        roundRect(g, x, y, w, h, PANEL_BORDER);
-        roundRect(g, x + 1, y + 1, w - 2, h - 2, PANEL);
+        roundRect(g, x, y, w, h, PANEL);
+        g.fill(x + 2, y, x + w - 2, y + 1, PANEL_BORDER);
+        g.fill(x + 2, y + h - 1, x + w - 2, y + h, PANEL_BORDER);
+        g.fill(x, y + 2, x + 1, y + h - 2, PANEL_BORDER);
+        g.fill(x + w - 1, y + 2, x + w, y + h - 2, PANEL_BORDER);
     }
 
     public static int lerp(int a, int b, float t) {
@@ -123,5 +126,9 @@ public final class Theme {
 
     public static void textCentered(GuiGraphicsExtractor g, Font font, String s, int cx, int y, int color, float scale) {
         text(g, font, s, cx - textWidth(font, s, scale) / 2, y, color, scale);
+    }
+
+    public static boolean isRightClick(int button) {
+        return button == 2 || button == 3;
     }
 }

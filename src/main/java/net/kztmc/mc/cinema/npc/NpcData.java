@@ -115,4 +115,8 @@ public record NpcData(
     public NpcData withOption(String key, int value) {
         return withStyle(style.withOption(key, value));
     }
+
+    public NpcData withCoords(double x, double y, double z) {
+        return new NpcData(id, kind, entityType, skin, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot, equipment, style);
+    }
 }

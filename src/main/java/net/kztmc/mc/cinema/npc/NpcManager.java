@@ -9,6 +9,7 @@ import java.util.Optional;
 import java.util.UUID;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
@@ -20,6 +21,7 @@ import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.resources.Identifier;
+import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -71,6 +73,8 @@ public final class NpcManager {
             selected = null;
         });
         ClientTickEvents.END_CLIENT_TICK.register(NpcManager::tick);
+        UseEntityCallback.EVENT.register((player, level, hand, entity, hit) ->
+                SceneFreeze.isFrozenNpc(entity) ? InteractionResult.FAIL : InteractionResult.PASS);
     }
 
     // ---- public API ----

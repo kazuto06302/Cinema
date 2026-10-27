@@ -5,6 +5,7 @@ import java.util.Set;
 import net.kztmc.mc.cinema.Cinema;
 import net.minecraft.core.Holder;
 import net.minecraft.core.Registry;
+import net.minecraft.core.RegistryAccess;
 import net.minecraft.resources.Identifier;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.entity.Entity;
@@ -18,10 +19,13 @@ public final class RegistryHolders {
 
     private static final Set<String> WARNED = new HashSet<>();
 
-    /** 見つからなければ null(警告は、その種類につき1回だけ) */
     public static <T> Holder<T> get(Entity e, ResourceKey<? extends Registry<T>> registry, String id) {
+        return get(e.registryAccess(), registry, id);
+    }
+
+    public static <T> Holder<T> get(RegistryAccess access, ResourceKey<? extends Registry<T>> registry, String id) {
         try {
-            return e.registryAccess().lookupOrThrow(registry)
+            return access.lookupOrThrow(registry)
                     .getOrThrow(ResourceKey.create(registry, Identifier.withDefaultNamespace(id)));
         } catch (RuntimeException ex) {
             if (WARNED.add(registry.identifier() + "/" + id)) {
