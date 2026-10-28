@@ -2,6 +2,7 @@ package net.kztmc.mc.cinema.ui;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.InventoryScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.world.entity.player.Player;
 
 /** 標準のインベントリ画面に、NPCの装備パネルを重ねたもの。閉じると、Cinemaの画面に戻る。 */
@@ -29,5 +30,17 @@ public class CinemaInventoryScreen extends InventoryScreen {
     public void onClose() {
         super.onClose();
         CinemaScreen.requestOpen();
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (overlay.handleClick(event, doubleClick)) return true;
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (overlay.handleRelease(event)) return true;
+        return super.mouseReleased(event);
     }
 }

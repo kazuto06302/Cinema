@@ -8,7 +8,9 @@ import net.kztmc.mc.cinema.entity.profile.AnimationModeProfile;
 import net.kztmc.mc.cinema.npc.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
+import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
@@ -24,8 +26,8 @@ import net.minecraft.world.item.Items;
  * 撮影用の編集画面(コンパクト版)。
  *   左パネル: タブ行[NPC / モブ追加 / +プレイヤー] と、その下のリスト。
  *             「モブ追加」タブの間は横3カードが入る幅に広がる。
- *   右パネル: 選択中NPCの位置・向き・ポーズ・動き・装備
- *   下パネル: (MobIcons.DEBUG_TUNER が true のときだけ)モブアイコンの大きさ・向きの調整
+ *   右パネル: 選択中NPCの編集。名前と削除の下に、タブ[位置・向き / 動き / 装備]。
+ *   下パネル: (devモードのときだけ)モブアイコンの大きさ・向きの調整
  * ゲーム画面は暗くしない。上部中央のボタンでUI全体を隠せる。
  * 寸法はすべて Theme.u() 経由で、文字サイズ(Theme.FONT_PX)に連動して縮む。
  */
@@ -34,10 +36,22 @@ public class CinemaScreen extends Screen {
 
     private enum Tab { NPCS, MOBS, PLAYERS }
 
+    /** 右パネルのタブ。1つのタブに収まる量にして、パネルの下端からはみ出さないようにする */
+    private enum RightTab {
+        SPACE("位置・向き"), MOTION("動き"), EQUIP("装備");
+
+        final String label;
+
+        RightTab(String label) {
+            this.label = label;
+        }
+    }
+
     private record Label(String text, int x, int y, int color) {}
 
     // 画面を開き直しても保持する状態
     private static Tab tab = Tab.NPCS;
+    private static RightTab rightTab = RightTab.SPACE;
     private static String search = "";
     private static boolean collapsed;
     private static boolean openRequested;
@@ -109,8 +123,22 @@ public class CinemaScreen extends Screen {
 
     // ================= マウス・キー =================
 
+    /** いま、文字を入力している数値欄(なければ null) */
+    private ModernNumberField editingField() {
+        for (GuiEventListener child : children()) {
+            if (child instanceof ModernNumberField field && field.isEditing()) return field;
+        }
+        return null;
+    }
+
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        // 入力中の数値欄の外をクリックしたら、確定する
+        ModernNumberField editing = editingField();
+        if (editing != null && !editing.isMouseOver(event.x(), event.y())) {
+            editing.commitEditing();
+        }
+
         // 開いているドロップダウンの選択肢が、他のウィジェットより先にクリックを受ける
         if (openDropdown != null && openDropdown.isOpen()) {
             if (openDropdown.popupClicked(event)) {
@@ -155,13 +183,24 @@ public class CinemaScreen extends Screen {
         return super.mouseReleased(event);
     }
 
+    /** 数値を入力している間は、キーを入力欄へ直接渡す(Escで、画面が閉じないように) */
     @Override
     public boolean keyPressed(KeyEvent event) {
-        // 数値を入力している間は、キーを入力欄へ先に渡す(Escで、画面が閉じないように)
-        if (getFocused() instanceof ModernNumberField field && field.isEditing()) {
-            return field.keyPressed(event);
+        ModernNumberField field = editingField();
+        if (field != null) {
+            field.keyPressed(event);
+            return true;
         }
         return super.keyPressed(event);
+    }
+
+    @Override
+    public boolean charTyped(CharacterEvent event) {
+        ModernNumberField field = editingField();
+        if (field != null) {
+            return field.charTyped(event);
+        }
+        return super.charTyped(event);
     }
 
     /** ウィジェットのクリック処理中に作り直すと危ないので、次の描画の頭で実行する */
@@ -437,8 +476,6 @@ public class CinemaScreen extends Screen {
         int x = rightX + pad;
         int w = panelW - pad * 2;
         int y = panelY + Theme.u(8);
-        int bottom = panelY + panelH - pad;
-        int lh = th + Theme.u(3);   // ラベル1行ぶんの送り
 
         // --- 最上段: 名前(左)と、削除(右) ---
         String name = NpcData.PLAYER.equals(d.kind()) ? d.skin().orElse("NPC") : MobCatalog.nameOf(d.entityType());
@@ -450,6 +487,33 @@ public class CinemaScreen extends Screen {
             refresh();
         }));
         y += btnH + Theme.u(5);
+
+        // --- タブ行: [位置・向き] [動き] [装備] ---
+        RightTab[] tabs = RightTab.values();
+        int tgap = Math.max(1, Theme.u(3));
+        int tw = (w - tgap * (tabs.length - 1)) / tabs.length;
+        for (int i = 0; i < tabs.length; i++) {
+            RightTab t = tabs[i];
+            addRenderableWidget(new ModernButton(x + i * (tw + tgap), y, tw, btnH, t.label,
+                    ModernButton.Style.GHOST, () -> {
+                rightTab = t;
+                refresh();
+            }).setSelected(rightTab == t));
+        }
+        y += btnH + gap;
+
+        switch (rightTab) {
+            case SPACE -> buildSpace(d, x, y, w);
+            case MOTION -> buildMotion(d, x, y, w);
+            case EQUIP -> buildEquip(d, x, y, w);
+        }
+    }
+
+    // ---- タブ「位置・向き」 ----
+
+    private void buildSpace(NpcData d, int x, int y, int w) {
+        UUID id = d.id();
+        int lh = th + Theme.u(3);   // ラベル1行ぶんの送り
 
         // --- 位置(Position): X/Y/Z。入力・左右ドラッグ・マウスホイールで動かせる(Shiftで×10、Ctrlで×100)---
         labels.add(new Label("位置", x, y, Theme.TEXT_DIM));
@@ -503,7 +567,13 @@ public class CinemaScreen extends Screen {
         addRenderableWidget(new ModernSlider(x, y, w, sliderH, "頭の上下", "°", -90, 90, d.xRot(), v ->
                 edit(id, cur -> cur.withTransform(cur.x(), cur.y(), cur.z(), cur.yRot(), (float) v,
                         cur.headYRot(), cur.bodyYRot()))));
-        y += sliderH + gap;
+    }
+
+    // ---- タブ「動き」 ----
+
+    private void buildMotion(NpcData d, int x, int y, int w) {
+        UUID id = d.id();
+        int lh = th + Theme.u(3);
 
         // --- ポーズ(姿勢)。モブごとに、意味のあるものだけを出す(選べるものがなければ、欄ごと出さない) ---
         int pgap = Math.max(1, Theme.u(3));
@@ -641,6 +711,30 @@ public class CinemaScreen extends Screen {
             y += gap;
         }
 
+        // --- [DEV] 動作の長さの調整(AnimationState を使うモブ)---
+        if (devMode && EntityProfiles.of(d.entityType()) instanceof AnimationModeProfile moded) {
+            int modeIdx = d.option(moded.optionKey(), 0);
+            if (moded.hasField(modeIdx)) {
+                addRenderableWidget(new ModernSlider(x, y, w, sliderH, "[DEV] 動作の長さ", "秒", 0.0, 12.0, 0.05,
+                        moded.secondsOf(modeIdx), v -> {
+                    moded.setSeconds(modeIdx, (float) v);
+                    edit(id, cur -> cur);   // 新しい長さで反映し直す
+                }));
+                y += sliderH;
+                addRenderableWidget(new ModernButton(x, y, w, btnH, "長さをコピー", ModernButton.Style.DEFAULT, () -> {
+                    Minecraft.getInstance().keyboardHandler.setClipboard(moded.secondsLine());
+                    Cinema.LOGGER.info("[Cinema] {} seconds -> {}", d.entityType(), moded.secondsLine());
+                }));
+            }
+        }
+    }
+
+    // ---- タブ「装備」 ----
+
+    private void buildEquip(NpcData d, int x, int y, int w) {
+        UUID id = d.id();
+        int lh = th + Theme.u(3);
+
         // --- 装備(アイコン)。上段: インベントリ / メイン / オフ / 全削除、下段: 頭 / 胸 / 脚 / 足 ---
         // スロットは、クリックで外す。右クリックで装飾(エンチャント光沢・トリム)。入れるのは、インベントリの画面から
         labels.add(new Label("装備(クリックで外す・右クリックで装飾)", x, y, Theme.TEXT_DIM));
@@ -666,11 +760,17 @@ public class CinemaScreen extends Screen {
         addSlotButton(d, EquipmentSlot.CHEST, x + (cw + cgap), y, cw, ch, animalGear);
         addSlotButton(d, EquipmentSlot.LEGS, x + (cw + cgap) * 2, y, cw, ch, animalGear);
         addSlotButton(d, EquipmentSlot.FEET, x + (cw + cgap) * 3, y, cw, ch, animalGear);
-        y += ch + cgap;
+        y += ch + gap;
 
         // --- 手の動作(使えるアイテムを持っているときだけ)---
         ItemStack mainItem = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
         ItemStack offItem = EquipmentEdit.stackOf(d, EquipmentSlot.OFFHAND);
+        boolean anyMotion = EntityMotion.isSpear(mainItem) || hasUseMotion(mainItem) || hasUseMotion(offItem)
+                || mainItem.is(Items.CROSSBOW) || offItem.is(Items.CROSSBOW);
+        if (anyMotion) {
+            labels.add(new Label("手の動作", x, y, Theme.TEXT_DIM));
+            y += lh;
+        }
 
         if (EntityMotion.isSpear(mainItem)) {
             // 槍: 突き(ジャブ)と突進(チャージ)は、別の動作。どちらの進み具合も、同じスライダーで決める
@@ -701,26 +801,7 @@ public class CinemaScreen extends Screen {
                     on -> edit(id, cur -> cur.withOption(EntityMotion.LOADED, on ? 1 : 0))));
             y += sliderH;
         }
-        statusY = y + Theme.u(2);
-        y += th + Theme.u(6);   // メッセージの行
-
-        // --- [DEV] 動作の長さの調整(AnimationState を使うモブ)---
-        if (devMode && EntityProfiles.of(d.entityType()) instanceof AnimationModeProfile moded) {
-            int modeIdx = d.option(moded.optionKey(), 0);
-            if (moded.hasField(modeIdx)) {
-                addRenderableWidget(new ModernSlider(x, y, w, sliderH, "[DEV] 動作の長さ", "秒", 0.0, 12.0, 0.05,
-                        moded.secondsOf(modeIdx), v -> {
-                    moded.setSeconds(modeIdx, (float) v);
-                    edit(id, cur -> cur);   // 新しい長さで反映し直す
-                }));
-                y += sliderH;
-                addRenderableWidget(new ModernButton(x, y, w, btnH, "長さをコピー", ModernButton.Style.DEFAULT, () -> {
-                    Minecraft.getInstance().keyboardHandler.setClipboard(moded.secondsLine());
-                    Cinema.LOGGER.info("[Cinema] {} seconds -> {}", d.entityType(), moded.secondsLine());
-                }));
-                y += btnH + gap;
-            }
-        }
+        statusY = y + Theme.u(2);   // メッセージの行
     }
 
     // ================= 装備 =================
@@ -803,7 +884,7 @@ public class CinemaScreen extends Screen {
         }
 
         // 装備: 操作できなかった理由
-        if (hasRight && !collapsed && System.currentTimeMillis() < statusUntil) {
+        if (hasRight && !collapsed && rightTab == RightTab.EQUIP && System.currentTimeMillis() < statusUntil) {
             Theme.text(g, this.font, Theme.fit(this.font, status, panelW - pad * 2),
                     rightX + pad, statusY, 0xFFE5A04B);
         }

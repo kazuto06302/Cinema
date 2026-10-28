@@ -2,6 +2,7 @@ package net.kztmc.mc.cinema.ui;
 
 import java.util.Locale;
 import java.util.function.DoubleConsumer;
+import net.kztmc.mc.cinema.Cinema;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -18,8 +19,12 @@ import net.minecraft.network.chat.Component;
  *  - クリック: 文字入力(Enter 確定 / Esc 取り消し / ほかをクリックで確定)
  *  - 左右にドラッグ: 値が動く(1ドット = 0.05。Shift で×10、Ctrl で×100)
  *  - マウスホイール: 値が動く(0.1。Shift で×10、Ctrl で×100)
+ * キーと文字は、画面(CinemaScreen)が、編集中の欄へ直接渡す。
  */
 public class ModernNumberField extends AbstractWidget implements Draggable {
+    /** true なら、入力の流れを、ログに出す(入力できないときの原因調べ用。確認できたら false に) */
+    private static final boolean DEBUG_INPUT = true;
+
     private static final double DRAG_PER_PIXEL = 0.05;
     private static final double WHEEL_STEP = 0.1;
     /** この距離(ドット)以内なら、ドラッグではなくクリックとして扱う */
@@ -46,6 +51,9 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     private int cursor;
     private boolean replaceAll;   // 編集を始めた直後は、全体が選択されている(最初の入力で置き換わる)
 
+    private boolean charEvents;       // 文字入力のイベント(charTyped)が届く環境か
+    private int pendingKeyChar = -1;  // キーのイベントで入れた文字。直後の charTyped が同じ文字なら、二重にならないよう無視する
+
     private boolean pressing;
     private double moved;
     private float hover;
@@ -60,6 +68,15 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
 
     public double getValue() {
         return value;
+    }
+
+    public boolean isEditing() {
+        return editing;
+    }
+
+    /** 画面から呼ぶ: ほかをクリックしたときに、確定する */
+    public void commitEditing() {
+        commit();
     }
 
     private static String format(double v) {
@@ -117,7 +134,7 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         if (!pressing) return;
         moved += Math.abs(dx);
         if (moved <= CLICK_SLOP) return;
-        if (editing) cancelEditing();
+        if (editing) editing = false;   // ドラッグを始めたら、入力は取り消す
         change(value + dx * DRAG_PER_PIXEL * Modifiers.factor());
     }
 
@@ -130,7 +147,7 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (!active || !visible || !isMouseOver(mouseX, mouseY) || scrollY == 0) return false;
-        if (editing) cancelEditing();
+        editing = false;
         change(value + Math.signum(scrollY) * WHEEL_STEP * Modifiers.factor());
         return true;
     }
@@ -138,25 +155,16 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     // ---- 文字入力 ----
 
     private void startEditing() {
-        // 先にフォーカスを移す。フォーカスの切り替えで setFocused(false) が呼ばれて、確定してしまうので、
-        // 編集を始める前に行う(すでにフォーカスがあれば、何もしない)
+        // フォーカスも、念のため移す(キーと文字は、画面が直接渡すので、これが無くても動く)
         Screen screen = Minecraft.getInstance().gui.screen();
-        if (screen != null && !isFocused()) {
-            screen.setFocused(this);
-        }
+        if (screen != null && !isFocused()) screen.setFocused(this);
         editing = true;
         text.setLength(0);
         text.append(format(value));
         cursor = text.length();
         replaceAll = true;
-    }
-
-    public boolean isEditing() {
-        return editing;
-    }
-
-    private void cancelEditing() {
-        editing = false;
+        pendingKeyChar = -1;
+        if (DEBUG_INPUT) Cinema.LOGGER.info("[Cinema] number field '{}': editing started", label);
     }
 
     private void commit() {
@@ -175,13 +183,46 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         super.setFocused(focused);
     }
 
+    /** SDL のキーコードから、数値入力に使う文字を返す(使わないキーは -1) */
+    private static int charOfKey(int key) {
+        if (key >= '0' && key <= '9') return key;
+        if (key >= 1073741913 && key <= 1073741921) return '1' + (key - 1073741913);   // テンキー 1〜9
+        return switch (key) {
+            case 1073741922 -> '0';        // テンキー 0
+            case 46, 44, 1073741923 -> '.'; // ピリオド・カンマ・テンキーのピリオド(小数点)
+            case 45, 1073741910 -> '-';    // マイナス・テンキーのマイナス
+            default -> -1;
+        };
+    }
+
+    private void insert(int c) {
+        if (replaceAll) {
+            text.setLength(0);
+            cursor = 0;
+            replaceAll = false;
+        }
+        text.insert(cursor++, (char) c);
+    }
+
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (!editing) return false;
         int key = event.key();
+        if (DEBUG_INPUT) Cinema.LOGGER.info("[Cinema] number field '{}': key {}", label, key);
+
+        // 数字・小数点・マイナス。文字イベントが届く環境では、そちらで入れるので、ここでは入れない
+        int typed = charOfKey(key);
+        if (typed >= 0) {
+            if (!charEvents) {
+                insert(typed);
+                pendingKeyChar = typed;
+            }
+            return true;
+        }
+
         switch (key) {
             case K_RETURN, K_KP_ENTER -> commit();
-            case K_ESCAPE -> cancelEditing();
+            case K_ESCAPE -> editing = false;
             case K_BACKSPACE -> {
                 if (replaceAll) {
                     text.setLength(0);
@@ -224,15 +265,17 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     @Override
     public boolean charTyped(CharacterEvent event) {
         if (!editing) return false;
+        charEvents = true;
         int c = event.codepoint();
-        boolean digit = c >= '0' && c <= '9';
-        if (!digit && c != '.' && c != ',' && c != '-' && c != '+') return true;
-        if (replaceAll) {
-            text.setLength(0);
-            cursor = 0;
-            replaceAll = false;
+        if (DEBUG_INPUT) Cinema.LOGGER.info("[Cinema] number field '{}': char {}", label, c);
+
+        if (c == pendingKeyChar) {   // 直前に、キーのイベントで入れた文字(二重に入れない)
+            pendingKeyChar = -1;
+            return true;
         }
-        text.insert(cursor++, (char) (c == ',' ? '.' : c));
+        boolean digit = c >= '0' && c <= '9';
+        if (!digit && c != '.' && c != ',' && c != '-') return true;
+        insert(c == ',' ? '.' : c);
         return true;
     }
 

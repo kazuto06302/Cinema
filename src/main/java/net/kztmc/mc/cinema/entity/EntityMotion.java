@@ -129,12 +129,13 @@ public final class EntityMotion {
         Object swingState = EntityReflect.getObject(living, "swingState");
         if (swingState == null) return;
 
+        var current = living.getCurrentSwing();   // 振っていないときは null
         if (swing > 0f) {
-            if (living.getCurrentSwing().animation() != animation) {   // 種類が変わったら、振り直す
+            if (current == null || !current.animation().equals(animation)) {   // 種類が変わったら、振り直す
                 EntityReflect.setObject(swingState, "currentSwing", null);
                 living.swing(InteractionHand.MAIN_HAND, animation, false);
             }
-        } else if (living.getCurrentSwing() != null) {
+        } else if (current != null) {
             EntityReflect.setObject(swingState, "currentSwing", null);
         }
 

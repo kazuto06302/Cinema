@@ -2,6 +2,7 @@ package net.kztmc.mc.cinema.ui;
 
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.world.flag.FeatureFlagSet;
 
@@ -30,5 +31,17 @@ public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
     public void onClose() {
         super.onClose();
         CinemaScreen.requestOpen();
+    }
+
+    @Override
+    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (overlay.handleClick(event, doubleClick)) return true;
+        return super.mouseClicked(event, doubleClick);
+    }
+
+    @Override
+    public boolean mouseReleased(MouseButtonEvent event) {
+        if (overlay.handleRelease(event)) return true;
+        return super.mouseReleased(event);
     }
 }
