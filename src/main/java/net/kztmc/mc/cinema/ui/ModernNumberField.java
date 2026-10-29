@@ -22,24 +22,33 @@ import net.minecraft.network.chat.Component;
  * キーと文字は、画面(CinemaScreen)が、編集中の欄へ直接渡す。
  */
 public class ModernNumberField extends AbstractWidget implements Draggable {
-    /** true なら、入力の流れを、ログに出す(入力できないときの原因調べ用。確認できたら false に) */
-    private static final boolean DEBUG_INPUT = true;
+    /** true なら、入力の流れをログに出す(入力できないときの原因調べ用) */
+    private static final boolean DEBUG_INPUT = false;
 
     private static final double DRAG_PER_PIXEL = 0.05;
     private static final double WHEEL_STEP = 0.1;
     /** この距離(ドット)以内なら、ドラッグではなくクリックとして扱う */
     private static final double CLICK_SLOP = 3.0;
 
-    // SDL のキーコード(ModernTextField と同じ流儀)
-    private static final int K_BACKSPACE = 8;
-    private static final int K_RETURN = 13;
-    private static final int K_ESCAPE = 27;
-    private static final int K_DELETE = 127;
-    private static final int K_KP_ENTER = 1073741912;
-    private static final int K_RIGHT = 1073741903;
-    private static final int K_LEFT = 1073741904;
-    private static final int K_HOME = 1073741898;
-    private static final int K_END = 1073741901;
+    // SDL のスキャンコード。この環境では、KeyEvent#key() がスキャンコードで届く(キーコードではない)
+    private static final int SC_1 = 30;          // 1〜9 = 30〜38
+    private static final int SC_0 = 39;
+    private static final int SC_RETURN = 40;
+    private static final int SC_ESCAPE = 41;
+    private static final int SC_BACKSPACE = 42;
+    private static final int SC_MINUS = 45;
+    private static final int SC_COMMA = 54;
+    private static final int SC_PERIOD = 55;
+    private static final int SC_HOME = 74;
+    private static final int SC_DELETE = 76;
+    private static final int SC_END = 77;
+    private static final int SC_RIGHT = 79;
+    private static final int SC_LEFT = 80;
+    private static final int SC_KP_MINUS = 86;
+    private static final int SC_KP_ENTER = 88;
+    private static final int SC_KP_1 = 89;       // テンキー 1〜9 = 89〜97
+    private static final int SC_KP_0 = 98;
+    private static final int SC_KP_PERIOD = 99;
 
     private final String label;
     private final int labelColor;
@@ -134,7 +143,7 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         if (!pressing) return;
         moved += Math.abs(dx);
         if (moved <= CLICK_SLOP) return;
-        if (editing) editing = false;   // ドラッグを始めたら、入力は取り消す
+        editing = false;   // ドラッグを始めたら、入力は取り消す
         change(value + dx * DRAG_PER_PIXEL * Modifiers.factor());
     }
 
@@ -183,14 +192,15 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         super.setFocused(focused);
     }
 
-    /** SDL のキーコードから、数値入力に使う文字を返す(使わないキーは -1) */
+    /** スキャンコードから、数値入力に使う文字を返す(使わないキーは -1) */
     private static int charOfKey(int key) {
-        if (key >= '0' && key <= '9') return key;
-        if (key >= 1073741913 && key <= 1073741921) return '1' + (key - 1073741913);   // テンキー 1〜9
+        if (key >= SC_1 && key <= SC_1 + 8) return '1' + (key - SC_1);
+        if (key == SC_0) return '0';
+        if (key >= SC_KP_1 && key <= SC_KP_1 + 8) return '1' + (key - SC_KP_1);
+        if (key == SC_KP_0) return '0';
         return switch (key) {
-            case 1073741922 -> '0';        // テンキー 0
-            case 46, 44, 1073741923 -> '.'; // ピリオド・カンマ・テンキーのピリオド(小数点)
-            case 45, 1073741910 -> '-';    // マイナス・テンキーのマイナス
+            case SC_PERIOD, SC_COMMA, SC_KP_PERIOD -> '.';
+            case SC_MINUS, SC_KP_MINUS -> '-';
             default -> -1;
         };
     }
@@ -221,9 +231,9 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         }
 
         switch (key) {
-            case K_RETURN, K_KP_ENTER -> commit();
-            case K_ESCAPE -> editing = false;
-            case K_BACKSPACE -> {
+            case SC_RETURN, SC_KP_ENTER -> commit();
+            case SC_ESCAPE -> editing = false;
+            case SC_BACKSPACE -> {
                 if (replaceAll) {
                     text.setLength(0);
                     cursor = 0;
@@ -232,7 +242,7 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
                 }
                 replaceAll = false;
             }
-            case K_DELETE -> {
+            case SC_DELETE -> {
                 if (replaceAll) {
                     text.setLength(0);
                     cursor = 0;
@@ -241,19 +251,19 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
                 }
                 replaceAll = false;
             }
-            case K_LEFT -> {
+            case SC_LEFT -> {
                 cursor = replaceAll ? 0 : Math.max(0, cursor - 1);
                 replaceAll = false;
             }
-            case K_RIGHT -> {
+            case SC_RIGHT -> {
                 cursor = replaceAll ? text.length() : Math.min(text.length(), cursor + 1);
                 replaceAll = false;
             }
-            case K_HOME -> {
+            case SC_HOME -> {
                 cursor = 0;
                 replaceAll = false;
             }
-            case K_END -> {
+            case SC_END -> {
                 cursor = text.length();
                 replaceAll = false;
             }

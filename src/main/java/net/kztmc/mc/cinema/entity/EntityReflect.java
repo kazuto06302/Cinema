@@ -479,4 +479,14 @@ public final class EntityReflect {
             return false;
         }
     }
+
+    /** target のクラスから stop(含まない)までの間に、その名前のメソッドを宣言しているクラスがあるか。Mob の空の setBaby と区別する */
+    public static boolean hasMethodBefore(Object target, String name, Class<?> stop) {
+        for (Class<?> c = target.getClass(); c != null && c != stop && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (m.getName().equals(name)) return true;
+            }
+        }
+        return false;
+    }
 }

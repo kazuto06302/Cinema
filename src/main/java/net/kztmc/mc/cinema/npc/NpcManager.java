@@ -11,6 +11,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityFlags;
 import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.minecraft.client.Minecraft;
@@ -48,6 +49,7 @@ public final class NpcManager {
     private static UUID selected;
     /** サーバー側エンティティIDと衝突しないよう高い値から払い出す */
     private static int nextEntityId = 0x40000000;
+    private static UUID highlight;
 
     private NpcManager() {}
 
@@ -232,6 +234,7 @@ public final class NpcManager {
     /** 何度呼んでも同じ結果になる(冪等)ようにしてある。生成時と編集時の両方で使う。 */
     private static void applyState(Entity e, NpcData d) {
         EntityProfiles.of(e).applyOptions(e, d.options());
+        EntityFlags.apply(e, d.options(), d.id().equals(highlight));
         e.setPos(d.x(), d.y(), d.z());
         for (Entity part : EntityIds.subEntities(e)) {
             part.setPos(e.getX(), e.getY(), e.getZ());
@@ -293,5 +296,19 @@ public final class NpcManager {
         }
         ItemStack stack = d.equipment().get(source.getName());
         return stack == null ? ItemStack.EMPTY : stack.copy();
+    }
+
+    public static void setHighlight(UUID id) {
+        UUID old = highlight;
+        highlight = id;
+        refreshGlow(old);
+        refreshGlow(id);
+    }
+
+    private static void refreshGlow(UUID id) {
+        if (id == null) return;
+        Entity e = entityOf(id);
+        if (e == null) return;
+        get(id).ifPresent(d -> EntityFlags.applyGlow(e, d.options(), id.equals(highlight)));
     }
 }
