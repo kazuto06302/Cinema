@@ -18,15 +18,13 @@ public final class EntityFlags {
     public static final String BABY = "baby";
     public static final String DAMAGE = "damage";
 
-    /**
-     * NPCの状態に反映する(位置を決める前に呼ぶ。子どもは、大きさが変わるため)。
-     * @param highlighted 編集画面で選択中か(選択中は、光るアウトラインを出す)
-     */
-    public static void apply(Entity e, Map<String, Integer> options, boolean highlighted) {
+    /** NPCの状態に反映する(位置を決める前に呼ぶ。子どもは、大きさが変わるため) */
+    public static void apply(Entity e, Map<String, Integer> options) {
         // 燃えている: クライアントでは、共有フラグ0で決まる
         EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 0, options.getOrDefault(FIRE, 0) == 1);
 
-        applyGlow(e, options, highlighted);
+        // 光っている: 共有フラグ6(バニラの光るアウトライン)
+        EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 6, options.getOrDefault(GLOW, 0) == 1);
 
         // 子ども: setBaby を持つモブ(ゾンビ・動物など)だけ。Mob の空の setBaby は、除く
         if (EntityReflect.hasMethodBefore(e, "setBaby", Mob.class)) {
@@ -39,11 +37,5 @@ public final class EntityFlags {
             living.hurtDuration = hurt ? 10 : 0;
             living.hurtTime = hurt ? 10 : 0;
         }
-    }
-
-    /** 光っている(NPCの設定)か、選択中なら、光るアウトラインを出す */
-    public static void applyGlow(Entity e, Map<String, Integer> options, boolean highlighted) {
-        boolean glow = options.getOrDefault(GLOW, 0) == 1 || highlighted;
-        EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 6, glow);   // 6 = 光る(アウトライン)
     }
 }

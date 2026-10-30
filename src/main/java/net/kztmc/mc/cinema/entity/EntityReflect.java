@@ -489,4 +489,31 @@ public final class EntityReflect {
         }
         return false;
     }
+
+    /** float フィールドの値。見つからなければ fallback(ログは出さない) */
+    public static float getFloatQuiet(Object target, String name, float fallback) {
+        try {
+            return field(target.getClass(), name, target.getClass().getName() + "#" + name).getFloat(target);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return fallback;
+        }
+    }
+
+    /** メソッドを呼んで、戻り値を返す(見つからない・失敗したときは null)。ログは出さない */
+    public static Object call(Object target, String name, Object... args) {
+        for (Class<?> c = target.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            for (Method m : c.getDeclaredMethods()) {
+                if (!m.getName().equals(name) || m.getParameterCount() != args.length) continue;
+                Object[] converted = coerce(m.getParameterTypes(), args);
+                if (converted == null) continue;
+                try {
+                    m.setAccessible(true);
+                    return m.invoke(target, converted);
+                } catch (ReflectiveOperationException | RuntimeException ex) {
+                    return null;
+                }
+            }
+        }
+        return null;
+    }
 }

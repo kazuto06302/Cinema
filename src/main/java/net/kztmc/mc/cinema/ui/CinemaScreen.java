@@ -11,6 +11,9 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.world.entity.Entity;
+
+import java.util.UUID;
 
 /**
  * 撮影用の編集画面の骨格。各パネルの中身は、別のクラスにある。
@@ -113,29 +116,18 @@ public class CinemaScreen extends Screen implements PanelHost {
             collapsed = !collapsed;
             refresh();
         }));
-        if (collapsed) {
-            NpcManager.setHighlight(null);   // UIを隠したら、選択中の光るアウトラインも消す
-            return;
-        }
+        if (collapsed) return;
 
         left.build(layout, this);
-        NpcManager.selectedData().ifPresentOrElse(d -> {
+        NpcManager.selectedData().ifPresent(d -> {
             hasRight = true;
             right.build(layout, this, d);
-            NpcManager.setHighlight(d.id());   // 選択中のNPCのまわりを、光らせる
-        }, () -> NpcManager.setHighlight(null));
+        });
 
         if (CinemaState.devMode && left.isMobsTab()) {
             hasTuner = true;
             tuner.build(layout, this);
         }
-    }
-
-    /** 画面を閉じる・別の画面へ移るときに、選択中の光るアウトラインを消す(撮影に写らないように) */
-    @Override
-    public void removed() {
-        NpcManager.setHighlight(null);
-        super.removed();
     }
 
     // ================= マウス・キー =================
@@ -236,6 +228,12 @@ public class CinemaScreen extends Screen implements PanelHost {
         }
 
         if (!collapsed) {
+            UUID selected = NpcManager.selectedId();
+            Entity selectedEntity = selected == null ? null : NpcManager.entityOf(selected);
+            if (selectedEntity != null) {
+                SelectionOutline.draw(g, selectedEntity);
+            }
+
             left.extractBackground(g);
             if (hasRight) right.extractBackground(g);
             if (hasTuner) tuner.extractBackground(g);

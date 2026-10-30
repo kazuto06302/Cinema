@@ -129,6 +129,7 @@ public final class RightPanel {
     }
 
     private void selectTab(RightTab t) {
+        if (tab != t) UiSounds.tab();
         tab = t;
         scroll = 0;
         host.refresh();
@@ -237,22 +238,22 @@ public final class RightPanel {
         boolean canBaby = live != null && EntityReflect.hasMethodBefore(live, "setBaby", Mob.class);
 
         List<String[]> flags = new ArrayList<>();
-        flags.add(new String[] {EntityFlags.FIRE, "燃えている"});
-        flags.add(new String[] {EntityFlags.GLOW, "光っている"});
-        if (canBaby) flags.add(new String[] {EntityFlags.BABY, "子ども"});
-        if (living) flags.add(new String[] {EntityFlags.DAMAGE, "ダメージ"});
+        flags.add(new String[] {EntityFlags.FIRE, "燃えている (Fire)"});
+        flags.add(new String[] {EntityFlags.GLOW, "光っている (Glow)"});
+        if (canBaby) flags.add(new String[] {EntityFlags.BABY, "子ども (Age)"});
+        if (living) flags.add(new String[] {EntityFlags.DAMAGE, "ダメージ (Damage)"});
 
-        int cgap = Math.max(1, Theme.u(3));
-        int cw = (w - cgap) / 2;
-        for (int i = 0; i < flags.size(); i++) {
-            String key = flags.get(i)[0];
-            int cx = x + (i % 2) * (cw + cgap);
-            int cy = y + (i / 2) * lay.sliderH();
-            add(new ModernCheckbox(cx, cy, cw, lay.sliderH(), flags.get(i)[1], d.option(key, 0) == 1,
+        label("状態", x, y, Theme.TEXT_DIM);
+        y += lay.th() + Theme.u(3);
+
+        // 縦に並べる
+        for (String[] flag : flags) {
+            String key = flag[0];
+            add(new ModernCheckbox(x, y, w, lay.sliderH(), flag[1], d.option(key, 0) == 1,
                     on -> edit(id, cur -> cur.withOption(key, on ? 1 : 0))));
+            y += lay.sliderH();
         }
-        int rows = (flags.size() + 1) / 2;
-        return y + rows * lay.sliderH() + lay.gap();
+        return y + lay.gap();
     }
 
     // ---- 姿勢・モデル ----

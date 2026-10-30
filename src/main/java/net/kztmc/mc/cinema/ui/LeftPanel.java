@@ -64,14 +64,17 @@ public final class LeftPanel {
         labels.add(new Label(CinemaState.devMode ? "CINEMA  [DEV]" : "CINEMA", x, y, Theme.ACCENT));
         y += lay.th() + Theme.u(5);
 
-        // --- タブ行(角丸なし、すきまなし) ---
-        int wNpc = w * 22 / 100;
-        int wMob = w * 33 / 100;
-        int wAdd = w - wNpc - wMob;
-        host.add(new TabButton(x, y, wNpc, lay.btnH(), "NPC一覧", () -> select(Tab.NPCS)).setSelected(tab == Tab.NPCS));
-        host.add(new TabButton(x + wNpc, y, wMob, lay.btnH(), "+モブ追加", () -> select(Tab.MOBS)).setSelected(tab == Tab.MOBS));
-        host.add(new TabButton(x + wNpc + wMob, y, wAdd, lay.btnH(), "+プレイヤー追加", () -> select(Tab.PLAYERS))
-                .setSelected(tab == Tab.PLAYERS));
+        // --- タブ行(角丸のまま) ---
+        int usable = w - lay.gap() * 2;
+        int wNpc = usable * 22 / 100;
+        int wMob = usable * 33 / 100;
+        int wAdd = usable - wNpc - wMob;
+        host.add(new ModernButton(x, y, wNpc, lay.btnH(), "NPC一覧", ModernButton.Style.GHOST,
+                () -> select(Tab.NPCS)).setSelected(tab == Tab.NPCS));
+        host.add(new ModernButton(x + wNpc + lay.gap(), y, wMob, lay.btnH(), "+モブ", ModernButton.Style.GHOST,
+                () -> select(Tab.MOBS)).setSelected(tab == Tab.MOBS));
+        host.add(new ModernButton(x + wNpc + wMob + lay.gap() * 2, y, wAdd, lay.btnH(), "+プレイヤー",
+                ModernButton.Style.GHOST, () -> select(Tab.PLAYERS)).setSelected(tab == Tab.PLAYERS));
         y += lay.btnH() + lay.gap();
 
         switch (tab) {
@@ -82,6 +85,7 @@ public final class LeftPanel {
     }
 
     private void select(Tab t) {
+        if (tab != t) UiSounds.tab();
         tab = t;
         host.refresh();
     }
