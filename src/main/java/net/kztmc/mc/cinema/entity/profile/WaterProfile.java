@@ -24,7 +24,7 @@ public abstract class WaterProfile extends EntityProfile {
         this.waterDefault = waterDefault ? 1 : 0;
         this.selectable = selectable;
         if (selectable) {
-            choice(WATER, "水中", this.waterDefault, "いない", "いる");
+            toggle(WATER, "水中", waterDefault);
         }
     }
 

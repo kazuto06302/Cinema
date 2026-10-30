@@ -11,7 +11,7 @@ public final class LlamaProfile extends EntityProfile {
 
     public LlamaProfile() {
         super("minecraft:llama", "minecraft:trader_llama");
-        choice("color", "毛色", 0, "クリーム", "白", "茶", "灰");
+        dropdownChoice("color", "毛色", 0, "クリーム", "白", "茶", "灰");
     }
 
     @Override

@@ -18,7 +18,7 @@ public final class AxolotlProfile extends EntityProfile {
     public AxolotlProfile() {
         super("minecraft:axolotl");
         choice("mode", "状態", 0, "水中", "地上", "死んだふり");
-        choice("color", "色", 0, "ピンク", "茶", "金", "シアン", "青");
+        dropdownChoice("color", "色", 0, "ピンク", "茶", "金", "シアン", "青");
     }
 
     @Override

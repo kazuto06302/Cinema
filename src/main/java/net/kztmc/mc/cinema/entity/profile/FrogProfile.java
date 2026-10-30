@@ -21,7 +21,7 @@ public final class FrogProfile extends AnimationModeProfile {
                 new String[] {null, "jumpAnimationState", "croakAnimationState", "tongueAnimationState",
                         "swimIdleAnimationState"},
                 "minecraft:frog");
-        choice("color", "色", 0, "温帯(オレンジ)", "温暖(白)", "寒冷(緑)");
+        dropdownChoice("color", "色", 0, "温帯(オレンジ)", "温暖(白)", "寒冷(緑)");
         // 歩行はキーフレーム。1周期は約1.25秒、animateWalk の係数は1.5(どちらも推測値)
         walkKeyframe(1.25f, 1.5f);
     }

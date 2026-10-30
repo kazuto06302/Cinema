@@ -14,7 +14,7 @@ import net.minecraft.world.entity.Entity;
 public final class EndCrystalProfile extends EntityProfile {
     public EndCrystalProfile() {
         super("minecraft:end_crystal");
-        choice("bottom", "台座", 1, "なし", "あり");
+        toggle("bottom", "台座", true);
     }
 
     @Override

@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Entity;
 public final class EvokerProfile extends EntityProfile {
     public EvokerProfile() {
         super("minecraft:evoker");
-        choice("cast", "詠唱", 0, "しない", "する");
+        toggle("cast", "詠唱", false);
     }
 
     @Override

@@ -12,8 +12,8 @@ public final class HorseProfile extends EntityProfile {
 
     public HorseProfile() {
         super("minecraft:horse");
-        choice("color", "毛色", 0, "白", "クリーム", "栗毛", "茶", "黒", "灰", "濃い茶");
-        choice("markings", "模様", 0, "なし", "白", "白の広がり", "白い斑点", "黒い斑点");
+        dropdownChoice("color", "毛色", 0, "白", "クリーム", "栗毛", "茶", "黒", "灰", "濃い茶");
+        dropdownChoice("markings", "模様", 0, "なし", "白", "白の広がり", "白い斑点", "黒い斑点");
     }
 
     @Override

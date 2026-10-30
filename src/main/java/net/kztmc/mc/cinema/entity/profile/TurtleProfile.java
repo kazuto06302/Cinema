@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Entity;
 public final class TurtleProfile extends WaterProfile {
     public TurtleProfile() {
         super(false, true, "minecraft:turtle");
-        choice("egg", "卵", 0, "なし", "あり");
+        toggle("egg", "卵", false);
     }
 
     @Override

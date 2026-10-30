@@ -16,7 +16,7 @@ public final class SheepProfile extends EntityProfile {
 
     public SheepProfile() {
         super("minecraft:sheep");
-        choice("eat", "草を食べる", 0, "しない", "する");
+        toggle("eat", "草を食べる", false);
         option("color", "毛の色", 0, 15, 0);
         toggle("sheared", "毛刈り", false);
     }

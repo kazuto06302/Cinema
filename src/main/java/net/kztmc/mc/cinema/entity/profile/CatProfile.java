@@ -19,7 +19,7 @@ public final class CatProfile extends EntityProfile {
         super("minecraft:cat");
         choice("variant", "種類", 0, "タビー", "タキシード", "レッド", "シャム", "ブリティッシュ", "三毛",
                 "ペルシャ", "ラグドール", "白", "ジェリー", "黒");
-        choice("tame", "飼い猫", 0, "野良", "飼い猫");
+        toggle("tame", "飼い猫", false);
         option("collar", "首輪の色", 0, 15, 14);
     }
 

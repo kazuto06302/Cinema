@@ -20,7 +20,7 @@ public final class CopperGolemProfile extends AnimationModeProfile {
                         "interactionDropNoItemAnimationState"},
                 new float[] {0f, 0f, 0f, 0f, 0f},
                 "minecraft:copper_golem");
-        choice("weather", "酸化", 0, "なし", "わずか", "かなり", "完全");
+        dropdownChoice("weather", "酸化", 0, "なし", "わずか", "かなり", "完全");
     }
 
     @Override

@@ -21,7 +21,7 @@ public final class PandaProfile extends EntityProfile {
     public PandaProfile() {
         super("minecraft:panda");
         choice("pose", "ポーズ", 0, "立つ", "座る", "仰向け", "転がる", "くしゃみ", "食べる");
-        choice("gene", "種類", 0, "通常", "のんびり", "心配性", "遊び好き", "茶色", "弱虫", "攻撃的");
+        dropdownChoice("gene", "種類", 0, "通常", "のんびり", "心配性", "遊び好き", "茶色", "弱虫", "攻撃的");
     }
 
     @Override

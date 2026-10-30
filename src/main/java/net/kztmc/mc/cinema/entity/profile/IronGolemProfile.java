@@ -15,8 +15,8 @@ public final class IronGolemProfile extends EntityProfile {
 
     public IronGolemProfile() {
         super("minecraft:iron_golem");
-        choice("attack", "攻撃", 0, "しない", "する");
-        choice("flower", "花を差し出す", 0, "しない", "する");
+        toggle("attack", "攻撃", false);
+        toggle("flower", "花を差し出す",false);
     }
 
     @Override

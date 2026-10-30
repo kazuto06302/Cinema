@@ -10,7 +10,7 @@ import net.minecraft.world.entity.Entity;
 public final class SnowGolemProfile extends EntityProfile {
     public SnowGolemProfile() {
         super("minecraft:snow_golem");
-        choice("pumpkin", "かぼちゃ", 1, "なし", "あり");
+        toggle("pumpkin", "かぼちゃ", true);
     }
 
     @Override

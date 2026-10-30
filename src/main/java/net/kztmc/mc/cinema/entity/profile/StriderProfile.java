@@ -10,7 +10,7 @@ import net.minecraft.world.entity.Entity;
 public final class StriderProfile extends EntityProfile {
     public StriderProfile() {
         super("minecraft:strider");
-        choice("lava", "マグマ", 1, "なし(寒い)", "あり");
+        toggle("lava", "マグマ", true);
     }
 
     @Override

@@ -20,7 +20,7 @@ public final class WolfProfile extends EntityProfile {
         super("minecraft:wolf");
         choice("variant", "種類", 0,
                 "ペール", "スポット", "スノー", "ブラック", "アッシュ", "ラスティ", "ウッズ", "チェスナット", "ストライプ");
-        choice("tame", "飼い犬", 0, "野生", "飼い犬");
+        toggle("tame", "飼い犬", false);
         option("collar", "首輪の色", 0, 15, 14);   // 14 = 赤
         toggle("attack", "攻撃モード", false);
     }

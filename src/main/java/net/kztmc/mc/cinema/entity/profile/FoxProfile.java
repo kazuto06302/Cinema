@@ -17,7 +17,7 @@ public final class FoxProfile extends EntityProfile {
         super("minecraft:fox");
         choice("state", "姿勢", 0, "立つ", "座る", "寝る", "しゃがむ", "飛びかかり", "顔を突っ込む");
         toggle("interested", "首をかしげる", false);
-        choice("color", "色", 0, "赤", "雪");
+        toggle("snow", "雪", false);
     }
 
     @Override
@@ -51,7 +51,7 @@ public final class FoxProfile extends EntityProfile {
         EntityReflect.setFloat(e, "interestedAngle", tilt);
         EntityReflect.setFloat(e, "interestedAngleO", tilt);
 
-        int c = Math.max(0, Math.min(COLORS.length - 1, options.getOrDefault("color", 0)));
+        int c = Math.max(0, Math.min(COLORS.length - 1, options.getOrDefault("snow", 0)));
         EntityReflect.invokeWithEnumArg(e, "setVariant", COLORS[c]);
     }
 }

@@ -9,7 +9,7 @@ import net.minecraft.world.entity.Entity;
 public final class PufferfishProfile extends WaterProfile {
     public PufferfishProfile() {
         super(true, false, "minecraft:pufferfish");
-        choice("puff", "膨らみ", 2, "しぼむ", "半分", "ふくらむ");
+        dropdownChoice("puff", "膨らみ", 2, "しぼむ", "半分", "ふくらむ");
     }
 
     @Override
