@@ -119,4 +119,9 @@ public record NpcData(
     public NpcData withCoords(double x, double y, double z) {
         return new NpcData(id, kind, entityType, skin, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot, equipment, style);
     }
+
+    public NpcData withId(java.util.UUID newId) {
+        return new NpcData(newId, kind, entityType, skin, dimension, x, y, z, yRot, xRot, headYRot, bodyYRot,
+                equipment, style);
+    }
 }

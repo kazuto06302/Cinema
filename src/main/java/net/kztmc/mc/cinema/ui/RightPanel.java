@@ -71,6 +71,9 @@ public final class RightPanel {
     private long statusUntil;
     private int statusY;
 
+    private boolean dragScrolling;
+    private long wheelLockUntil;
+
     // ================= 組み立て =================
 
     public void build(Layout lay, PanelHost host, NpcData d) {
@@ -86,15 +89,13 @@ public final class RightPanel {
         int y = lay.panelY() + Theme.u(8);
 
         // --- 最上段: 名前(左)と、削除(右) ---
-        String name = NpcData.PLAYER.equals(d.kind()) ? d.skin().orElse("NPC") : MobCatalog.nameOf(d.entityType());
+        String name = NpcNames.of(d);
         int delW = Theme.u(44);
         fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - lay.gap()), x,
                 y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
         UUID npcId = id;
-        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), "削除", ModernButton.Style.DANGER, () -> {
-            NpcManager.remove(npcId);
-            host.refresh();
-        }));
+        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), "削除", ModernButton.Style.DANGER,
+                () -> host.confirmDelete(npcId)));
         y += lay.btnH() + Theme.u(5);
 
         // --- タブ行(2:1、角丸なし) ---
@@ -154,6 +155,7 @@ public final class RightPanel {
 
     private int buildMain(NpcData d, int y) {
         y = sectionPosition(d, y);
+        y = sectionSize(d, y);
         y = sectionOrientation(d, y);
         y = sectionStates(y);
         y = sectionPosture(d, y);
@@ -195,6 +197,21 @@ public final class RightPanel {
             host.refresh();   // 位置欄の表示も、新しい値にする
         }));
         return y + lay.btnH() + lay.gap();
+    }
+
+    // ---- サイズ(生き物だけ) ----
+
+    private int sectionSize(NpcData d, int y) {
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;
+        if (!living) return y;
+
+        int lh = lay.th() + Theme.u(3);
+        label("サイズ", x, y, Theme.TEXT_DIM);
+        y += lh;
+        add(new ModernSlider(x, y, w, lay.sliderH(), "大きさ", "%", 10, 400, 5,
+                d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v))));
+        return y + lay.sliderH() + lay.gap();
     }
 
     // ---- 向き ----
@@ -575,11 +592,43 @@ public final class RightPanel {
                 && my >= lay.panelY() && my < lay.panelY() + lay.panelH();
     }
 
-    /** ホイール(スライダー・数値欄が使わなかったときだけ、画面から呼ばれる) */
+    /** ホイール。スクロールしたら、短い間は、項目(スライダー・数値欄)より先に受けて、途中で止まらないようにする */
     public boolean mouseScrolled(double mx, double my, double scrollY) {
         if (!contains(mx, my) || maxScroll <= 0) return false;
         setScroll(scroll - (int) Math.round(scrollY * Theme.u(24)));
+        wheelLockUntil = System.currentTimeMillis() + 400;
         return true;
+    }
+
+    /** ホイールの「ロック」中か。ロック中は、画面が、項目より先に、パネルへホイールを渡す */
+    public boolean wheelLocked(double mx, double my) {
+        return System.currentTimeMillis() < wheelLockUntil && contains(mx, my);
+    }
+
+    // ---- 項目のない所からのドラッグでスクロール ----
+
+    /** 項目のない所を押したときに、画面が呼ぶ。スクロールできる中身の上なら、ドラッグでスクロールを始める */
+    public boolean beginDragScroll(double mx, double my) {
+        if (maxScroll <= 0 || mx < lay.rightX() || mx >= lay.rightX() + lay.panelW()
+                || my < contentTop || my >= contentBottom) {
+            return false;
+        }
+        dragScrolling = true;
+        return true;
+    }
+
+    public boolean isDragScrolling() {
+        return dragScrolling;
+    }
+
+    /** つかんで引く向き: 下へドラッグすると、中身が下へ動く(スクロール位置は減る) */
+    public void dragScrollBy(double dy) {
+        setScroll(scroll - (int) Math.round(dy));
+        wheelLockUntil = System.currentTimeMillis() + 400;
+    }
+
+    public void endDragScroll() {
+        dragScrolling = false;
     }
 
     /** 右端のスクロールバー。つまみをドラッグできる */

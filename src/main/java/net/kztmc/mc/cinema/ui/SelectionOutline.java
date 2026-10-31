@@ -38,7 +38,7 @@ public final class SelectionOutline {
     private static final int COLOR = Theme.ACCENT | 0xFF000000;
 
     /** 線の太さ(実際の画面の画素) */
-    private static final int LINE_PX = 2;
+    private static final int LINE_PX = 4;
 
     private static final double NEAR = 0.05;
 
@@ -132,7 +132,8 @@ public final class SelectionOutline {
 
         for (float[] poly : polygons) fillPolygon(poly, ox, oy, w, h);
 
-        // 縁だけを、線として描く(実際の画素の単位で描くため、GUIの倍率を打ち消す)
+        int before = LINE_PX / 2;
+        int after = LINE_PX - before;
         double guiScale = window.getGuiScale();
         g.pose().pushMatrix();
         g.pose().scale((float) (1.0 / guiScale), (float) (1.0 / guiScale));
@@ -143,7 +144,7 @@ public final class SelectionOutline {
                 if (boundary && runStart < 0) {
                     runStart = x;
                 } else if (!boundary && runStart >= 0) {
-                    g.fill(ox + runStart, oy + y, ox + x, oy + y + LINE_PX, COLOR);
+                    g.fill(ox + runStart - before, oy + y - before, ox + x + after, oy + y + after, COLOR);
                     runStart = -1;
                 }
             }

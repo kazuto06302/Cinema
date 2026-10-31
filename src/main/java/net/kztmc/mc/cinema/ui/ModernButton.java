@@ -17,6 +17,8 @@ public class ModernButton extends AbstractWidget {
     private boolean selected;
     private float hover; // 0..1 のアニメーション値
 
+    private boolean silent;
+
     public ModernButton(int x, int y, int w, int h, String label, Style style, Runnable onPress) {
         super(x, y, w, h, Component.literal(label));
         this.style = style;
@@ -74,4 +76,15 @@ public class ModernButton extends AbstractWidget {
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput output) {}
+
+    /** true なら、クリック音を鳴らさない(タブなど、別の音を鳴らすボタン用) */
+    public ModernButton setSilent(boolean silent) {
+        this.silent = silent;
+        return this;
+    }
+
+    @Override
+    public void playDownSound(net.minecraft.client.sounds.SoundManager manager) {
+        if (!silent) super.playDownSound(manager);
+    }
 }

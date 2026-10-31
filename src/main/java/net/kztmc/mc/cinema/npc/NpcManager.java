@@ -155,7 +155,8 @@ public final class NpcManager {
     // ---- tick ----
 
     private static void tick(Minecraft mc) {
-        ClientLevel level = mc.level;
+        Cinema.level = mc.level;
+        ClientLevel level = Cinema.level;
         if (level == null || mc.player == null || worldKey == null) return;
 
         if (level != liveLevel) { // ディメンション移動/再接続でレベルが別物になった
@@ -296,5 +297,16 @@ public final class NpcManager {
         }
         ItemStack stack = d.equipment().get(source.getName());
         return stack == null ? ItemStack.EMPTY : stack.copy();
+    }
+
+    public static void duplicate(UUID id) {
+        get(id).ifPresent(src -> {
+            UUID newId = UUID.randomUUID();
+            NpcData copy = src.withId(newId).withTransform(src.x() + 1.0, src.y(), src.z(),
+                    src.yRot(), src.xRot(), src.headYRot(), src.bodyYRot());
+            ClientLevel level = Cinema.level;
+            spawn(level, copy);
+            select(newId);
+        });
     }
 }

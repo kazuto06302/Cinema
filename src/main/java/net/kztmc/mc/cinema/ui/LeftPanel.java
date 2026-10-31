@@ -37,6 +37,9 @@ public final class LeftPanel {
     private Layout lay;
     private PanelHost host;
 
+    private boolean probing;
+    private NpcData probed;
+
     public boolean isMobsTab() {
         return tab == Tab.MOBS;
     }
@@ -70,11 +73,11 @@ public final class LeftPanel {
         int wMob = usable * 33 / 100;
         int wAdd = usable - wNpc - wMob;
         host.add(new ModernButton(x, y, wNpc, lay.btnH(), "NPC一覧", ModernButton.Style.GHOST,
-                () -> select(Tab.NPCS)).setSelected(tab == Tab.NPCS));
+                () -> select(Tab.NPCS)).setSelected(tab == Tab.NPCS).setSilent(true));
         host.add(new ModernButton(x + wNpc + lay.gap(), y, wMob, lay.btnH(), "+モブ", ModernButton.Style.GHOST,
-                () -> select(Tab.MOBS)).setSelected(tab == Tab.MOBS));
+                () -> select(Tab.MOBS)).setSelected(tab == Tab.MOBS).setSilent(true));
         host.add(new ModernButton(x + wNpc + wMob + lay.gap() * 2, y, wAdd, lay.btnH(), "+プレイヤー",
-                ModernButton.Style.GHOST, () -> select(Tab.PLAYERS)).setSelected(tab == Tab.PLAYERS));
+                ModernButton.Style.GHOST, () -> select(Tab.PLAYERS)).setSelected(tab == Tab.PLAYERS).setSilent(true));
         y += lay.btnH() + lay.gap();
 
         switch (tab) {
@@ -105,6 +108,10 @@ public final class LeftPanel {
                 d -> NpcData.PLAYER.equals(d.kind()) ? "Player" : "Mob",
                 d -> d.id().equals(NpcManager.selectedId()),
                 d -> {
+                    if (probing) {
+                        probed = d;
+                        return;
+                    }
                     NpcManager.select(d.id());
                     host.refresh();
                 });
@@ -217,5 +224,37 @@ public final class LeftPanel {
         if (!name.isEmpty()) PlayerHistory.add(name);
         tab = Tab.NPCS;   // 追加したNPCがすぐ見えるように一覧へ
         host.refresh();
+    }
+
+    /**
+     * NPCリストの上の右クリック。クリックされた項目を選択して、メニュー(複製・削除)を開く。
+     * 項目の特定は、リスト自身のクリックの判定にまかせる(右クリックを、一瞬だけ「クリック」として扱う)。
+     * @return リストの上の右クリックなら true(画面は、それ以上処理しない)
+     */
+    public boolean rightClick(net.minecraft.client.input.MouseButtonEvent event) {
+        if (tab != Tab.NPCS || npcList == null || !npcList.isMouseOver(event.x(), event.y())) return false;
+
+        probing = true;
+        probed = null;
+        Theme.probeAnyButton = true;
+        try {
+            npcList.mouseClicked(event, false);
+        } finally {
+            Theme.probeAnyButton = false;
+            probing = false;
+        }
+        NpcData target = probed;
+        if (target == null) return true;   // 項目のない所: 何もしない
+
+        java.util.UUID id = target.id();
+        NpcManager.select(id);
+        host.refresh();
+        host.openContextMenu((int) event.x(), (int) event.y(), java.util.List.of(
+                new ContextMenu.Entry("複製", () -> {
+                    NpcManager.duplicate(id);
+                    host.refresh();
+                }, false),
+                new ContextMenu.Entry("削除", () -> host.confirmDelete(id), true)));
+        return true;
     }
 }

@@ -5,21 +5,36 @@ import java.util.Map;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
+import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.ai.attributes.Attributes;
 
 /**
- * 全モブ共通の状態: 燃えている・光っている・子ども・ダメージ(赤く染まる)。
- * NPCごとの options に、0/1で保存される。
+ * 全モブ共通の状態: 大きさ・燃えている・光っている・子ども・ダメージ(赤く染まる)。
+ * NPCごとの options に保存される(大きさは%の整数、ほかは0/1)。
  */
 public final class EntityFlags {
     private EntityFlags() {}
 
+    public static final String SCALE = "scale";
     public static final String FIRE = "fire";
     public static final String GLOW = "glow";
     public static final String BABY = "baby";
     public static final String DAMAGE = "damage";
 
-    /** NPCの状態に反映する(位置を決める前に呼ぶ。子どもは、大きさが変わるため) */
+    /** NPCの状態に反映する(位置を決める前に呼ぶ。大きさと子どもは、当たり判定の大きさが変わるため) */
     public static void apply(Entity e, Map<String, Integer> options) {
+        // 大きさ(%)。生き物の属性 SCALE で決まる。描画も当たり判定も、これに従う
+        if (e instanceof LivingEntity living) {
+            AttributeInstance scale = living.getAttribute(Attributes.SCALE);
+            if (scale != null) {
+                double value = options.getOrDefault(SCALE, 100) / 100.0;
+                if (scale.getBaseValue() != value) {
+                    scale.setBaseValue(value);
+                    e.refreshDimensions();
+                }
+            }
+        }
+
         // 燃えている: クライアントでは、共有フラグ0で決まる
         EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 0, options.getOrDefault(FIRE, 0) == 1);
 

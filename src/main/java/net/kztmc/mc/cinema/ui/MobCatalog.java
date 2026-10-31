@@ -9,7 +9,10 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import net.kztmc.mc.cinema.entity.EntityProfiles;
+import net.minecraft.client.resources.language.I18n;
 import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
+import net.minecraft.locale.Language;
 
 /** モブ選択リスト用のカタログ。MOD追加のモブも自動で含まれる。 */
 public final class MobCatalog {
@@ -69,11 +72,15 @@ public final class MobCatalog {
     }
 
     /** 名前の引き当ては、HIDDEN に関係なく全モブが対象(NPC一覧の表示名に使う) */
-    public static String nameOf(String id) {
-        ensure();
-        Entry e = byId.get(id);
-        if (e != null) return e.name();
-        int i = id.indexOf(':');
-        return i >= 0 ? id.substring(i + 1) : id;
+    public static String nameOf(String entityTypeId) {
+        Identifier id = Identifier.tryParse(entityTypeId);
+        if (id == null) return entityTypeId;
+
+        String custom = "cinema.mob." + id.getNamespace() + "." + id.getPath();
+        if (Language.getInstance().has(custom)) return I18n.get(custom);
+
+        return BuiltInRegistries.ENTITY_TYPE.getOptional(id)
+                .map(type -> type.getDescription().getString())
+                .orElse(entityTypeId);
     }
 }

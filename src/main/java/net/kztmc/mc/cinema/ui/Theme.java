@@ -46,10 +46,11 @@ public final class Theme {
      * クリックとして扱うボタン番号。
      * ログでは物理クリックが 1 や 3 で届いていたため、0 と 1 を許可している。
      */
-    public static boolean isClick(int button) {
-        return button == 0 || button == 1;
-    }
+    public static boolean probeAnyButton;
 
+    public static boolean isClick(int button) {
+        return probeAnyButton || button == 0 || button == 1;   // 既存の判定の前に、フラグを足す
+    }
     // ---- 描画 ----
 
     /** 角を落とした簡易角丸(小さいときは1px) */

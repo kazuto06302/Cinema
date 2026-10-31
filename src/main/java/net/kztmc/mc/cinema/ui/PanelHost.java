@@ -23,4 +23,10 @@ public interface PanelHost {
 
     /** 親の画面(装飾の画面から戻るため) */
     Screen screen();
+
+    /** NPCを削除する(確認のダイアログを、画面の中央に出して、「削除」を押したときだけ削除する) */
+    void confirmDelete(java.util.UUID id);
+
+    /** 右クリックのメニューを、その位置に開く */
+    void openContextMenu(int x, int y, java.util.List<ContextMenu.Entry> entries);
 }
