@@ -2,9 +2,9 @@ package net.kztmc.mc.cinema.ui;
 
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.vertex.PoseStack;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
+
+import java.util.*;
+
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.minecraft.client.Camera;
@@ -13,6 +13,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
@@ -217,12 +218,81 @@ public final class SelectionOutline {
         ps.translate(0.0f, -1.501f, 0.0f);
 
         // 現在の状態でポーズを取らせて、パーツの位置・回転を確定する(描画のときにも毎回やり直されるので、影響しない)
+        // 現在の状態でポーズを取らせて、パーツの位置・回転・表示を確定する(描画のときにも毎回やり直されるので、影響しない)
         EntityReflect.invokeFirst(model, List.of("setupAnim"), state);
         Object root = EntityReflect.call(model, "root");
         if (!(root instanceof ModelPart part)) return false;
 
-        part.visit(ps, (pose, path, index, cube) -> addCube(pose.pose(), cube, v, polygons));
+        // テクスチャ(あれば、透明なキューブを、飛ばすために使う)
+        Object tex = EntityReflect.call(renderer, "getTextureLocation", state);
+        Identifier texture = tex instanceof Identifier id ? id : null;
+
+        traverse(part, ps, v, polygons, texture);
         return true;
+    }
+
+    /**
+     * パーツをたどって、キューブを集める。描画と同じく、非表示のパーツは、子ごと飛ばす。
+     * (ModelPart#visit は、非表示のパーツも通るので、使わない)
+     */
+    private static void traverse(ModelPart part, PoseStack ps, View v, List<float[]> polygons, Identifier texture) {
+        if (!part.visible) return;
+        ps.pushPose();
+        part.translateAndRotate(ps);
+
+        if (!part.skipDraw && EntityReflect.getObject(part, "cubes") instanceof List<?> cubes) {
+            Matrix4f matrix = ps.last().pose();
+            for (Object c : cubes) {
+                if (c instanceof ModelPart.Cube cube && (texture == null || hasTexels(cube, texture))) {
+                    addCube(matrix, cube, v, polygons);
+                }
+            }
+        }
+        if (EntityReflect.getObject(part, "children") instanceof Map<?, ?> children) {
+            for (Object child : children.values()) {
+                if (child instanceof ModelPart c) traverse(c, ps, v, polygons, texture);
+            }
+        }
+        ps.popPose();
+    }
+
+    // ---- 透明なキューブの判定 ----
+
+    /** キューブごとの、各面のテクスチャの範囲 [minU, minV, maxU, maxV](取れなければ、空) */
+    private static final Map<Object, float[][]> UV_RECTS = new WeakHashMap<>();
+    private static final float[][] NO_UV = new float[0][];
+
+    /** キューブの、どれかの面が、不透明な画素を使っていれば true。範囲が取れないときも true(囲う) */
+    private static boolean hasTexels(ModelPart.Cube cube, Identifier texture) {
+        float[][] rects = UV_RECTS.computeIfAbsent(cube, SelectionOutline::uvRects);
+        if (rects.length == 0) return true;
+        for (float[] r : rects) {
+            if (TextureAlpha.hasOpaque(texture, r[0], r[1], r[2], r[3])) return true;
+        }
+        return false;
+    }
+
+    private static float[][] uvRects(Object cube) {
+        if (!(EntityReflect.getObject(cube, "polygons") instanceof Object[] polygons)) return NO_UV;
+        float[][] rects = new float[polygons.length][];
+        for (int i = 0; i < polygons.length; i++) {
+            if (!(EntityReflect.call(polygons[i], "vertices") instanceof Object[] vertices) || vertices.length == 0) {
+                return NO_UV;
+            }
+            float minU = Float.MAX_VALUE, minV = Float.MAX_VALUE, maxU = -Float.MAX_VALUE, maxV = -Float.MAX_VALUE;
+            for (Object vertex : vertices) {
+                if (!(EntityReflect.call(vertex, "u") instanceof Number u)
+                        || !(EntityReflect.call(vertex, "v") instanceof Number w)) {
+                    return NO_UV;
+                }
+                minU = Math.min(minU, u.floatValue());
+                maxU = Math.max(maxU, u.floatValue());
+                minV = Math.min(minV, w.floatValue());
+                maxV = Math.max(maxV, w.floatValue());
+            }
+            rects[i] = new float[] {minU, minV, maxU, maxV};
+        }
+        return rects;
     }
 
     /** キューブの8つの角を投影して、その凸包(輪郭)を、多角形として追加する */

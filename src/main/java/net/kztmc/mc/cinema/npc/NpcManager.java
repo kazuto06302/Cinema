@@ -49,7 +49,6 @@ public final class NpcManager {
     private static UUID selected;
     /** サーバー側エンティティIDと衝突しないよう高い値から払い出す */
     private static int nextEntityId = 0x40000000;
-    private static UUID highlight;
 
     private NpcManager() {}
 
@@ -301,12 +300,10 @@ public final class NpcManager {
 
     public static void duplicate(UUID id) {
         get(id).ifPresent(src -> {
-            UUID newId = UUID.randomUUID();
-            NpcData copy = src.withId(newId).withTransform(src.x() + 1.0, src.y(), src.z(),
+            NpcData copy = src.withId(UUID.randomUUID()).withTransform(
+                    src.x() + 1.0, src.y(), src.z(),
                     src.yRot(), src.xRot(), src.headYRot(), src.bodyYRot());
-            ClientLevel level = Cinema.level;
-            spawn(level, copy);
-            select(newId);
+            add(copy);
         });
     }
 }

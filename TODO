@@ -12,9 +12,14 @@ Mob固有のNBTTag
 カメラ位置
 絵画
 
-添付ファイルを確認し、複製部分の対応とglowのなぞる部分の修正をしてください
-線の太さを3にして
-MobGridのモブの名前のフォントが少しかすれてる問題とか直せる？(日本語にしたとき確認済み)
-アウトライン透明部分も囲ってる（それによってアニメーションのときに何もないところが囲まれてるのかな？）
-ボート、常時漕ぐでアニメーションを進めて
-イルカ、常時泳ぐでアニメーションを進めて
+[23:03:55] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.world.entity.boss.enderdragon.EnderDragon =====
+[23:03:55] [Render thread/INFO] (cinema) [Cinema] EnderDragon fields: [flightHistory(DragonFlightHistory)=net.minecraft.world.entity.boss.enderdragon.DragonFlightHistory@bb73a41, subEntities(EnderDragonPart[])=[Lnet.minecraft.world.entity.boss.enderdragon.EnderDragonPart;@4fa9d6d8, head(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], neck(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], body(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], tail1(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], tail2(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], tail3(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], wing1(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], wing2(EnderDragonPart)=EnderDragonPart['エンダードラゴン'/0, l='ClientLevel', x=0.00, y=0.00, z=0.00], oFlapTime(float)=0.0, flapTime(float)=0.0, inWall(boolean)=false, dragonDeathTime(int)=0, yRotA(float)=0.0, nearestCrystal(EndCrystal)=null, dragonFight(EnderDragonFight)=null, fightOrigin(BlockPos)=BlockPos{x=0, y=0, z=0}, phaseManager(EnderDragonPhaseManager)=net.minecraft.world.entity.boss.enderdragon.phases.EnderDragonPhaseManager@4e94dfe5, growlTime(int)=100, sittingDamageReceived(float)=0.0, nodes(Node[])=[Lnet.minecraft.world.level.pathfinder.Node;@1eb02a11, nodeAdjacency(int[])=[I@22efbff9, openSet(BinaryHeap)=net.minecraft.world.level.pathfinder.BinaryHeap@4a6c27b6]
+[23:03:55] [Render thread/INFO] (cinema) [Cinema] EnderDragon methods: [kill/1, tickDeath/0, canAttack/1, findPath/3, getSoundSource/0, getAmbientSound/0, canUsePortal/1, hurtServer/3, knockback/6, sanitizeScale/1, getSoundVolume/0, handleKillingBlow/0, checkCrystals/0, reconstructPath/2, findClosestNode/0, findClosestNode/3, onCrystalDestroyed/4, setFightOrigin/1, getFightOrigin/0, getHeadYOffset/0, getPhaseManager/0, getHeadLookVector/1, hurt/4, hurt/2, onSyncedDataUpdated/1, recreateFromPacket/1, checkDespawn/0, getHurtSound/1, rotWrap/1, checkWalls/2, tickPart/4, knockBack/2, reallyHurt/3, getSubEntities/0, setDragonFight/1, getDragonFight/0, defineSynchedData/1, getMoveSimulationType/0, addAdditionalSaveData/1, readAdditionalSaveData/1, onFlap/0, isFlapping/0, isPickable/0, canRide/1, addEffect/2, aiStep/0]
+エンダードラゴン、向き変えても動かない、ヒットボックスがある、周りをなぞれてない、大きさ変わってない
+アウトラインややズレてるなあ、線の場所はglowエフェクトと同じでいいんだけど
+falling_blockの時、メインハンドにブロックを入れることでBlockStateを変更できるようにして
+額縁のとき、メインハンドにブロック入れることで内容物を変更できるようにして
+絵画の位置補正をオフにして、内容を選択できるようにして、あと絵画のGlowとFireも消していいや
+あと左パネル、mobの選択部分をトグルにして、mob未選択時は右パネルにワールド設定の画面を表示させよう
+天気、時間、世界の進み具合のtick（0-20で炎の進み具合を調整）、一旦これを追加して、欲しい機能は後出しします
+右パネルでmob選択時は戻るボタンを表示させておこう（「←」みたいなボタン、押したらワールド設定に戻り選択を解除）
