@@ -88,10 +88,16 @@ public final class RightPanel {
         w = lay.panelW() - lay.pad() * 2;
         int y = lay.panelY() + Theme.u(8);
 
-        // --- 最上段: 名前(左)と、削除(右) ---
+        // --- 最上段: [←] 名前 [削除]。← は、選択を外して、ワールド設定へ戻る ---
         String name = NpcNames.of(d);
+        int backW = Theme.u(24);
         int delW = Theme.u(44);
-        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - lay.gap()), x,
+        host.add(new ModernButton(x, y, backW, lay.btnH(), "←", ModernButton.Style.GHOST, () -> {
+            NpcManager.select(null);
+            host.refresh();
+        }));
+        int nameX = x + backW + lay.gap();
+        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - backW - delW - lay.gap() * 2), nameX,
                 y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
         UUID npcId = id;
         host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), "削除", ModernButton.Style.DANGER,
@@ -204,7 +210,7 @@ public final class RightPanel {
     private int sectionSize(NpcData d, int y) {
         Entity live = NpcManager.entityOf(id);
         boolean living = live == null || live instanceof LivingEntity;
-        if (!living) return y;
+        if (!living || EntityProfiles.of(d.entityType()).hasNoScale()) return y;
 
         int lh = lay.th() + Theme.u(3);
         label("サイズ", x, y, Theme.TEXT_DIM);
@@ -254,11 +260,13 @@ public final class RightPanel {
         boolean living = live == null || live instanceof LivingEntity;
         boolean canBaby = live != null && EntityReflect.hasMethodBefore(live, "setBaby", Mob.class);
 
+        EntityProfile profile = EntityProfiles.of(d.entityType());
         List<String[]> flags = new ArrayList<>();
-        flags.add(new String[] {EntityFlags.FIRE, "燃えている (Fire)"});
-        flags.add(new String[] {EntityFlags.GLOW, "光っている (Glow)"});
+        if (!profile.isStateHidden(EntityFlags.FIRE)) flags.add(new String[] {EntityFlags.FIRE, "燃えている (Fire)"});
+        if (!profile.isStateHidden(EntityFlags.GLOW)) flags.add(new String[] {EntityFlags.GLOW, "光っている (Glow)"});
         if (canBaby) flags.add(new String[] {EntityFlags.BABY, "子ども (Age)"});
         if (living) flags.add(new String[] {EntityFlags.DAMAGE, "ダメージ (Damage)"});
+        if (flags.isEmpty()) return y;
 
         label("状態", x, y, Theme.TEXT_DIM);
         y += lay.th() + Theme.u(3);
@@ -433,6 +441,9 @@ public final class RightPanel {
         int cgap = Math.max(1, Theme.u(3));
         int cw = (w - cgap * 3) / 4;
         int ch = Math.max(Theme.u(26), 26);
+
+        String heldLabel = EntityProfiles.of(d.entityType()).heldItemLabel();
+        if (heldLabel != null) return sectionHeldItem(d, y, heldLabel);
 
         // 上段: インベントリ / メイン / オフ / 全削除
         add(new ItemButton(x, y, cw, ch, ItemStack.EMPTY, new ItemStack(Items.CHEST), b -> openInventory())
@@ -693,5 +704,32 @@ public final class RightPanel {
                 Theme.text(g, host.font(), Theme.fit(host.font(), status, w), x, sy, 0xFFE5A04B);
             }
         }
+    }
+
+    /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): インベントリを開くボタンと、メインハンドだけ */
+    private int sectionHeldItem(NpcData d, int y, String heldLabel) {
+        int lh = lay.th() + Theme.u(3);
+        label(Theme.fit(host.font(), heldLabel + "(メインハンドに入れる)", w), x, y, Theme.TEXT_DIM);
+        y += lh;
+
+        int cgap = Math.max(1, Theme.u(3));
+        int cw = (w - cgap * 3) / 4;
+        int ch = Math.max(Theme.u(26), 26);
+        ItemStack stack = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
+
+        add(new ItemButton(x, y, cw, ch, ItemStack.EMPTY, new ItemStack(Items.CHEST), b -> openInventory())
+                .tip("インベントリを開く(アイテムを持ってきて、入れる)"));
+        add(new ItemButton(x + cw + cgap, y, cw, ch, stack, EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
+            if (stack.isEmpty()) {
+                say("空です(インベントリを開いて、入れられます)");
+            } else {
+                EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);   // クリックで外す
+                host.refresh();
+            }
+        }).tip(stack.isEmpty() ? heldLabel : heldLabel + ": " + stack.getHoverName().getString()));
+        y += ch + lay.gap();
+
+        statusY = y + Theme.u(2);
+        return y + lay.th() + Theme.u(6);
     }
 }

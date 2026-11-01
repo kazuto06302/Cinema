@@ -1,5 +1,6 @@
 package net.kztmc.mc.cinema.npc;
 
+import net.kztmc.mc.cinema.entity.EntityProfile;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
@@ -23,5 +24,12 @@ public final class EquipmentRules {
         }
         var equippable = stack.get(DataComponents.EQUIPPABLE);   // 着られるアイテムは、どのスロットかを持っている
         return equippable != null && equippable.slot() == need;
+    }
+
+    public static boolean accepts(EquipmentSlot slot, ItemStack stack, boolean animalGear, EntityProfile profile) {
+        if (profile != null && profile.heldItemLabel() != null) {
+            return slot == EquipmentSlot.MAINHAND && (stack.isEmpty() || profile.acceptsHeld(stack));
+        }
+        return accepts(slot, stack, animalGear);
     }
 }

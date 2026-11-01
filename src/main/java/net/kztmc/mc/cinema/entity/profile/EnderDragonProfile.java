@@ -6,6 +6,8 @@ import net.kztmc.mc.cinema.npc.EntityIds;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
 
+import java.util.List;
+
 /**
  * エンダードラゴン。
  *  - 当たり判定の部位は、バニラが毎tick置き直しているので、NPC(ティックされない)では自分で配置する。
@@ -18,6 +20,8 @@ public final class EnderDragonProfile extends EntityProfile {
     public EnderDragonProfile() {
         super("minecraft:ender_dragon");
         defaultAnim(0);
+        noHitbox();
+        noScale();
     }
 
     @Override
@@ -30,6 +34,7 @@ public final class EnderDragonProfile extends EntityProfile {
     /** バニラの aiStep の、水平に静止しているときの部位の配置。順序は head, neck, body, tail1〜3, wing1, wing2 */
     @Override
     public void applyTransform(Entity e) {
+        fillFlightHistory(e);
         Entity[] parts = EntityIds.subEntities(e);
         if (parts.length < 8) return;
 
@@ -51,5 +56,13 @@ public final class EnderDragonProfile extends EntityProfile {
     private static void place(Entity dragon, Entity part, double dx, double dy, double dz) {
         part.setPos(dragon.getX() + dx, dragon.getY() + dy, dragon.getZ() + dz);
         part.setOldPosAndRot();   // 前回位置も揃える(当たり判定の描画は、前回位置と補間される)
+    }
+
+    private static void fillFlightHistory(Entity e) {
+        Object history = EntityReflect.getObject(e, "flightHistory");
+        if (history == null) return;
+        for (int i = 0; i < 64; i++) {   // 履歴の長さは64
+            EntityReflect.invokeFirst(history, List.of("record"), e.getY(), e.getYRot());
+        }
     }
 }

@@ -13,14 +13,19 @@ import net.minecraft.network.chat.Component;
 
 /**
  * ドロップダウン(閉じているときは「ラベル  選択中の名前 ▼」)。クリックで、下(入らなければ上)に選択肢が開く。
+ * 選択肢が多いときは、MAX_ROWS 行まで表示して、ホイールでスクロールする。
  * 開いた選択肢は、他のウィジェットの上に描く必要があるので、画面(CinemaScreen)が、全部の描画のあとで extractPopup を呼ぶ。
  */
 public class ModernDropdown extends AbstractWidget {
+    /** 一度に表示する選択肢の数 */
+    private static final int MAX_ROWS = 8;
+
     private final String label;
     private final List<String> names;
     private final IntConsumer onSelect;
     private final Consumer<ModernDropdown> onOpen;
     private int selected;
+    private int scroll;   // 先頭に表示する選択肢の番号
     private boolean open;
     private float hover;
 
@@ -75,14 +80,23 @@ public class ModernDropdown extends AbstractWidget {
 
     // ---- 開いた選択肢(画面が、最後に描く) ----
 
+    private int visibleRows() {
+        return Math.min(names.size(), MAX_ROWS);
+    }
+
     private int popupHeight() {
-        return getHeight() * names.size() + 2;
+        return getHeight() * visibleRows() + 2;
     }
 
     private int popupY() {
         int below = getY() + getHeight() + 1;
         int screenH = Minecraft.getInstance().getWindow().getGuiScaledHeight();
         return below + popupHeight() > screenH ? getY() - popupHeight() - 1 : below;
+    }
+
+    private boolean popupContains(double mx, double my) {
+        int py = popupY();
+        return mx >= getX() && mx < getX() + getWidth() && my >= py && my < py + popupHeight();
     }
 
     public void extractPopup(GuiGraphicsExtractor g, int mx, int my) {
@@ -93,33 +107,49 @@ public class ModernDropdown extends AbstractWidget {
         Theme.roundRect(g, px - 1, py - 1, pw + 2, ph + 2, Theme.BORDER);
         Theme.roundRect(g, px, py, pw, ph, Theme.SURFACE);
 
-        for (int i = 0; i < names.size(); i++) {
-            int ry = py + 1 + i * getHeight();
+        for (int row = 0; row < visibleRows(); row++) {
+            int index = scroll + row;
+            int ry = py + 1 + row * getHeight();
             boolean hov = mx >= px && mx < px + pw && my >= ry && my < ry + getHeight();
-            if (i == selected) {
+            if (index == selected) {
                 g.fill(px + 1, ry, px + pw - 1, ry + getHeight(), 0xFF22406E);
                 g.fill(px + 1, ry, px + 1 + Math.max(1, Theme.u(2)), ry + getHeight(), Theme.ACCENT);
             } else if (hov) {
                 g.fill(px + 1, ry, px + pw - 1, ry + getHeight(), Theme.SURFACE_HOVER);
             }
-            Theme.text(g, font, Theme.fit(font, names.get(i), pw - Theme.u(16)), px + Theme.u(8),
-                    ry + (getHeight() - Theme.textH()) / 2, i == selected ? 0xFFFFFFFF : Theme.TEXT);
+            Theme.text(g, font, Theme.fit(font, names.get(index), pw - Theme.u(20)), px + Theme.u(8),
+                    ry + (getHeight() - Theme.textH()) / 2, index == selected ? 0xFFFFFFFF : Theme.TEXT);
+        }
+
+        // 選択肢が多いときは、右端に、スクロールの位置を出す
+        if (names.size() > MAX_ROWS) {
+            int barW = Math.max(2, Theme.u(3));
+            int trackH = ph - 2;
+            int thumbH = Math.max(Theme.u(10), trackH * MAX_ROWS / names.size());
+            int free = trackH - thumbH;
+            int thumbY = py + 1 + free * scroll / (names.size() - MAX_ROWS);
+            g.fill(px + pw - barW - 1, thumbY, px + pw - 1, thumbY + thumbH, 0x88FFFFFF);
         }
     }
 
     /** 開いた選択肢の中のクリックなら、選んで閉じて true を返す。外なら false(閉じるかどうかは、画面が決める) */
     public boolean popupClicked(MouseButtonEvent event) {
         if (!open || !Theme.isClick(event.button())) return false;
-        int px = getX(), py = popupY(), pw = getWidth();
-        double mx = event.x(), my = event.y();
-        if (mx < px || mx >= px + pw || my < py || my >= py + popupHeight()) return false;
+        if (!popupContains(event.x(), event.y())) return false;
 
-        int i = (int) ((my - py - 1) / getHeight());
-        if (i >= 0 && i < names.size()) {
-            selected = i;
-            onSelect.accept(i);
+        int index = scroll + (int) ((event.y() - popupY() - 1) / getHeight());
+        if (index >= 0 && index < names.size()) {
+            selected = index;
+            onSelect.accept(index);
         }
         open = false;
+        return true;
+    }
+
+    /** ホイール: 開いた選択肢の上なら、スクロールして true を返す */
+    public boolean popupScrolled(double mx, double my, double scrollY) {
+        if (!open || names.size() <= MAX_ROWS || !popupContains(mx, my) || scrollY == 0) return false;
+        scroll = Math.max(0, Math.min(names.size() - MAX_ROWS, scroll - (int) Math.signum(scrollY)));
         return true;
     }
 
@@ -130,7 +160,11 @@ public class ModernDropdown extends AbstractWidget {
         if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
         playDownSound(Minecraft.getInstance().getSoundManager());
         open = !open;
-        if (open) onOpen.accept(this);
+        if (open) {
+            // 選択中の項目が、見える位置から始める
+            scroll = Math.max(0, Math.min(Math.max(0, names.size() - MAX_ROWS), selected - visibleRows() / 2));
+            onOpen.accept(this);
+        }
         return true;
     }
 

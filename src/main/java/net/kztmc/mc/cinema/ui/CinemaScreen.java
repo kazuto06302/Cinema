@@ -39,6 +39,9 @@ public class CinemaScreen extends Screen implements PanelHost {
     private ModernDropdown openDropdown;
     private Draggable pressed;   // 押されているウィジェット(ドラッグの届け先)
 
+    private final WorldPanel world = new WorldPanel();
+    private boolean hasWorld;
+
     public CinemaScreen() {
         super(Component.literal("Cinema"));
     }
@@ -126,10 +129,14 @@ public class CinemaScreen extends Screen implements PanelHost {
         openDropdown = null;
         pressed = null;
 
+        hasWorld = false;
         left.build(layout, this);
-        NpcManager.selectedData().ifPresent(d -> {
+        NpcManager.selectedData().ifPresentOrElse(d -> {
             hasRight = true;
             right.build(layout, this, d);
+        }, () -> {
+            hasWorld = true;
+            world.build(layout, this);
         });
 
         if (CinemaState.devMode && left.isMobsTab()) {
@@ -233,6 +240,9 @@ public class CinemaScreen extends Screen implements PanelHost {
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (confirm.isOpen()) return true;
+        if (openDropdown != null && openDropdown.isOpen() && openDropdown.popupScrolled(mouseX, mouseY, scrollY)) {
+            return true;
+        }
         if (hasRight && right.wheelLocked(mouseX, mouseY)) {
             return right.mouseScrolled(mouseX, mouseY, scrollY);
         }
@@ -301,6 +311,10 @@ public class CinemaScreen extends Screen implements PanelHost {
         left.extractBackground(g);
         if (hasRight) right.extractBackground(g);
         if (hasTuner) tuner.extractBackground(g);
+        if (hasWorld) {
+            world.tick();
+            world.extractBackground(g);
+        }
         super.extractRenderState(g, mx, my, delta);
 
         // 上に重ねるもの(下から順に): ドロップダウン → 右クリックメニュー → 確認ダイアログ

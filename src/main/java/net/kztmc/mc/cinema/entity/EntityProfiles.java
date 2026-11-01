@@ -66,6 +66,9 @@ public final class EntityProfiles {
         register(new WitherProfile());
         register(new WitherSkullProfile());
         register(new BreezeProfile());
+        register(new FallingBlockProfile());
+        register(new ItemFrameProfile());
+        register(new PaintingProfile());
 
         // ---- 腕のポーズが効くモデル(プレイヤーは種類で判定) ----
         register(EntityProfile.of(

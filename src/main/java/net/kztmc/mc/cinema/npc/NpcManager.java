@@ -272,6 +272,7 @@ public final class NpcManager {
         EntityProfiles.of(e).applyTransform(e);
         EntityTweaks.applyAnim(e, d.animTickOrDefault(), d.options());
         EntityMotion.apply(e, d.options(), SceneFreeze.partialTickOf(e));
+        EntityProfiles.of(e).applyData(e, d);
     }
 
     public static Entity entityOf(UUID id) {

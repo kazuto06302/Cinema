@@ -10,6 +10,7 @@ import net.kztmc.mc.cinema.npc.SceneFreeze;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
@@ -92,6 +93,10 @@ public final class CinemaCommands {
             return;
         }
         EntityReflect.dumpEntity(e);
+        EntityRenderer<?, ?> renderer = Minecraft.getInstance().getEntityRenderDispatcher().getRenderer(e);
+        EntityReflect.dumpObject(renderer);
+        Object model = EntityReflect.getObject(renderer, "model");
+        if (model != null) EntityReflect.dumpObject(model);
         say("ログに出力しました: " + id);
     }
 }

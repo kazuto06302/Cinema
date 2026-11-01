@@ -108,11 +108,12 @@ public final class LeftPanel {
                 d -> NpcData.PLAYER.equals(d.kind()) ? "Player" : "Mob",
                 d -> d.id().equals(NpcManager.selectedId()),
                 d -> {
-                    if (probing) {
+                    if (probing) {   // 右クリックの項目調べ: 選択はせず、どの項目かだけ覚える
                         probed = d;
                         return;
                     }
-                    NpcManager.select(d.id());
+                    // トグル: 選択中の項目を押したら、選択を外す
+                    NpcManager.select(d.id().equals(NpcManager.selectedId()) ? null : d.id());
                     host.refresh();
                 });
         npcList.setItems(NpcManager.defs());

@@ -516,4 +516,21 @@ public final class EntityReflect {
         }
         return null;
     }
+
+    /** 診断用: オブジェクトのクラスの、全フィールドとメソッドを、Object の手前までログに出す */
+    public static void dumpObject(Object o) {
+        Cinema.LOGGER.info("[Cinema] ===== {} =====", o.getClass().getName());
+        for (Class<?> c = o.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            List<String> fields = new ArrayList<>();
+            for (Field f : c.getDeclaredFields()) {
+                if (!Modifier.isStatic(f.getModifiers())) fields.add(f.getName() + "(" + f.getType().getSimpleName() + ")");
+            }
+            List<String> methods = new ArrayList<>();
+            for (Method m : c.getDeclaredMethods()) {
+                if (!m.isSynthetic()) methods.add(m.getName() + "/" + m.getParameterCount());
+            }
+            Cinema.LOGGER.info("[Cinema] {} fields: {}", c.getSimpleName(), fields);
+            Cinema.LOGGER.info("[Cinema] {} methods: {}", c.getSimpleName(), methods);
+        }
+    }
 }

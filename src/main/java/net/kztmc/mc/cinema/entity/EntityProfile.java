@@ -1,12 +1,12 @@
 package net.kztmc.mc.cinema.entity;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
+import java.util.function.Predicate;
 
+import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcPose;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.item.ItemStack;
 
 /**
  * 1種類(または近い仲間)のエンティティの設定。
@@ -25,7 +25,6 @@ public class EntityProfile {
     private boolean noRender;
     private IconStyle iconStyle;
     private boolean humanoid;
-    private float walkCyclePosition;
     private List<NpcPose> poses = List.of();
     private boolean walks = true;
     private float walkPhase;
@@ -35,6 +34,10 @@ public class EntityProfile {
     private float walkCycleSeconds;
     private float walkMaxAnimationSpeed = 1f;
     private float walkKeyframeIntensity = 1f;
+    private String heldItemLabel;
+    private Predicate<ItemStack> heldItemFilter = stack -> true;
+    private final Set<String> hiddenStates = new HashSet<>();
+    private boolean noScale;
 
     protected EntityProfile(String... ids) {
         this.ids = Set.of(ids);
@@ -292,5 +295,49 @@ public class EntityProfile {
 
     public void setWalkKeyframeIntensity(float intensity) {
         this.walkKeyframeIntensity = intensity;
+    }
+
+    /**
+     * NPCのデータ(装備など)を使う設定。applyState の最後(アニメーションや動きを反映した後)に呼ばれる。
+     * 落下ブロックのブロック、額縁の内容物、絵画の位置など、データから決まるものは、ここで反映する。
+     */
+    public void applyData(Entity e, NpcData d) {}
+
+    /**
+     * メインハンドの持ち物が、そのまま内容物になるエンティティ(落下ブロック・額縁)。
+     * 右パネルの装備は、メインハンドだけになる。filter に合わないアイテムは、入れられない。
+     */
+    public EntityProfile heldItem(String label, Predicate<ItemStack> filter) {
+        this.heldItemLabel = label;
+        this.heldItemFilter = filter;
+        return this;
+    }
+
+    public String heldItemLabel() {
+        return heldItemLabel;
+    }
+
+    public boolean acceptsHeld(ItemStack stack) {
+        return heldItemFilter.test(stack);
+    }
+
+    /** 状態のチェックボックス(EntityFlags.FIRE など)のうち、このモブでは出さないもの */
+    public EntityProfile hideStates(String... keys) {
+        hiddenStates.addAll(List.of(keys));
+        return this;
+    }
+
+    public boolean isStateHidden(String key) {
+        return hiddenStates.contains(key);
+    }
+
+    /** 大きさを変えられないモブ(ドラゴンなど)。右パネルの「サイズ」を出さない */
+    public EntityProfile noScale() {
+        this.noScale = true;
+        return this;
+    }
+
+    public boolean hasNoScale() {
+        return noScale;
     }
 }

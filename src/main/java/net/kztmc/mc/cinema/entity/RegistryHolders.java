@@ -25,8 +25,8 @@ public final class RegistryHolders {
 
     public static <T> Holder<T> get(RegistryAccess access, ResourceKey<? extends Registry<T>> registry, String id) {
         try {
-            return access.lookupOrThrow(registry)
-                    .getOrThrow(ResourceKey.create(registry, Identifier.withDefaultNamespace(id)));
+            Identifier key = Identifier.tryParse(id.contains(":") ? id : "minecraft:" + id);
+            return access.lookupOrThrow(registry).getOrThrow(ResourceKey.create(registry, key));
         } catch (RuntimeException ex) {
             if (WARNED.add(registry.identifier() + "/" + id)) {
                 Cinema.LOGGER.warn("[Cinema] registry entry {} / {} was not found", registry.identifier(), id, ex);

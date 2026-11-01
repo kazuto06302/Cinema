@@ -2,11 +2,15 @@ package net.kztmc.mc.cinema.ui;
 
 import com.mojang.blaze3d.platform.Window;
 import com.mojang.blaze3d.vertex.PoseStack;
-
-import java.util.*;
-
+import com.mojang.math.Axis;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
+import java.util.WeakHashMap;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityReflect;
+import net.kztmc.mc.cinema.npc.EntityIds;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -25,11 +29,12 @@ import org.joml.Vector3f;
  * 選択中のNPCの輪郭を、線でなぞる(自前の描画)。バニラの glow の仕組みは使わない。
  *
  *   1. NPCの描画用の状態を作り、レンダラーと同じ手順(向き・大きさ)で、モデルの全パーツのキューブを、画面へ投影する
+ *      (非表示のパーツと、テクスチャがすべて透明なキューブは、除く)
  *   2. 各キューブの投影(凸多角形)を、画素の領域へ塗りつぶして、全体のシルエットにする
- *   3. シルエットの縁(外と接する画素)だけを、線として描く
+ *   3. シルエットを LINE_PX 画素だけ外へ広げて、元のシルエットを引いた「輪」を、線として描く(glow と同じ、外側の位置)
  *
  * 体のモデルを取れないもの(ボート・エンドクリスタルなど)は、当たり判定の箱の輪郭にする。
- * GUIの中で完結するので、壁越しでも見え、画面を閉じる・UIを隠すと消える(撮影には写らない)。
+ * GUIの中で完結するので、壁越しでも見え、画面を閉じると消える(撮影には写らない)。
  * 視野角は、設定の値を使う(走ったときなどの一時的な変化は、反映しない)。
  */
 public final class SelectionOutline {
@@ -38,15 +43,22 @@ public final class SelectionOutline {
     /** 線の色 */
     private static final int COLOR = Theme.ACCENT | 0xFF000000;
 
-    /** 線の太さ(実際の画面の画素) */
-    private static final int LINE_PX = 4;
+    /**
+     * 線の太さ(実際の画面の画素)。ここを変えるだけで、太さが変わる。
+     * 輪郭の外側へ、この太さで描く(バニラの glow と同じ位置)。
+     * 目安: 1 = 細い / 2 = ふつう / 3 = 既定 / 4 = 太い / 6 = かなり太い
+     */
+    private static final int LINE_PX = 3;
 
     private static final double NEAR = 0.05;
 
     private static boolean warned;
 
-    // シルエットの領域(毎フレーム使い回す)
+    // 画素の領域(毎フレーム使い回す)
     private static boolean[] mask = new boolean[0];
+    private static boolean[] horizontal = new boolean[0];
+    private static boolean[] grown = new boolean[0];
+    private static int[] sums = new int[0];
 
     public static void draw(GuiGraphicsExtractor g, Entity entity) {
         try {
@@ -96,7 +108,7 @@ public final class SelectionOutline {
         }
     }
 
-    // ================= シルエットの形(凸多角形の集まり) =================
+    // ================= 描画 =================
 
     private static void drawOutline(GuiGraphicsExtractor g, Entity entity) {
         Minecraft mc = Minecraft.getInstance();
@@ -110,7 +122,7 @@ public final class SelectionOutline {
         }
         if (polygons.isEmpty()) return;
 
-        // 全体の範囲(画面の内側に収める)
+        // 全体の範囲(画面の内側に収める)。外へ広げる分の余白を足す
         float minX = Float.MAX_VALUE, minY = Float.MAX_VALUE, maxX = -Float.MAX_VALUE, maxY = -Float.MAX_VALUE;
         for (float[] poly : polygons) {
             for (int i = 0; i < poly.length; i += 2) {
@@ -120,32 +132,39 @@ public final class SelectionOutline {
                 maxY = Math.max(maxY, poly[i + 1]);
             }
         }
-        int ox = Math.max(0, (int) Math.floor(minX) - 2);
-        int oy = Math.max(0, (int) Math.floor(minY) - 2);
-        int ex = Math.min(view.w - 1, (int) Math.ceil(maxX) + 2);
-        int ey = Math.min(view.h - 1, (int) Math.ceil(maxY) + 2);
+        int margin = LINE_PX + 2;
+        int ox = Math.max(0, (int) Math.floor(minX) - margin);
+        int oy = Math.max(0, (int) Math.floor(minY) - margin);
+        int ex = Math.min(view.w - 1, (int) Math.ceil(maxX) + margin);
+        int ey = Math.min(view.h - 1, (int) Math.ceil(maxY) + margin);
         int w = ex - ox + 1;
         int h = ey - oy + 1;
         if (w <= 2 || h <= 2) return;
 
-        if (mask.length < w * h) mask = new boolean[w * h];
-        Arrays.fill(mask, 0, w * h, false);
+        int size = w * h;
+        if (mask.length < size) {
+            mask = new boolean[size];
+            horizontal = new boolean[size];
+            grown = new boolean[size];
+        }
+        if (sums.length < Math.max(w, h) + 1) sums = new int[Math.max(w, h) + 1];
+        Arrays.fill(mask, 0, size, false);
 
         for (float[] poly : polygons) fillPolygon(poly, ox, oy, w, h);
+        grow(w, h, LINE_PX);
 
-        int before = LINE_PX / 2;
-        int after = LINE_PX - before;
+        // 広げた領域から、元のシルエットを引いた「輪」を、線として描く(実際の画素の単位で描くため、GUIの倍率を打ち消す)
         double guiScale = window.getGuiScale();
         g.pose().pushMatrix();
         g.pose().scale((float) (1.0 / guiScale), (float) (1.0 / guiScale));
         for (int y = 0; y < h; y++) {
             int runStart = -1;
             for (int x = 0; x <= w; x++) {
-                boolean boundary = x < w && isBoundary(x, y, w, h);
-                if (boundary && runStart < 0) {
+                boolean ring = x < w && grown[y * w + x] && !mask[y * w + x];
+                if (ring && runStart < 0) {
                     runStart = x;
-                } else if (!boundary && runStart >= 0) {
-                    g.fill(ox + runStart - before, oy + y - before, ox + x + after, oy + y + after, COLOR);
+                } else if (!ring && runStart >= 0) {
+                    g.fill(ox + runStart, oy + y, ox + x, oy + y + 1, COLOR);
                     runStart = -1;
                 }
             }
@@ -153,14 +172,26 @@ public final class SelectionOutline {
         g.pose().popMatrix();
     }
 
-    /** 領域の外は、塗られているものとして扱う(画面の端で切れた輪郭に、線を引かないため) */
-    private static boolean set(int x, int y, int w, int h) {
-        return x < 0 || y < 0 || x >= w || y >= h || mask[y * w + x];
-    }
-
-    private static boolean isBoundary(int x, int y, int w, int h) {
-        return mask[y * w + x]
-                && (!set(x - 1, y, w, h) || !set(x + 1, y, w, h) || !set(x, y - 1, w, h) || !set(x, y + 1, w, h));
+    /**
+     * mask を、四方へ d 画素ずつ広げた結果を、grown に入れる(横方向 → 縦方向の2回。累積和を使うので、d に関係なく、画素数に比例する計算)。
+     */
+    private static void grow(int w, int h, int d) {
+        // 横方向
+        for (int y = 0; y < h; y++) {
+            sums[0] = 0;
+            for (int x = 0; x < w; x++) sums[x + 1] = sums[x] + (mask[y * w + x] ? 1 : 0);
+            for (int x = 0; x < w; x++) {
+                horizontal[y * w + x] = sums[Math.min(w, x + d + 1)] - sums[Math.max(0, x - d)] > 0;
+            }
+        }
+        // 縦方向
+        for (int x = 0; x < w; x++) {
+            sums[0] = 0;
+            for (int y = 0; y < h; y++) sums[y + 1] = sums[y] + (horizontal[y * w + x] ? 1 : 0);
+            for (int y = 0; y < h; y++) {
+                grown[y * w + x] = sums[Math.min(h, y + d + 1)] - sums[Math.max(0, y - d)] > 0;
+            }
+        }
     }
 
     /** 凸多角形を、行ごとに左右の端を求めて、塗りつぶす */
@@ -192,12 +223,13 @@ public final class SelectionOutline {
         }
     }
 
-    // ---- 体のモデル ----
+    // ================= 体のモデル =================
 
     /**
-     * レンダラーの体のモデルの全キューブを、投影する。
-     * LivingEntityRenderer と同じ手順で、位置・向き・大きさを反映する(位置 → 大きさ → 向き → 反転 → 個別の大きさ → 高さの補正)。
-     * 体のモデルが取れない(生き物以外のレンダラーなど)ときは false。
+     * レンダラーの体のモデルの全キューブを、投影する。レンダラーと同じ手順で、位置・向き・大きさを反映する。
+     *   生き物 : 位置 → 大きさ → 向き(setupRotations) → 反転 → 個別の大きさ(scale) → 高さの補正
+     *   ドラゴン: 位置 → 飛行の履歴から決まる向きと傾き → 前後の補正 → 反転 → 高さの補正
+     * 体のモデルが取れないときは false。
      */
     @SuppressWarnings({"unchecked", "rawtypes"})
     private static boolean collectModel(Entity e, View v, List<float[]> polygons) {
@@ -206,18 +238,21 @@ public final class SelectionOutline {
         if (model == null) return false;
 
         EntityRenderState state = renderer.createRenderState(e, 0.0f);   // NPCは、mixin で時刻が固定される
-        float scale = EntityReflect.getFloatQuiet(state, "scale", 1.0f);
-        float bodyRot = EntityReflect.getFloatQuiet(state, "bodyRot", 0.0f);
-
         PoseStack ps = new PoseStack();
         ps.translate(e.getX() - v.cx, e.getY() - v.cy, e.getZ() - v.cz);
-        ps.scale(scale, scale, scale);
-        if (!EntityReflect.invokeFirst(renderer, List.of("setupRotations"), state, ps, bodyRot, scale)) return false;
-        ps.scale(-1.0f, -1.0f, 1.0f);
-        EntityReflect.invokeFirst(renderer, List.of("scale"), state, ps);
-        ps.translate(0.0f, -1.501f, 0.0f);
 
-        // 現在の状態でポーズを取らせて、パーツの位置・回転を確定する(描画のときにも毎回やり直されるので、影響しない)
+        if (renderer.getClass().getSimpleName().contains("EnderDragon")) {
+            if (!dragonTransform(state, ps)) return false;
+        } else {
+            float scale = EntityReflect.getFloatQuiet(state, "scale", 1.0f);
+            float bodyRot = EntityReflect.getFloatQuiet(state, "bodyRot", 0.0f);
+            ps.scale(scale, scale, scale);
+            if (!EntityReflect.invokeFirst(renderer, List.of("setupRotations"), state, ps, bodyRot, scale)) return false;
+            ps.scale(-1.0f, -1.0f, 1.0f);
+            EntityReflect.invokeFirst(renderer, List.of("scale"), state, ps);
+            ps.translate(0.0f, -1.501f, 0.0f);
+        }
+
         // 現在の状態でポーズを取らせて、パーツの位置・回転・表示を確定する(描画のときにも毎回やり直されるので、影響しない)
         EntityReflect.invokeFirst(model, List.of("setupAnim"), state);
         Object root = EntityReflect.call(model, "root");
@@ -229,6 +264,32 @@ public final class SelectionOutline {
 
         traverse(part, ps, v, polygons, texture);
         return true;
+    }
+
+    /** エンダードラゴンの描画の変換。向きと傾きは、飛行の履歴(過去の位置と向きの記録)から決まる */
+    private static boolean dragonTransform(Object state, PoseStack ps) {
+        Object s7 = EntityReflect.call(state, "getHistoricalPos", 7);
+        Object s5 = EntityReflect.call(state, "getHistoricalPos", 5);
+        Object s10 = EntityReflect.call(state, "getHistoricalPos", 10);
+
+        if (s7 == null || s5 == null || s10 == null) return false;
+
+        float yaw = number(EntityReflect.call(s7, "yRot"));
+        float climb = number(EntityReflect.call(s5, "y"))
+                - number(EntityReflect.call(s10, "y"));
+
+        ps.rotate(Axis.YP.rotationDegrees(-yaw));
+        ps.rotate(Axis.XP.rotationDegrees(climb * 10.0f));
+
+        ps.translate(0.0f, 0.0f, 1.0f);
+        ps.scale(-1.0f, -1.0f, 1.0f);
+        ps.translate(0.0f, -1.501f, 0.0f);
+
+        return true;
+    }
+
+    private static float number(Object value) {
+        return value instanceof Number n ? n.floatValue() : 0.0f;
     }
 
     /**
@@ -312,24 +373,33 @@ public final class SelectionOutline {
         if (hull.length >= 6) polygons.add(hull);
     }
 
-    // ---- 当たり判定の箱(体のモデルが取れないとき) ----
+    // ================= 当たり判定の箱(体のモデルが取れないとき) =================
 
     private static void collectBox(Entity e, View v, List<float[]> polygons) {
-        AABB box = e.getBoundingBox();
-        float[][] pts = new float[8][];
-        for (int i = 0; i < 8; i++) {
-            double x = (i & 1) == 0 ? box.minX : box.maxX;
-            double y = (i & 2) == 0 ? box.minY : box.maxY;
-            double z = (i & 4) == 0 ? box.minZ : box.maxZ;
-            float[] p = v.project(x - v.cx, y - v.cy, z - v.cz);
-            if (p == null) return;
-            pts[i] = p;
+        // 本体と、パーツ(エンダードラゴンの頭・首・体・翼・尾)の箱を、すべて足す
+        List<Entity> boxes = new ArrayList<>();
+        boxes.add(e);
+        boxes.addAll(Arrays.asList(EntityIds.subEntities(e)));
+
+        for (Entity part : boxes) {
+            AABB box = part.getBoundingBox();
+            float[][] pts = new float[8][];
+            boolean visible = true;
+            for (int i = 0; i < 8 && visible; i++) {
+                double x = (i & 1) == 0 ? box.minX : box.maxX;
+                double y = (i & 2) == 0 ? box.minY : box.maxY;
+                double z = (i & 4) == 0 ? box.minZ : box.maxZ;
+                float[] p = v.project(x - v.cx, y - v.cy, z - v.cz);
+                if (p == null) visible = false;
+                else pts[i] = p;
+            }
+            if (!visible) continue;
+            float[] hull = hull(pts);
+            if (hull.length >= 6) polygons.add(hull);
         }
-        float[] hull = hull(pts);
-        if (hull.length >= 6) polygons.add(hull);
     }
 
-    // ---- 凸包 ----
+    // ================= 凸包 =================
 
     private static float cross(float[] o, float[] a, float[] b) {
         return (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
