@@ -5,29 +5,35 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.server.MinecraftServer;
+import net.minecraft.server.ServerTickRateManager;
+import net.minecraft.server.level.ServerLevel;
 
 /**
  * ワールド設定。NPCが選択されていないときの、右パネル。
- * ゲームのコマンドを送って、実際のワールドへ反映する(OPの権限が必要)。
- *   天気          : /weather clear | rain | thunder
- *   時間          : /time set <tick>
- *   世界の進み具合: /tick rate <1〜20>、0 は /tick freeze(NPCは、もともと止まっているので、影響しない)
+ * コマンドは使わず、シングルプレイの統合サーバーを、直接操作する(ほかのサーバーに参加しているときは、操作できない)。
+ *   天気          : サーバーの天気を、直接設定する
+ *   時間          : すべての世界の時刻を、直接設定する
+ *   世界の進み具合: 世界を止めた状態から、指定したtickだけ進めて、また止める(ServerTickRateManager)
  */
 public final class WorldPanel {
     private record Label(String text, int x, int y, int color) {}
 
-    /** スライダーを動かしてから、コマンドを送るまで待つ時間(ms)。チャットが、コマンドの結果で埋まらないようにする */
-    private static final long DEBOUNCE_MS = 300;
+    /** 天気を変えたときの、その天気が続く長さ(tick)。ゲームのコマンドと同じ、5分 */
+    private static final int WEATHER_TICKS = 6000;
+
+    /** 「進める」tick の数(画面を開き直しても保持する) */
+    private static int stepTicks = 20;
 
     private final List<Label> labels = new ArrayList<>();
     private Layout lay;
     private PanelHost host;
+    private int stateY;
 
-    private int pendingTime = -1;
-    private int pendingRate = -1;
-    private long pendingTimeAt;
-    private long pendingRateAt;
+    /** 統合サーバー(シングルプレイ)。ほかのサーバーに参加しているときは null */
+    private static MinecraftServer server() {
+        return Minecraft.getInstance().getSingleplayerServer();
+    }
 
     public void build(Layout lay, PanelHost host) {
         this.lay = lay;
@@ -42,27 +48,31 @@ public final class WorldPanel {
         int y = lay.panelY() + Theme.u(8);
         int lh = lay.th() + Theme.u(3);
         int sh = lay.sliderH();
+        int gap = Math.max(1, Theme.u(3));
 
         labels.add(new Label("ワールド設定", x, y, Theme.ACCENT));
         y += lay.th() + Theme.u(3);
         labels.add(new Label(Theme.fit(host.font(), "NPCを選ぶと、そのNPCの編集になります", w), x, y, Theme.TEXT_DIM));
-        y += lay.th() + Theme.u(3);
-        labels.add(new Label(Theme.fit(host.font(), "※ 変更には、OPの権限が必要です", w), x, y, Theme.TEXT_DIM));
         y += lay.th() + Theme.u(8);
+
+        if (server() == null) {
+            labels.add(new Label(Theme.fit(host.font(), "シングルプレイ(統合サーバー)でだけ", w), x, y, 0xFFE5A04B));
+            y += lay.th() + Theme.u(3);
+            labels.add(new Label(Theme.fit(host.font(), "ワールドを操作できます", w), x, y, 0xFFE5A04B));
+            return;
+        }
 
         // --- 天気 ---
         labels.add(new Label("天気", x, y, Theme.TEXT_DIM));
         y += lh;
         int current = level.isThundering() ? 2 : level.isRaining() ? 1 : 0;
         String[] weatherNames = {"晴れ", "雨", "雷雨"};
-        String[] weatherCommands = {"weather clear", "weather rain", "weather thunder"};
-        int gap = Math.max(1, Theme.u(3));
         int bw = (w - gap * 2) / 3;
         for (int i = 0; i < 3; i++) {
-            String command = weatherCommands[i];
+            int mode = i;
             host.add(new ModernButton(x + i * (bw + gap), y, bw, lay.btnH(), weatherNames[i],
                     ModernButton.Style.DEFAULT, () -> {
-                run(command);
+                setWeather(mode);
                 host.refresh();
             }).setSelected(current == i));
         }
@@ -72,10 +82,7 @@ public final class WorldPanel {
         labels.add(new Label("時間", x, y, Theme.TEXT_DIM));
         y += lh;
         int dayTime = (int) (level.getGameTime() % 24000L);
-        host.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, dayTime, v -> {
-            pendingTime = (int) v;
-            pendingTimeAt = System.currentTimeMillis();
-        }));
+        host.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, dayTime, v -> setTime((int) v)));
         y += sh;
         String[] presetNames = {"朝", "昼", "夕", "夜"};
         int[] presetTicks = {0, 6000, 12000, 18000};
@@ -84,59 +91,89 @@ public final class WorldPanel {
             int ticks = presetTicks[i];
             host.add(new ModernButton(x + i * (pw + gap), y, pw, lay.btnH(), presetNames[i],
                     ModernButton.Style.DEFAULT, () -> {
-                run("time set " + ticks);
+                setTime(ticks);
                 host.refresh();
             }));
         }
         y += lay.btnH() + lay.gap() * 2;
 
-        // --- 世界の進み具合 ---
+        // --- 世界の進み具合: 指定したtickだけ進めて、止める ---
         labels.add(new Label("世界の進み具合", x, y, Theme.TEXT_DIM));
         y += lh;
-        var ticking = level.tickRateManager();
-        int rate = ticking.isFrozen() ? 0 : Math.max(1, Math.min(20, Math.round(ticking.tickrate())));
-        host.add(new ModernSlider(x, y, w, sh, "進み具合", "tick/秒", 0, 20, 1, rate, v -> {
-            pendingRate = (int) v;
-            pendingRateAt = System.currentTimeMillis();
-        }));
+        stateY = y;   // 「停止中 / 進行中」は、毎フレーム、いまの状態を描く
+        y += lay.th() + Theme.u(4);
+
+        host.add(new ModernSlider(x, y, w, sh, "進める", "tick", 1, 200, 1, stepTicks, v -> stepTicks = (int) v));
         y += sh;
-        labels.add(new Label(Theme.fit(host.font(), "20 = ふつう / 0 = 世界の時間を止める", w), x, y + Theme.u(2), Theme.TEXT_DIM));
+        host.add(new ModernButton(x, y, w, lay.btnH(), "進めて止める", ModernButton.Style.PRIMARY,
+                () -> stepAndStop(stepTicks)));
+        y += lay.btnH() + gap;
+
+        int half = (w - gap) / 2;
+        host.add(new ModernButton(x, y, half, lay.btnH(), "停止", ModernButton.Style.DEFAULT, () -> setFrozen(true)));
+        host.add(new ModernButton(x + half + gap, y, half, lay.btnH(), "再開", ModernButton.Style.DEFAULT,
+                () -> setFrozen(false)));
+        y += lay.btnH() + gap;
+        labels.add(new Label(Theme.fit(host.font(), "20 tick = 1秒", w), x, y, Theme.TEXT_DIM));
     }
 
-    /** 毎フレーム呼ぶ。スライダーが止まってから、コマンドを1回だけ送る */
-    public void tick() {
-        long now = System.currentTimeMillis();
-        if (pendingTime >= 0 && now - pendingTimeAt >= DEBOUNCE_MS) {
-            run("time set " + pendingTime);
-            pendingTime = -1;
-        }
-        if (pendingRate >= 0 && now - pendingRateAt >= DEBOUNCE_MS) {
-            applyRate(pendingRate);
-            pendingRate = -1;
-        }
+    // ================= サーバーの操作(サーバーのスレッドで実行する) =================
+
+    private static void setWeather(int mode) {
+        MinecraftServer server = server();
+        if (server == null) return;
+        server.execute(() -> {
+            ServerLevel level = server.overworld();   // 天気は、オーバーワールドが持つ
+            switch (mode) {
+                case 0 -> level.getServer().setWeatherParameters(WEATHER_TICKS, 0, false, false);
+                case 1 -> level.getServer().setWeatherParameters(0, WEATHER_TICKS, true, false);
+                default -> level.getServer().setWeatherParameters(0, WEATHER_TICKS, true, true);
+            }
+        });
     }
 
-    private static void applyRate(int rate) {
-        ClientLevel level = Minecraft.getInstance().level;
-        if (level == null) return;
-        var ticking = level.tickRateManager();
-        if (rate <= 0) {
-            if (!ticking.isFrozen()) run("tick freeze");
-        } else {
-            if (ticking.isFrozen()) run("tick unfreeze");
-            if (Math.round(ticking.tickrate()) != rate) run("tick rate " + rate);
-        }
+    private static void setTime(int ticks) {
+        MinecraftServer server = server();
+        if (server == null) return;
+        server.execute(() -> {
+            for (ServerLevel level : server.getAllLevels()) {
+                var clock = level.dimensionType().defaultClock();
+                if (clock.isEmpty()) continue;
+                server.clockManager().setTotalTicks(clock.get(), ticks);
+            }
+        });
     }
 
-    private static void run(String command) {
-        LocalPlayer player = Minecraft.getInstance().player;
-        if (player != null) player.connection.sendCommand(command);
+    /** 世界を止めて、指定したtickだけ進める。進み終わったら、止まったままになる */
+    private static void stepAndStop(int ticks) {
+        MinecraftServer server = server();
+        if (server == null) return;
+        server.execute(() -> {
+            ServerTickRateManager manager = server.tickRateManager();
+            if (!manager.isFrozen()) manager.setFrozen(true);
+            manager.stepGameIfPaused(ticks);
+        });
     }
+
+    private static void setFrozen(boolean frozen) {
+        MinecraftServer server = server();
+        if (server == null) return;
+        server.execute(() -> server.tickRateManager().setFrozen(frozen));
+    }
+
+    // ================= 描画 =================
 
     public void extractBackground(GuiGraphicsExtractor g) {
         Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
         for (Label l : labels) {
             Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
+        }
+        // 世界の状態(クライアント側の写し)。毎フレーム、いまの状態を出す
+        ClientLevel level = Minecraft.getInstance().level;
+        if (level != null && server() != null) {
+            boolean frozen = level.tickRateManager().isFrozen();
+            Theme.text(g, host.font(), frozen ? "停止中" : "進行中", lay.rightX() + lay.pad(), stateY,
+                    frozen ? 0xFFE5A04B : 0xFF57AB5A);
         }
     }
 }

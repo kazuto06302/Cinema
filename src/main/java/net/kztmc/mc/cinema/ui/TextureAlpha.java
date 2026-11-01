@@ -11,44 +11,48 @@ import net.minecraft.resources.Identifier;
 import net.minecraft.server.packs.resources.Resource;
 
 /**
- * テクスチャの透明度の記憶。輪郭から、「すべて透明な部分」を、除くために使う。
- * テクスチャは、リソースから、読み込んで、透明度(アルファ)だけを持つ。読めないもの(プレイヤーのスキンなど)は、判定しない。
+ * テクスチャの透明度の記憶。輪郭から、「透明な画素」を、除くために使う。
+ * テクスチャは、リソースから、読み込んで、透明度(アルファ)だけを持つ。読めないもの(プレイヤーのスキンなど)は、判定しない(null)。
  */
 public final class TextureAlpha {
     private TextureAlpha() {}
 
-    private record Alpha(int w, int h, byte[] data) {}
+    /** テクスチャの透明度。(u, v) は、0〜1 のテクスチャ座標 */
+    public static final class Sampler {
+        private final int w;
+        private final int h;
+        private final byte[] data;
 
-    /** 読めなかったもの(判定しない) */
-    private static final Alpha UNKNOWN = new Alpha(0, 0, new byte[0]);
+        private Sampler(int w, int h, byte[] data) {
+            this.w = w;
+            this.h = h;
+            this.data = data;
+        }
+
+        /** その位置が、不透明(透明度が MIN_ALPHA 以上)か */
+        public boolean opaque(float u, float v) {
+            int x = Math.max(0, Math.min(w - 1, (int) Math.floor(u * w)));
+            int y = Math.max(0, Math.min(h - 1, (int) Math.floor(v * h)));
+            return (data[y * w + x] & 0xFF) >= MIN_ALPHA;
+        }
+    }
 
     /** この値より小さい透明度は、「透明」とみなす */
     private static final int MIN_ALPHA = 12;
 
-    private static final Map<Identifier, Alpha> CACHE = new HashMap<>();
+    /** 読めなかったもの(判定しない) */
+    private static final Sampler UNKNOWN = new Sampler(1, 1, new byte[] {(byte) 0xFF});
 
-    /** 範囲(0〜1のUV)の中に、不透明な画素が1つでもあれば true。テクスチャが読めなければ true */
-    public static boolean hasOpaque(Identifier texture, float minU, float minV, float maxU, float maxV) {
-        Alpha alpha = CACHE.computeIfAbsent(texture, TextureAlpha::load);
-        if (alpha == UNKNOWN) return true;
+    private static final Map<Identifier, Sampler> CACHE = new HashMap<>();
 
-        int x0 = clamp((int) Math.floor(minU * alpha.w), alpha.w);
-        int x1 = clamp((int) Math.ceil(maxU * alpha.w) - 1, alpha.w);
-        int y0 = clamp((int) Math.floor(minV * alpha.h), alpha.h);
-        int y1 = clamp((int) Math.ceil(maxV * alpha.h) - 1, alpha.h);
-        for (int y = y0; y <= Math.max(y0, y1); y++) {
-            for (int x = x0; x <= Math.max(x0, x1); x++) {
-                if ((alpha.data[y * alpha.w + x] & 0xFF) >= MIN_ALPHA) return true;
-            }
-        }
-        return false;
+    /** テクスチャの透明度。読めなければ(またはIDが null なら) null */
+    public static Sampler sampler(Identifier texture) {
+        if (texture == null) return null;
+        Sampler sampler = CACHE.computeIfAbsent(texture, TextureAlpha::load);
+        return sampler == UNKNOWN ? null : sampler;
     }
 
-    private static int clamp(int value, int size) {
-        return Math.max(0, Math.min(size - 1, value));
-    }
-
-    private static Alpha load(Identifier id) {
+    private static Sampler load(Identifier id) {
         try {
             Optional<Resource> resource = Minecraft.getInstance().getResourceManager().getResource(id);
             if (resource.isEmpty()) return UNKNOWN;
@@ -61,7 +65,7 @@ public final class TextureAlpha {
                         data[y * w + x] = (byte) (image.getPixel(x, y) >>> 24);   // 上位8ビットが透明度
                     }
                 }
-                return new Alpha(w, h, data);
+                return new Sampler(w, h, data);
             }
         } catch (IOException | RuntimeException ex) {
             return UNKNOWN;

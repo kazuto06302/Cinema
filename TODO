@@ -4,21 +4,25 @@ GUIを透過させる
 NPCリスト、文字の前に画像
 Pose→右GUIの別タブ/中央にMobのパーツを自由に動かせるGUI
 下部分にもGUI
-アイテム
 Playerのスキン/ネームタグ/Capeの設定
-Mob固有のNBTTag
 未選択時はワールドの設定
 エクスポート
 カメラ位置
-絵画
 
-エンダードラゴンのアウトライン何もないところもなぞってる
-装備、全部消すやつは残しといて良い
-InventoryOverlayのフルコード一応出力しといて
-額縁の位置補正もオフにして、なんか当たり判定がビクビク動いてる。
-絵画と額縁の回転も全部できるように、glow以外は消して（glowは残すことにした）
-[14:25:34] [Render thread/WARN] (cinema) [Cinema] none of the methods [setupRotations] were found on net.minecraft.client.renderer.entity.CushionRenderer. Declared methods there: [CushionRenderer.submit/4, CushionRenderer.extractRenderState/3, CushionRenderer.createRenderState/0, EntityRenderer.submit/4, EntityRenderer.handler$zep000$cinema$pinPartialTick/3, EntityRenderer.affectedByCulling/1, EntityRenderer.getShadowStrength/1, EntityRenderer.getShadowRadius/1, EntityRenderer.shouldRender/6, EntityRenderer.shouldShowName/2, EntityRenderer.getFont/0, EntityRenderer.getNameTag/1, EntityRenderer.getPackedLightCoords/2, EntityRenderer.extractShadowPiece/5, EntityRenderer.finalizeRenderState/2, EntityRenderer.getBoundingBoxForCulling/2, EntityRenderer.getSkyLightLevel/2, EntityRenderer.submitNameDisplay/4, EntityRenderer.submitNameDisplay/5, EntityRenderer.extractShadow/3, EntityRenderer.getRenderOffset/1, EntityRenderer.getBlockLightLevel/2, EntityRenderer.extractNameTags/5, EntityRenderer.extractNameTags/3, EntityRenderer.extractRenderState/3, EntityRenderer.createRenderState/0, EntityRenderer.createRenderState/2]
-[14:25:35] [Render thread/WARN] (cinema) [Cinema] field 'model' not found on net.minecraft.client.renderer.entity.DragonFireballRenderer
-[14:25:48] [Render thread/WARN] (cinema) [Cinema] field 'model' not found on net.minecraft.client.renderer.entity.PaintingRenderer
-ワールド設定なんだけど、tickの速さじゃなくて、何tick進んだかで止めるようにする
-あとコマンド経由じゃなくして
+[INFO]
+・26.3では、Quaternionを受け取る mulPose() が rotate() に名称変更されています。
+・EntityIds.subEntities(e)の戻り値がEntity[]なのに対して、List.addAll() はCollectionを要求しています。→ (Arrays.asList(EntityIds.subEntities(e)))に変更
+・Camera camera = mc.gameRenderer.mainCamera();が正しいです。
+3つともこちら側で修正済み。
+[BUG]
+ワールド設定天気動かしたら時間動いたり、朝昼夕夜押してもスライダーが動かない。
+PlayerのCape、何か変な位置で止まってる。
+Playerの水泳アニメーションが出来てない。
+ワールド設定のtickの部分の意味なんだけど、Minecraftの炎・水・溶岩・ポータルなどのテクスチャアニメーションについて、再生Tickを0-20の範囲でスライダーから指定できる機能を実装する。指定したTickでアニメーションを固定し、ゲーム内Tickが進行しても表示を維持できるようにする。
+[FIX]
+右パネルの←を左にボタンとして出すようにしよう。
+[NEW]
+Playerのネームタグの非表示/内容の変更（BelowNameも付けれるように）。
+PlayerのCapeを変えれるように。
+[PLUS]
+GUI動作にサウンドを付けたいんだけど、実装例を挙げて欲しい。

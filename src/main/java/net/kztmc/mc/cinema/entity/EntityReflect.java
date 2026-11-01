@@ -533,4 +533,13 @@ public final class EntityReflect {
             Cinema.LOGGER.info("[Cinema] {} methods: {}", c.getSimpleName(), methods);
         }
     }
+
+    /** オブジェクトのフィールドの値。見つからなければ null(警告は出さない) */
+    public static Object getObjectQuiet(Object target, String name) {
+        try {
+            return field(target.getClass(), name, target.getClass().getName() + "#" + name).get(target);
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return null;
+        }
+    }
 }
