@@ -25,6 +25,7 @@ public final class NpcTexts {
     public static final String NAME_TAG = "nametag";
     public static final String BELOW_NAME = "belowname";
     public static final String CAPE_OWNER = "cape";
+    public static final String CAPE_FILE = "capefile";
 
     private static final Gson GSON = new GsonBuilder().setPrettyPrinting().create();
     private static final Type FILE_TYPE = new TypeToken<Map<String, Map<String, String>>>() {}.getType();

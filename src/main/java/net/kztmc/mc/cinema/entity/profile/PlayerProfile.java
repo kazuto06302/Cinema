@@ -22,6 +22,8 @@ public final class PlayerProfile extends EntityProfile {
         humanoid();
         toggle(NAME_TAG, "ネームタグを表示", false);   // 以前の動作(非表示)を、初期値にする
         toggle(CAPE, "ケープを表示", true);
+        option("cape_open", "ケープを開く", 0, 90, 0);
+        option("cape_side", "ケープの左右", -60, 60, 0);
     }
 
     @Override
@@ -32,12 +34,21 @@ public final class PlayerProfile extends EntityProfile {
         player.setBelowName(NpcTexts.get(d.id(), NpcTexts.BELOW_NAME));
         player.setCapeVisible(d.option(CAPE, 1) == 1);
         player.setCapeOwner(NpcTexts.get(d.id(), NpcTexts.CAPE_OWNER));
+        player.setCapeFile(NpcTexts.get(d.id(), NpcTexts.CAPE_FILE));
     }
 
     /** BelowName: 名前の下に出る文字(スコアボードの「名前の下」と同じ場所)を、描画用の状態へ入れる */
     @Override
     public void adjustRenderState(Entity e, Object state, float time, Map<String, Integer> options) {
-        if (e instanceof NpcPlayer player && !player.belowName().isEmpty()) {
+        if (!(e instanceof NpcPlayer player)) return;
+
+        // ケープ: 自動で計算された値を、使わず、こちらで決める(0 = まっすぐ垂れる)
+        EntityReflect.setFloat(state, "capeFlap", options.getOrDefault("cape_open", 0));
+        EntityReflect.setFloat(state, "capeLean", 0f);
+        EntityReflect.setFloat(state, "capeLean2", options.getOrDefault("cape_side", 0));
+
+        // BelowName: 名前の下に出る文字(スコアボードの「名前の下」と同じ場所)
+        if (!player.belowName().isEmpty()) {
             EntityReflect.setObject(state, "scoreText", Component.literal(player.belowName()));
         }
     }

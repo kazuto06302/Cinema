@@ -767,6 +767,20 @@ public final class RightPanel {
         add(belowField);
         y += lay.btnH() + lay.gap();
 
+
+        // ケープの画像(config/cinema/capes/*.png)。先頭は「なし」(スキンのケープ)
+        List<String> capeFiles = new ArrayList<>();
+        capeFiles.add("なし(スキンのケープ)");
+        capeFiles.addAll(CapeLibrary.names());
+        int capeIndex = Math.max(0, capeFiles.indexOf(NpcTexts.get(id, NpcTexts.CAPE_FILE)));
+        add(new ModernDropdown(x, y, w, lay.sliderH(), "ケープ画像", capeFiles, capeIndex, i -> {
+            NpcTexts.set(id, NpcTexts.CAPE_FILE, i == 0 ? "" : capeFiles.get(i));
+            edit(id, cur -> cur);
+        }, host::onDropdownOpen));
+        y += lay.sliderH();
+        label(Theme.fit(host.font(), "画像は config/cinema/capes/ に PNG(64×32)", w), x, y + Theme.u(2), Theme.TEXT_DIM);
+        y += lay.th() + Theme.u(6);
+
         // ケープの持ち主(ユーザー名)。Enter で反映
         ModernTextField capeField = new ModernTextField(x, y, w, lay.btnH());
         capeField.setHint("ケープの持ち主(Enterで反映)");

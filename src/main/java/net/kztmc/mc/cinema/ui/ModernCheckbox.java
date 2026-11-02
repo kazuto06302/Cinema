@@ -57,4 +57,10 @@ public class ModernCheckbox extends AbstractWidget {
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput output) {}
+
+    /** 外から状態を合わせる(コールバックは呼ばない) */
+    public ModernCheckbox setChecked(boolean checked) {
+        this.checked = checked;
+        return this;
+    }
 }

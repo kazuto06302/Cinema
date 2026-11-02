@@ -20,6 +20,7 @@ public class ModernList<T> extends AbstractWidget {
     private final Predicate<T> isSelected;
     private final Consumer<T> onSelect;
     private final String emptyText;
+    private RowIcon<T> icon;
 
     private List<T> items = List.of();
     private double scroll;
@@ -136,4 +137,9 @@ public class ModernList<T> extends AbstractWidget {
 
     @Override
     protected void updateWidgetNarration(NarrationElementOutput output) {}
+
+    public ModernList<T> setIcon(RowIcon<T> icon) {
+        this.icon = icon;
+        return this;
+    }
 }

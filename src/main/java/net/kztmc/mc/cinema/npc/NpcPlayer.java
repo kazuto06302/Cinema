@@ -34,7 +34,8 @@ public class NpcPlayer extends RemotePlayer {
     private boolean capeVisible = true;
     private String capeOwner = "";
     private java.util.function.Supplier<PlayerSkin> capeSource;   // ケープの持ち主のスキン(null なら、自分のスキンのケープ)
-
+    private String capeFile = "";
+    private Object capeFileAsset;
 
     public NpcPlayer(ClientLevel level, GameProfile profile, Supplier<PlayerSkin> skin) {
         super(level, profile);
@@ -149,5 +150,12 @@ public class NpcPlayer extends RemotePlayer {
             EntityReflect.setDouble(this, prefix, value);
             EntityReflect.setDouble(this, prefix + "O", value);
         }
+    }
+
+    public void setCapeFile(String name) {
+        String file = name == null ? "" : name;
+        if (file.equals(capeFile)) return;
+        capeFile = file;
+        capeFileAsset = CapeLibrary.assetOf(file);
     }
 }

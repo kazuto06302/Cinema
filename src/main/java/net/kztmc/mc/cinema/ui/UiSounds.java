@@ -16,6 +16,7 @@ public final class UiSounds {
     /** false にすると、画面の効果音を、すべて止める */
     public static boolean enabled = true;
 
+    private static final float VANILLA_UI_VOLUME = 0.25f;
     /** 全体の音量の倍率 */
     private static final float MASTER_VOLUME = 1.0f;
 
@@ -25,12 +26,14 @@ public final class UiSounds {
 
     public static void play(SoundEvent sound, float pitch, float volume) {
         if (!enabled) return;
-        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch, volume * MASTER_VOLUME));
+        Minecraft.getInstance().getSoundManager()
+                .play(SimpleSoundInstance.forUI(sound, pitch, volume * MASTER_VOLUME * VANILLA_UI_VOLUME));
     }
 
     public static void play(Holder<SoundEvent> sound, float pitch, float volume) {
         if (!enabled) return;
-        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(sound.value(), pitch, volume * MASTER_VOLUME));
+        Minecraft.getInstance().getSoundManager()
+                .play(SimpleSoundInstance.forUI(sound.value(), pitch, volume * MASTER_VOLUME * VANILLA_UI_VOLUME));
     }
 
     // ---- 名前つきの音 ----
@@ -43,7 +46,7 @@ public final class UiSounds {
         long now = System.currentTimeMillis();
         if (now - lastDragSoundTime < 60) return;
         lastDragSoundTime = now;
-        play(SoundEvents.UI_BUTTON_CLICK, 2f, 0.1f);
+        play(SoundEvents.UI_BUTTON_CLICK, 2f, 0.4f);
     }
 
     public static void tab() {

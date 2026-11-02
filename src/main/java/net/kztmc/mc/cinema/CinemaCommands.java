@@ -10,6 +10,7 @@ import net.kztmc.mc.cinema.npc.SceneFreeze;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
 import net.kztmc.mc.cinema.ui.TextureAnimations;
 import net.kztmc.mc.cinema.ui.UiSounds;
+import net.kztmc.mc.cinema.ui.WorldRules;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -54,6 +55,10 @@ public final class CinemaCommands {
                                         })))
                         .then(ClientCommands.literal("atlas").executes(ctx -> {
                             TextureAnimations.dump();
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("rules").executes(ctx -> {
+                            WorldRules.dump();
                             return 1;
                         }))
                         .then(ClientCommands.literal("clear")

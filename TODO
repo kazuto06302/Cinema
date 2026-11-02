@@ -9,12 +9,15 @@ Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
 
-天気のボタンを押しても天気自体は変わるんだけどボタンが変わらない、あとコマンドで変えた場合の調整もお願い
-あと時間/天候の進みを止める項目をチェックボックスで変えれるように
-あとやっぱりCapeの向きが変な方向向いてる
-NPCリストに文字の前にそのMob・プレイヤーの顔画像を入れることって出来ない？
-[20:18:57] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.client.renderer.texture.TextureAtlas =====
-[20:18:57] [Render thread/INFO] (cinema) [Cinema] TextureAtlas fields: [sprites(List), animatedTexturesStates(List), texturesByName(Map), missingSprite(TextureAtlasSprite), location(Identifier), maxSupportedTextureSize(int), width(int), height(int), maxMipLevel(int), mipLevelCount(int), mipViews(GpuTextureView[]), spriteUbos(GpuBuffer), spriteFinder(SpriteFinder)]
-[20:18:57] [Render thread/INFO] (cinema) [Cinema] TextureAtlas methods: [location/0, close/0, tick/0, releaseTextures/0, dumpContents/2, handler$zij000$fabric-renderer-api-v1$uploadHook/2, getHeight/0, getWidth/0, createTexture/3, getSprite/1, upload/1, missingSprite/0, dumpSpriteNames/3, cycleAnimationFrames/0, spriteFinder/0, uploadInitialContents/0, uploadAnimationFrames/0, clearTextureData/0, maxSupportedTextureSize/0]
-[20:18:57] [Render thread/INFO] (cinema) [Cinema] AbstractTexture fields: [texture(GpuTexture), textureView(GpuTextureView), sampler(GpuSampler)]
-[20:18:57] [Render thread/INFO] (cinema) [Cinema] AbstractTexture methods: [close/0, releaseTextures/0, getTexture/0, getSampler/0, getTextureView/0]
+今回はバグ修正4箇所に絞ります
+①
+NpcPlayer.getskin()未変更
+ModernListt未実装
+確認してどう実装したら良い？
+②
+WorldPanel
+関数名合わせたらこうなったけど、時間がうまくいかず、getGameTime()が違う？
+③
+tickの部分、テクスチャがうまく変わらない、停止自体は出来てる
+④
+シフトさせたときのアウトラインがズレてる（他は問題なし）

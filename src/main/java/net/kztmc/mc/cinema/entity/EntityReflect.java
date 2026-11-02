@@ -554,4 +554,14 @@ public final class EntityReflect {
             return false;
         }
     }
+
+    /** int フィールドへの書き込み。見つからなければ false(警告は出さない) */
+    public static boolean setIntQuiet(Object target, String name, int value) {
+        try {
+            field(target.getClass(), name, target.getClass().getName() + "#" + name).setInt(target, value);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            return false;
+        }
+    }
 }
