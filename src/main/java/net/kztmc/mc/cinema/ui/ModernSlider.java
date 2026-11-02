@@ -94,12 +94,9 @@ public class ModernSlider extends AbstractWidget {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
         dragging = true;
-        double oldValue = value;
-        setFromMouse(event.x());
 
-        if (value != oldValue) {
-            UiSounds.click();
-        }
+        UiSounds.click();
+        setFromMouse(event.x());
 
         return true;
     }
