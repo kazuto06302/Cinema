@@ -8,6 +8,8 @@ import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.npc.SceneFreeze;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
+import net.kztmc.mc.cinema.ui.TextureAnimations;
+import net.kztmc.mc.cinema.ui.UiSounds;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -50,12 +52,17 @@ public final class CinemaCommands {
                                             dumpFields(StringArgumentType.getString(ctx, "entity"));
                                             return 1;
                                         })))
+                        .then(ClientCommands.literal("atlas").executes(ctx -> {
+                            TextureAnimations.dump();
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("clear")
                                 .executes(ctx -> {
                                     NpcManager.clear();
                                     say("NPCをすべて削除しました");
                                     return 1;
-                                }))));
+                                }))
+                ));
 
     }
 
@@ -74,6 +81,7 @@ public final class CinemaCommands {
     private static void say(String msg) {
         LocalPlayer p = Minecraft.getInstance().player;
         if (p != null) p.sendOverlayMessage(Component.literal("[Cinema] " + msg));
+        UiSounds.success();
     }
 
     /** モブの全フィールドとメソッドをログに出す(フィールド名の確認用) */

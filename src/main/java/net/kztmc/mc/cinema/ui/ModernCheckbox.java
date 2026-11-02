@@ -49,8 +49,8 @@ public class ModernCheckbox extends AbstractWidget {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
-        playDownSound(Minecraft.getInstance().getSoundManager());
         checked = !checked;
+        UiSounds.click();
         onChange.accept(checked);
         return true;
     }

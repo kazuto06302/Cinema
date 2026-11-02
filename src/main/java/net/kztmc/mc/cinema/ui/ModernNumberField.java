@@ -197,7 +197,12 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         moved += Math.abs(dx);
         if (moved <= CLICK_SLOP) return;
         editing = false;   // ドラッグを始めたら、入力は取り消す
+        double oldValue = value;
         change(value + dx * DRAG_PER_PIXEL * Modifiers.factor());
+
+        if (value != oldValue) {
+            UiSounds.drag();
+        }
     }
 
     @Override
@@ -208,6 +213,9 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
             } else {
                 startEditing();
             }
+            UiSounds.click();
+        } else if (pressing) {
+            UiSounds.click();
         }
         pressing = false;
     }
@@ -236,7 +244,13 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
         if (!active || !visible || !isMouseOver(mouseX, mouseY) || scrollY == 0) return false;
         editing = false;
+        double oldValue = value;
         change(value + Math.signum(scrollY) * STEP * Modifiers.factor());
+
+        if (value != oldValue) {
+            UiSounds.drag();
+        }
+
         return true;
     }
 
@@ -256,10 +270,16 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     private void commit() {
         if (!editing) return;
         editing = false;
+        double oldValue = value;
+
         try {
             change(Double.parseDouble(text.replace(',', '.')));
         } catch (NumberFormatException ignored) {
             // 数字として読めなければ、元の値のまま
+        }
+
+        if (value != oldValue) {
+            UiSounds.click();
         }
     }
 

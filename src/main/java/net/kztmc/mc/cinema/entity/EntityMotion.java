@@ -5,11 +5,7 @@ import java.util.Map;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.tags.ItemTags;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EquipmentSlot;
-import net.minecraft.world.entity.LivingEntity;
-import net.minecraft.world.entity.Mob;
-import net.minecraft.world.entity.WalkAnimationState;
+import net.minecraft.world.entity.*;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.ItemStackTemplate;
 import net.minecraft.world.item.Items;
@@ -51,6 +47,12 @@ public final class EntityMotion {
     public static final String SPEAR_AMOUNT = "spear_amount";
     public static final String[] SPEAR_NAMES = {"なし", "突き(ジャブ)", "突進(チャージ)"};
 
+    /** 水泳の、足のバタ足の強さ(歩行スライダーが0のとき) */
+    private static final float SWIM_SPEED = 0.6f;
+
+    /** 水泳の、1tickあたりの歩行の位置の進み。腕のかきは、26で1周する */
+    private static final float SWIM_PHASE_PER_TICK = 0.8f;
+
     /**
      * NPCの状態に反映する。
      * partialTick は、描画に使う補間値(時間スライダーの小数部分)。
@@ -58,7 +60,7 @@ public final class EntityMotion {
     public static void apply(Entity e, Map<String, Integer> options, float partialTick) {
         if (!(e instanceof LivingEntity living)) return;
 
-        applyWalk(living, options.getOrDefault(WALK, 0) / 100f, partialTick);
+        applyWalk(living, options.getOrDefault(WALK, 0) / 100f, partialTick, e.tickCount + partialTick);
 
         int arms = Math.max(0, Math.min(ARM_NAMES.length - 1, options.getOrDefault(ARMS, 0)));
         if (living instanceof Mob mob) {
@@ -70,7 +72,6 @@ public final class EntityMotion {
         int spearMode = isSpear(mainStack) ? options.getOrDefault(SPEAR, 0) : 0;
         float swing = spearMode == 1 ? options.getOrDefault(SPEAR_AMOUNT, 50) / 100f : SWING_OF_ARMS[arms];
         applySwing(living, swing, swingAnimationOf(mainStack));
-
         applyHandUse(living, options, spearMode == 2);
     }
 
@@ -96,7 +97,7 @@ public final class EntityMotion {
     /**
      * 描画側の歩行の位置は「位置 - 強さ × (1 - 補間値)」なので、補間値の分を足して、表示される位置が指定どおりになるようにする。
      */
-    private static void applyWalk(LivingEntity living, float walk, float partialTick) {
+    private static void applyWalk(LivingEntity living, float walk, float partialTick, float time) {
         WalkAnimationState state = living.walkAnimation;
         EntityProfile profile = EntityProfiles.of(living);
         float cycle = profile.walkCyclePosition();
@@ -108,6 +109,10 @@ public final class EntityMotion {
             float amount = Math.min(1f, Math.abs(walk));
             speed = amount > 0f ? profile.walkKeyframeIntensity() : 0f;
             position = amount * cycle;
+        } else if (living.getPose() == Pose.SWIMMING) {
+            // 水泳: 腕のかきと足のバタ足は、歩行の位置で決まる。時間スライダーで、位相が動く
+            speed = (walk != 0f ? walk : SWIM_SPEED) * profile.walkSpeedMax();
+            position = time * SWIM_PHASE_PER_TICK;
         } else {
             speed = walk * profile.walkSpeedMax();
             position = profile.walkPhase();

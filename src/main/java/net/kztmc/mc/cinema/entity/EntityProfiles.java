@@ -69,6 +69,7 @@ public final class EntityProfiles {
         register(new FallingBlockProfile());
         register(new ItemFrameProfile());
         register(new PaintingProfile());
+        register(new PlayerProfile());
 
         // ---- 腕のポーズが効くモデル(プレイヤーは種類で判定) ----
         register(EntityProfile.of(

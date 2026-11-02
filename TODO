@@ -9,20 +9,12 @@ Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
 
-[INFO]
-・26.3では、Quaternionを受け取る mulPose() が rotate() に名称変更されています。
-・EntityIds.subEntities(e)の戻り値がEntity[]なのに対して、List.addAll() はCollectionを要求しています。→ (Arrays.asList(EntityIds.subEntities(e)))に変更
-・Camera camera = mc.gameRenderer.mainCamera();が正しいです。
-3つともこちら側で修正済み。
-[BUG]
-ワールド設定天気動かしたら時間動いたり、朝昼夕夜押してもスライダーが動かない。
-PlayerのCape、何か変な位置で止まってる。
-Playerの水泳アニメーションが出来てない。
-ワールド設定のtickの部分の意味なんだけど、Minecraftの炎・水・溶岩・ポータルなどのテクスチャアニメーションについて、再生Tickを0-20の範囲でスライダーから指定できる機能を実装する。指定したTickでアニメーションを固定し、ゲーム内Tickが進行しても表示を維持できるようにする。
-[FIX]
-右パネルの←を左にボタンとして出すようにしよう。
-[NEW]
-Playerのネームタグの非表示/内容の変更（BelowNameも付けれるように）。
-PlayerのCapeを変えれるように。
-[PLUS]
-GUI動作にサウンドを付けたいんだけど、実装例を挙げて欲しい。
+天気のボタンを押しても天気自体は変わるんだけどボタンが変わらない、あとコマンドで変えた場合の調整もお願い
+あと時間/天候の進みを止める項目をチェックボックスで変えれるように
+あとやっぱりCapeの向きが変な方向向いてる
+NPCリストに文字の前にそのMob・プレイヤーの顔画像を入れることって出来ない？
+[20:18:57] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.client.renderer.texture.TextureAtlas =====
+[20:18:57] [Render thread/INFO] (cinema) [Cinema] TextureAtlas fields: [sprites(List), animatedTexturesStates(List), texturesByName(Map), missingSprite(TextureAtlasSprite), location(Identifier), maxSupportedTextureSize(int), width(int), height(int), maxMipLevel(int), mipLevelCount(int), mipViews(GpuTextureView[]), spriteUbos(GpuBuffer), spriteFinder(SpriteFinder)]
+[20:18:57] [Render thread/INFO] (cinema) [Cinema] TextureAtlas methods: [location/0, close/0, tick/0, releaseTextures/0, dumpContents/2, handler$zij000$fabric-renderer-api-v1$uploadHook/2, getHeight/0, getWidth/0, createTexture/3, getSprite/1, upload/1, missingSprite/0, dumpSpriteNames/3, cycleAnimationFrames/0, spriteFinder/0, uploadInitialContents/0, uploadAnimationFrames/0, clearTextureData/0, maxSupportedTextureSize/0]
+[20:18:57] [Render thread/INFO] (cinema) [Cinema] AbstractTexture fields: [texture(GpuTexture), textureView(GpuTextureView), sampler(GpuSampler)]
+[20:18:57] [Render thread/INFO] (cinema) [Cinema] AbstractTexture methods: [close/0, releaseTextures/0, getTexture/0, getSampler/0, getTextureView/0]

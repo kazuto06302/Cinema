@@ -194,9 +194,11 @@ public final class InventoryOverlay {
                 return;
             }
             EquipmentEdit.set(id, slot, in.copy());
+            UiSounds.equip();
             rebuild = true;
         } else if (!current.isEmpty()) {   // つかんでいなければ、外す
             EquipmentEdit.set(id, slot, ItemStack.EMPTY);
+            UiSounds.equip();
             rebuild = true;
         } else {
             say("アイテムをつかんでから、スロットをクリックしてください");
@@ -206,6 +208,7 @@ public final class InventoryOverlay {
     private void say(String text) {
         status = text;
         statusUntil = System.currentTimeMillis() + 4000;
+        UiSounds.deny();
     }
 
     /** 標準の描画の前に呼ぶ(パネルの背景と文字。ボタンは、画面のウィジェットとして描かれる) */

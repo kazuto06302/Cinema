@@ -1,9 +1,15 @@
 package net.kztmc.mc.cinema.npc;
 
 import com.mojang.authlib.GameProfile;
+
+import java.util.Objects;
 import java.util.function.Supplier;
+
+import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.RemotePlayer;
+import net.minecraft.core.ClientAsset.Texture;
+import net.minecraft.network.chat.Component;
 import net.minecraft.world.entity.player.PlayerModelPart;
 import net.minecraft.world.entity.player.PlayerModelType;
 import net.minecraft.world.entity.player.PlayerSkin;
@@ -19,7 +25,16 @@ public class NpcPlayer extends RemotePlayer {
     // getSkin は毎フレーム呼ばれるので、作り直した結果を使い回す
     private PlayerSkin lastBase;
     private String lastModel;
+    private Texture lastCape;
     private PlayerSkin lastResult;
+
+    private boolean nameTagVisible;
+    private String nameTagText = "";
+    private String belowName = "";
+    private boolean capeVisible = true;
+    private String capeOwner = "";
+    private java.util.function.Supplier<PlayerSkin> capeSource;   // ケープの持ち主のスキン(null なら、自分のスキンのケープ)
+
 
     public NpcPlayer(ClientLevel level, GameProfile profile, Supplier<PlayerSkin> skin) {
         super(level, profile);
@@ -30,29 +45,33 @@ public class NpcPlayer extends RemotePlayer {
     @Override
     public PlayerSkin getSkin() {
         PlayerSkin base = skin.get();
-        if (modelName == null) return base;
-        if (base == lastBase && modelName.equals(lastModel)) return lastResult;
+        PlayerSkin owner = capeSource == null ? null : capeSource.get();
 
-        PlayerModelType type = "slim".equals(modelName) ? PlayerModelType.SLIM : PlayerModelType.WIDE;
-        PlayerSkin result = base.model() == type
-                ? base
-                : new PlayerSkin(base.body(), base.cape(), base.elytra(), type, base.secure());
+        if (owner == null || modelName == null) return base;
+
+        PlayerModelType type = "slim".equals(modelName)
+                ? PlayerModelType.SLIM
+                : PlayerModelType.WIDE;
+
+        if (base == lastBase
+                && modelName.equals(lastModel)
+                && Objects.equals(owner.cape(), lastCape)) {
+            return lastResult;
+        }
+
+        boolean sameModel = base.model() == type;
+        boolean sameCape = Objects.equals(base.cape(), owner.cape());
+
+        PlayerSkin result = sameModel && sameCape ? base
+                : new PlayerSkin(base.body(), owner.cape(), base.elytra(), type, base.secure()
+        );
+
         lastBase = base;
         lastModel = modelName;
+        lastCape = owner.cape();
         lastResult = result;
+
         return result;
-    }
-
-    /** 帽子・上着・袖・ズボン・マントなど、全部位を表示する(通常は他プレイヤー分は届かず非表示になる) */
-    @Override
-    public boolean isModelPartShown(PlayerModelPart part) {
-        return true;
-    }
-
-    /** 名前札。撮影用なので初期は非表示 */
-    @Override
-    public boolean shouldShowName() {
-        return showName;
     }
 
     public void setShowName(boolean showName) {
@@ -71,5 +90,64 @@ public class NpcPlayer extends RemotePlayer {
     @Override
     public boolean isPushable() {
         return false;
+    }
+
+    public void setNameTagVisible(boolean visible) {
+        this.nameTagVisible = visible;
+    }
+
+    public void setNameTagText(String text) {
+        this.nameTagText = text == null ? "" : text;
+    }
+
+    public void setBelowName(String text) {
+        this.belowName = text == null ? "" : text;
+    }
+
+    public String belowName() {
+        return belowName;
+    }
+
+    public void setCapeVisible(boolean visible) {
+        this.capeVisible = visible;
+    }
+
+    /** ケープの持ち主(ユーザー名)。空なら、自分のスキンのケープ。変わったときだけ、スキンを引き直す */
+    public void setCapeOwner(String name) {
+        String owner = name == null ? "" : name;
+        if (owner.equals(capeOwner)) return;
+        capeOwner = owner;
+        capeSource = owner.isEmpty() ? null : SkinResolver.forName(owner);
+    }
+
+    /** ネームタグは、設定が「表示」のときだけ出す(以前は、常に false) */
+    @Override
+    public boolean shouldShowName() {
+        return nameTagVisible;
+    }
+
+    /** ネームタグの内容。設定があれば、それ。なければ、ふつうの名前 */
+    @Override
+    public Component getDisplayName() {
+        return nameTagText.isEmpty() ? super.getDisplayName() : Component.literal(nameTagText);
+    }
+
+    /** ケープの表示。ケープだけ、設定で消せる(ほかの部分は、常に表示) */
+    @Override
+    public boolean isModelPartShown(PlayerModelPart part) {
+        return part != PlayerModelPart.CAPE || capeVisible;
+    }
+
+    /**
+     * マントの揺れの基準(過去の位置)を、いまの位置に合わせる。
+     * マントは、「いまの位置」と「記録している過去の位置」の差で揺れる。NPCは、ティックされず、記録が原点のままなので、
+     * 差が大きくなって、マントが、おかしな角度で止まる。記録を、いまの位置にして、まっすぐ垂らす。
+     */
+    public void settleCape() {
+        for (String prefix : new String[] {"xCloak", "yCloak", "zCloak"}) {
+            double value = prefix.startsWith("x") ? getX() : prefix.startsWith("y") ? getY() : getZ();
+            EntityReflect.setDouble(this, prefix, value);
+            EntityReflect.setDouble(this, prefix + "O", value);
+        }
     }
 }

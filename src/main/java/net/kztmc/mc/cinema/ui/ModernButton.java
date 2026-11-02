@@ -85,6 +85,7 @@ public class ModernButton extends AbstractWidget {
 
     @Override
     public void playDownSound(net.minecraft.client.sounds.SoundManager manager) {
-        if (!silent) super.playDownSound(manager);
+        if (silent) return;
+        else UiSounds.click();
     }
 }

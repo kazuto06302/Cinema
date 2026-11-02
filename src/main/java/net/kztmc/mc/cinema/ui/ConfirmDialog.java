@@ -53,9 +53,12 @@ public final class ConfirmDialog {
         cancelButton = new ModernButton(x + pad + bw + lay.gap(), by, bw, lay.btnH(), "キャンセル",
                 ModernButton.Style.DEFAULT, this::close);
         open = true;
+        UiSounds.open();
     }
 
     private void confirm() {
+        UiSounds.deny();
+        UiSounds.chime();
         close();
         onConfirm.run();
     }

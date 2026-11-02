@@ -312,6 +312,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         if (hasRight) right.extractBackground(g);
         if (hasTuner) tuner.extractBackground(g);
         if (hasWorld) {
+            world.tick();
             world.extractBackground(g);
         }
         super.extractRenderState(g, mx, my, delta);

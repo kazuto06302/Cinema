@@ -12,11 +12,8 @@ import net.kztmc.mc.cinema.entity.EntityOption;
 import net.kztmc.mc.cinema.entity.EntityProfile;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.kztmc.mc.cinema.entity.EntityReflect;
-import net.kztmc.mc.cinema.npc.EntityTweaks;
+import net.kztmc.mc.cinema.npc.*;
 import net.kztmc.mc.cinema.entity.profile.AnimationModeProfile;
-import net.kztmc.mc.cinema.npc.NpcData;
-import net.kztmc.mc.cinema.npc.NpcManager;
-import net.kztmc.mc.cinema.npc.NpcPose;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -88,20 +85,22 @@ public final class RightPanel {
         w = lay.panelW() - lay.pad() * 2;
         int y = lay.panelY() + Theme.u(8);
 
-        // --- 最上段: [←] 名前 [削除]。← は、選択を外して、ワールド設定へ戻る ---
+        // --- 最上段: 名前(左)と、削除(右) ---
         String name = NpcNames.of(d);
-        int backW = Theme.u(24);
         int delW = Theme.u(44);
-        host.add(new ModernButton(x, y, backW, lay.btnH(), "←", ModernButton.Style.GHOST, () -> {
-            NpcManager.select(null);
-            host.refresh();
-        }));
-        int nameX = x + backW + lay.gap();
-        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - backW - delW - lay.gap() * 2), nameX,
+        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - lay.gap()), x,
                 y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
         UUID npcId = id;
         host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), "削除", ModernButton.Style.DANGER,
                 () -> host.confirmDelete(npcId)));
+
+        // ← (戻る): 右パネルの左の外に、独立したボタンとして出す。選択を外して、ワールド設定へ戻る
+        int backW = Theme.u(26);
+        host.add(new ModernButton(lay.rightX() - backW - lay.gap(), lay.panelY(), backW, lay.btnH() + Theme.u(4), "←",
+                ModernButton.Style.DEFAULT, () -> {
+            NpcManager.select(null);
+            host.refresh();
+        }));
         y += lay.btnH() + Theme.u(5);
 
         // --- タブ行(2:1、角丸なし) ---
@@ -162,6 +161,7 @@ public final class RightPanel {
     private int buildMain(NpcData d, int y) {
         y = sectionPosition(d, y);
         y = sectionSize(d, y);
+        y = sectionPlayerTexts(d, y);
         y = sectionOrientation(d, y);
         y = sectionStates(y);
         y = sectionPosture(d, y);
@@ -546,6 +546,7 @@ public final class RightPanel {
     private void say(String text) {
         status = text;
         statusUntil = System.currentTimeMillis() + 3000;
+        UiSounds.deny();
     }
 
     // ---- [DEV] 動作の長さの調整(AnimationState を使うモブ) ----
@@ -731,5 +732,53 @@ public final class RightPanel {
 
         statusY = y + Theme.u(2);
         return y + lay.th() + Theme.u(6);
+    }
+
+    // ---- プレイヤーのネームタグ・ケープの文字(プレイヤーだけ) ----
+
+    private int sectionPlayerTexts(NpcData d, int y) {
+        if (!NpcData.PLAYER.equals(d.kind())) return y;
+        int lh = lay.th() + Theme.u(3);
+
+        label("ネームタグ・ケープ", x, y, Theme.TEXT_DIM);
+        y += lh;
+
+        // 表示名(空欄: ユーザー名)
+        ModernTextField nameField = new ModernTextField(x, y, w, lay.btnH());
+        nameField.setHint("表示名(空欄 = ユーザー名)");
+        nameField.setMaxLength(48);
+        nameField.setValue(NpcTexts.get(id, NpcTexts.NAME_TAG));
+        nameField.setOnChange(s -> {
+            NpcTexts.set(id, NpcTexts.NAME_TAG, s);
+            edit(id, cur -> cur);   // 反映し直す
+        });
+        add(nameField);
+        y += lay.btnH() + lay.gap();
+
+        // BelowName(名前の下に出る文字)
+        ModernTextField belowField = new ModernTextField(x, y, w, lay.btnH());
+        belowField.setHint("BelowName(名前の下の文字)");
+        belowField.setMaxLength(48);
+        belowField.setValue(NpcTexts.get(id, NpcTexts.BELOW_NAME));
+        belowField.setOnChange(s -> {
+            NpcTexts.set(id, NpcTexts.BELOW_NAME, s);
+            edit(id, cur -> cur);
+        });
+        add(belowField);
+        y += lay.btnH() + lay.gap();
+
+        // ケープの持ち主(ユーザー名)。Enter で反映
+        ModernTextField capeField = new ModernTextField(x, y, w, lay.btnH());
+        capeField.setHint("ケープの持ち主(Enterで反映)");
+        capeField.setMaxLength(16);
+        capeField.setCharFilter(cp -> cp < 128 && (Character.isLetterOrDigit(cp) || cp == '_'));
+        capeField.setValue(NpcTexts.get(id, NpcTexts.CAPE_OWNER));
+        capeField.setOnEnter(s -> {
+            NpcTexts.set(id, NpcTexts.CAPE_OWNER, s.trim());
+            edit(id, cur -> cur);
+        });
+        add(capeField);
+        y += lay.btnH() + lay.gap();
+        return y;
     }
 }

@@ -57,8 +57,13 @@ public class ModernSlider extends AbstractWidget {
         int side = Theme.u(7);
         double t = (mouseX - (getX() + side)) / (double) (getWidth() - side * 2);
         t = Mth.clamp(t, 0.0, 1.0);
-        value = snap(min + (max - min) * t);
-        onChange.accept(value);
+        double newValue = snap(min + (max - min) * t);
+
+        if (newValue != value) {
+            value = newValue;
+            onChange.accept(value);
+            UiSounds.drag();
+        }
     }
 
     @Override
@@ -89,7 +94,13 @@ public class ModernSlider extends AbstractWidget {
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
         dragging = true;
+        double oldValue = value;
         setFromMouse(event.x());
+
+        if (value != oldValue) {
+            UiSounds.click();
+        }
+
         return true;
     }
 
@@ -111,8 +122,13 @@ public class ModernSlider extends AbstractWidget {
     @Override
     public boolean mouseScrolled(double mx, double my, double scrollX, double scrollY) {
         if (!active || !visible || !isMouseOver(mx, my) || scrollY == 0) return false;
+        double oldValue = value;
         value = snap(value + Math.signum(scrollY) * step);
-        onChange.accept(value);
+
+        if (value != oldValue) {
+            onChange.accept(value);
+            UiSounds.drag();
+        }
         return true;
     }
 

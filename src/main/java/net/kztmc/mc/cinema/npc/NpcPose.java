@@ -55,6 +55,10 @@ public enum NpcPose {
         EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 7, this == FALL_FLYING);
         if (e instanceof LivingEntity) {
             EntityReflect.setInt(e, "fallFlyTicks", this == FALL_FLYING ? 10 : 0);
+
+            float swim = this == SWIMMING ? 1f : 0f;
+            EntityReflect.setFloat(e, "swimAmount", swim);
+            EntityReflect.setFloat(e, "swimAmountO", swim);
         }
 
         // 座る(オオカミ・ネコ・オウムは setInSittingPose、キツネは setSitting)

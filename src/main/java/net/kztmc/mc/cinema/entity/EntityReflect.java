@@ -542,4 +542,16 @@ public final class EntityReflect {
             return null;
         }
     }
+
+    /** double フィールドへの書き込み(マントの位置の記録など) */
+    public static boolean setDouble(Object target, String name, double value) {
+        try {
+            field(target.getClass(), name, target.getClass().getName() + "#" + name).setDouble(target, value);
+            return true;
+        } catch (ReflectiveOperationException | RuntimeException ex) {
+            warnOnce(target.getClass().getName() + "#d:" + name, "[Cinema] could not write double '{}' on {}",
+                    name, target.getClass().getName());
+            return false;
+        }
+    }
 }
