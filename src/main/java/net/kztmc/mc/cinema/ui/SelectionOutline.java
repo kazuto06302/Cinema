@@ -338,6 +338,10 @@ public final class SelectionOutline {
         EntityRenderState state = renderer.createRenderState(e, 0.0f);   // NPCは、mixin で時刻が固定される
         PoseStack ps = new PoseStack();
         ps.translate(e.getX() - v.cx, e.getY() - v.cy, e.getZ() - v.cz);
+        // 描画のときの、位置のずれ(しゃがんだプレイヤーは、2/16ブロック下がる)。レンダラーが決める
+        if (EntityReflect.call(renderer, "getRenderOffset", state) instanceof Vec3 offset) {
+            ps.translate(offset.x, offset.y, offset.z);
+        }
 
         if (dragon) {
             if (!dragonTransform(state, ps)) return false;

@@ -9,15 +9,28 @@ Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
 
-今回はバグ修正4箇所に絞ります
-①
-NpcPlayer.getskin()未変更
-ModernListt未実装
-確認してどう実装したら良い？
-②
-WorldPanel
-関数名合わせたらこうなったけど、時間がうまくいかず、getGameTime()が違う？
-③
-tickの部分、テクスチャがうまく変わらない、停止自体は出来てる
-④
-シフトさせたときのアウトラインがズレてる（他は問題なし）
+NpcPlayer・RightPanel・ModernListの現状ファイルを添付
+どう実装したら良い？
+あとマントのやつ、名前でマント設定しても、スキンが標準だと変わらない問題を修正して
+
+あとまだテクスチャが変わってない、/cinema atlasの結果も添付します。
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.client.renderer.texture.TextureAtlas =====
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] TextureAtlas fields: [sprites(List), animatedTexturesStates(List), texturesByName(Map), missingSprite(TextureAtlasSprite), location(Identifier), maxSupportedTextureSize(int), width(int), height(int), maxMipLevel(int), mipLevelCount(int), mipViews(GpuTextureView[]), spriteUbos(GpuBuffer), spriteFinder(SpriteFinder)]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] TextureAtlas methods: [location/0, close/0, tick/0, upload/1, getHeight/0, getWidth/0, maxSupportedTextureSize/0, getSprite/1, dumpContents/2, releaseTextures/0, missingSprite/0, clearTextureData/0, uploadInitialContents/0, uploadAnimationFrames/0, dumpSpriteNames/3, spriteFinder/0, cycleAnimationFrames/0, createTexture/3, handler$zgc000$fabric-renderer-api-v1$uploadHook/2]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AbstractTexture fields: [texture(GpuTexture), textureView(GpuTextureView), sampler(GpuSampler)]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AbstractTexture methods: [close/0, getSampler/0, getTexture/0, releaseTextures/0, getTextureView/0]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] animation states: 56 (fixed = false)
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.client.renderer.texture.SpriteContents$AnimationState =====
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AnimationState fields: [frame(int), subFrame(int), animationInfo(AnimatedTexture), frameTexturesByIndex(Int2ObjectMap), spriteUbosByMip(GpuBufferSlice[]), isDirty(boolean)]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AnimationState methods: [close/0, tick/0, getDrawUbo/1, drawToAtlas/2, needsToDraw/0]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] ===== net.minecraft.client.renderer.texture.SpriteContents$AnimatedTexture =====
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AnimatedTexture fields: [frames(List), uniqueFrames(IntList), frameRowSize(int), interpolateFrames(boolean), this$0(SpriteContents)]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AnimatedTexture methods: [getUniqueFrames/0, getFrameY/1, getFrameX/1, createAnimationState/2]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] ===== it.unimi.dsi.fastutil.ints.Int2ObjectOpenHashMap =====
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] Int2ObjectOpenHashMap fields: [key(int[]), value(Object[]), mask(int), containsNullKey(boolean), n(int), maxFill(int), minN(int), size(int), f(float), entries(FastEntrySet), keys(IntSet), values(ObjectCollection)]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] Int2ObjectOpenHashMap methods: [remove/2, remove/1, size/0, get/1, put/2, values/0, hashCode/0, clone/0, insert/3, clear/0, isEmpty/0, replace/2, replace/3, trim/0, trim/1, merge/3, putAll/1, putIfAbsent/2, compute/2, find/1, readObject/1, writeObject/1, computeIfAbsent/2, computeIfAbsent/2, forEach/1, keySet/0, containsValue/1, containsKey/1, getOrDefault/2, computeIfPresent/2, rehash/1, ensureCapacity/1, realSize/0, checkTable/0, shiftKeys/1, int2ObjectEntrySet/0, tryCapacity/1, removeNullEntry/0, removeEntry/1]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AbstractInt2ObjectMap fields: []
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AbstractInt2ObjectMap methods: [equals/1, toString/0, values/0, hashCode/0, isEmpty/0, putAll/1, keySet/0, containsValue/1, containsKey/1]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AbstractInt2ObjectFunction fields: [defRetValue(Object)]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] AbstractInt2ObjectFunction methods: [defaultReturnValue/1, defaultReturnValue/0]
+[22:51:21] [Render thread/INFO] (cinema) [Cinema] frame times of the first state: [10, 10, 10, 10]

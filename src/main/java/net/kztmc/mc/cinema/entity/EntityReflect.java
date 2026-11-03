@@ -564,4 +564,27 @@ public final class EntityReflect {
             return false;
         }
     }
+
+    /** 診断用: 名前に、キーワードのどれかを含む、フィールドとメソッドだけを、ログに出す */
+    public static void dumpMatching(Object target, String... keywords) {
+        Cinema.LOGGER.info("[Cinema] ===== {} (matching {}) =====", target.getClass().getName(), List.of(keywords));
+        for (Class<?> c = target.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
+            List<String> found = new ArrayList<>();
+            for (Field f : c.getDeclaredFields()) {
+                if (matches(f.getName(), keywords)) found.add("field " + f.getName() + "(" + f.getType().getSimpleName() + ")");
+            }
+            for (Method m : c.getDeclaredMethods()) {
+                if (!m.isSynthetic() && matches(m.getName(), keywords)) found.add(m.getName() + "/" + m.getParameterCount());
+            }
+            if (!found.isEmpty()) Cinema.LOGGER.info("[Cinema] {}: {}", c.getSimpleName(), found);
+        }
+    }
+
+    private static boolean matches(String name, String[] keywords) {
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        for (String k : keywords) {
+            if (lower.contains(k.toLowerCase(java.util.Locale.ROOT))) return true;
+        }
+        return false;
+    }
 }

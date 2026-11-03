@@ -7,16 +7,14 @@ import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.npc.SceneFreeze;
-import net.kztmc.mc.cinema.ui.CinemaScreen;
-import net.kztmc.mc.cinema.ui.TextureAnimations;
-import net.kztmc.mc.cinema.ui.UiSounds;
-import net.kztmc.mc.cinema.ui.WorldRules;
+import net.kztmc.mc.cinema.ui.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
+import net.minecraft.server.MinecraftServer;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityType;
@@ -59,6 +57,11 @@ public final class CinemaCommands {
                         }))
                         .then(ClientCommands.literal("rules").executes(ctx -> {
                             WorldRules.dump();
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("clock").executes(ctx -> {
+                            MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
+                            if (server != null) WorldTime.dump(server);
                             return 1;
                         }))
                         .then(ClientCommands.literal("clear")

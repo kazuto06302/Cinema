@@ -80,17 +80,18 @@ public final class WorldRules {
     public static boolean isRunning(Rule rule) {
         MinecraftServer server = server();
         if (server == null) return true;
+        if (rule == Rule.TIME) {
+            Boolean paused = WorldTime.isPaused(server);
+            if (paused != null) return !paused;   // クロックの状態が読めれば、それを使う
+        }
         Object rules = rules(server);
         Object key = rules == null ? null : key(rules, rule);
         if (key == null) {
             warnOnce(rules);
             return true;
         }
-        // 新しい形: rules.get(rule)
         if (EntityReflect.call(rules, "get", key) instanceof Boolean value) return value;
-        // 古い形: rules.getBoolean(rule)
         if (EntityReflect.call(rules, "getBoolean", key) instanceof Boolean value) return value;
-        // 古い形: rules.getRule(rule).get()
         Object holder = EntityReflect.call(rules, "getRule", key);
         if (holder != null && EntityReflect.call(holder, "get") instanceof Boolean value) return value;
         return true;
@@ -100,15 +101,14 @@ public final class WorldRules {
         MinecraftServer server = server();
         if (server == null) return;
         server.execute(() -> {
+            if (rule == Rule.TIME && WorldTime.setPaused(server, !running)) return;
             Object rules = rules(server);
             Object key = rules == null ? null : key(rules, rule);
             if (key == null) {
                 warnOnce(rules);
                 return;
             }
-            // 新しい形: rules.set(rule, value, server)
             if (EntityReflect.invokeQuiet(rules, List.of("set"), key, running, server)) return;
-            // 古い形: rules.getRule(rule).set(value, server)
             Object holder = EntityReflect.call(rules, "getRule", key);
             if (holder != null) EntityReflect.invokeQuiet(holder, List.of("set"), running, server);
         });

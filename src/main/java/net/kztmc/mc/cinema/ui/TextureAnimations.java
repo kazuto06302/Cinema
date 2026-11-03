@@ -53,24 +53,30 @@ public final class TextureAnimations {
      * 再生tick(0〜20)で固定する。
      * @return 固定できたら true
      */
+    @SuppressWarnings("unchecked")
     public static boolean fix(int tick) {
         TextureAtlas atlas = blockAtlas();
         if (atlas == null) return false;
-        if (!(EntityReflect.getObjectQuiet(atlas, LIST_FIELD) instanceof List<?> live)) {
+        if (!(EntityReflect.getObjectQuiet(atlas, LIST_FIELD) instanceof List<?> liveList)) {
             Cinema.LOGGER.warn("[Cinema] texture atlas has no '{}' list. Run /cinema atlas and send the log", LIST_FIELD);
             return false;
         }
+        List<Object> live = (List<Object>) liveList;
         if (atlasKey != atlas) {   // リソースの再読み込みで、アトラスが別物になった
             atlasKey = atlas;
             original = List.of();
             fixed = false;
         }
-        // 固定中でなければ、いまの一覧が、元の一覧(固定中は、一覧が空なので、保存しておいたものを使う)
+        // 固定中は、一覧が空なので、保存しておいた元の一覧を使う
         if (!fixed) original = new ArrayList<>(live);
 
+        // 各状態を、目標の「1tick手前」の位置にする
         int done = 0;
         for (Object state : original) {
-            if (setState(state, tick)) done++;
+            List<Integer> times = frameTimes(state);
+            if (times.isEmpty()) continue;
+            int[] before = positionBefore(times, positionAt(times, tick));
+            if (writeInt(state, FRAME_FIELDS, before[0]) & writeInt(state, SUB_FRAME_FIELDS, before[1])) done++;
         }
         if (done == 0) {
             Cinema.LOGGER.warn("[Cinema] could not set any animation state ({} found). Run /cinema atlas and send the log",
@@ -78,8 +84,11 @@ public final class TextureAnimations {
             return false;
         }
 
-        // 画面へ送ってから、一覧を空にする(固定)
-        EntityReflect.call(atlas, "uploadAnimationFrames");
+        // 一覧へ戻して、ゲーム自身に、1tickだけ進めさせる(状態が目標へ進み、画面へ送る印が付く)。そのあと、一覧を空にする
+        live.clear();
+        live.addAll(original);
+        atlas.tick();
+        EntityReflect.call(atlas, "uploadAnimationFrames");   // tick の中で送られない版のため(送られていれば、何も起きない)
         freeze(atlas, live);
 
         fixed = true;
@@ -88,6 +97,24 @@ public final class TextureAnimations {
         return true;
     }
 
+    /** 再生tick の位置 {コマ番号, コマの中の経過} */
+    private static int[] positionAt(List<Integer> times, int tick) {
+        int total = times.stream().mapToInt(Integer::intValue).sum();
+        int t = Math.floorMod(tick, total);
+        int acc = 0;
+        for (int i = 0; i < times.size(); i++) {
+            if (t < acc + times.get(i)) return new int[] {i, t - acc};
+            acc += times.get(i);
+        }
+        return new int[] {0, 0};
+    }
+
+    /** その位置の、1tick手前の位置(1tick進めると、その位置になる) */
+    private static int[] positionBefore(List<Integer> times, int[] position) {
+        if (position[1] > 0) return new int[] {position[0], position[1] - 1};
+        int previous = Math.floorMod(position[0] - 1, times.size());
+        return new int[] {previous, times.get(previous) - 1};
+    }
     /** 固定を解く。元の一覧を戻す(固定した位置から、続きを進む) */
     @SuppressWarnings("unchecked")
     public static void release() {

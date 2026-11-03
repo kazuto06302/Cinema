@@ -118,7 +118,7 @@ public final class WorldPanel {
             clockY = y;   // 現在の時刻は、毎フレーム描く
             y += lay.th() + Theme.u(4);
             boolean overridden = shownTime >= 0 && System.currentTimeMillis() < shownTimeUntil;
-            int dayTime = overridden ? shownTime : (int) (level.getGameTime() % 24000L);
+            int dayTime = overridden ? shownTime : WorldTime.timeOfDay(level);
             host.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, dayTime, v -> {
                 if (!building) setTime((int) v);   // 画面を作り直している間の呼び出しは、無視する
             }));
@@ -235,13 +235,7 @@ public final class WorldPanel {
         shownTimeUntil = System.currentTimeMillis() + 2000;
         MinecraftServer server = server();
         if (server == null) return;
-        server.execute(() -> {
-            for (ServerLevel level : server.getAllLevels()) {
-                var clock = level.dimensionType().defaultClock();
-                if (clock.isEmpty()) continue;
-                server.clockManager().setTotalTicks(clock.get(), ticks);
-            }
-        });
+        server.execute(() -> WorldTime.set(server, ticks));
     }
 
     // ================= 描画 =================
@@ -255,7 +249,7 @@ public final class WorldPanel {
         // 現在の時刻(コマンドで変えても、ここで分かる)。0 tick = 6:00
         ClientLevel level = Minecraft.getInstance().level;
         if (level != null && hasServer) {
-            int ticks = (int) (level.getGameTime() % 24000L);
+            int ticks = WorldTime.timeOfDay(level);
             int hour = (ticks / 1000 + 6) % 24;
             int minute = (ticks % 1000) * 60 / 1000;
             Theme.text(g, host.font(), String.format("現在: %02d:%02d  (%d tick)", hour, minute, ticks),
