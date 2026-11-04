@@ -1,11 +1,13 @@
 package net.kztmc.mc.cinema.ui;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityReflect;
@@ -15,14 +17,13 @@ import net.minecraft.client.renderer.texture.TextureAtlas;
 
 /**
  * ブロックのテクスチャのアニメーション(炎・水・溶岩・ポータルなど)を、指定した再生tick(0〜20)で固定する。
- * ゲームのtickが進んでも、固定中は、表示が変わらない。
  *
- * 26.3 の TextureAtlas は、アニメーションの「状態」の一覧(animatedTexturesStates)を持ち、毎tick、
- * cycleAnimationFrames() で、状態を1コマ進め、uploadAnimationFrames() で、画面へ送っている。
- *   固定: 各状態の「いまのコマ」を、指定のtickの位置に書き換える → uploadAnimationFrames() で画面へ送る → 一覧を空にする
- *         (空なら、毎tickの処理は何も進めず、画面へ送った値が残る)
- *   解除: 元の一覧を戻す(状態は、固定した位置から、続きを進む)
- * 内部の名前が違うときは、ログに出して、何もしない(/cinema atlas で調べられる)。
+ * 26.3 の TextureAtlas は、アニメーションの「状態」の一覧(animatedTexturesStates)を持ち、毎tick進めて、画面へ送っている。
+ * この一覧は不変リストに差し替えられることがあるため、中身を操作せず、フィールドごと差し替える。
+ *   固定: 各状態の「いまのコマ」を、指定のtickの位置に書き換え、isDirty を立てる
+ *         → 一覧を戻して uploadAnimationFrames() で画面へ送る → 一覧を空にする
+ *   解除: 元の一覧を戻す(固定した位置から、続きを進む)
+ * 状態ごとの解析(コマの時間・書き込み先)は、1回だけ行って、キャッシュする。
  */
 public final class TextureAnimations {
     private TextureAnimations() {}
@@ -31,7 +32,13 @@ public final class TextureAnimations {
     private static final List<String> FRAME_FIELDS = List.of("frame", "currentFrame", "frameIndex");
     private static final List<String> SUB_FRAME_FIELDS = List.of("subFrame", "frameTicks", "ticks", "elapsed");
 
-    private static Object atlasKey;                  // 固定したアトラス(リソースの再読み込みで別物になったら、仕切り直す)
+    /** 状態1つの解析結果 */
+    private record Cached(List<Integer> times, Object frameOwner, Object subOwner) {}
+
+    private static final Map<Object, Cached> CACHE = new IdentityHashMap<>();
+    private static Method uploadMethod;
+
+    private static Object atlasKey;                     // 固定したアトラス(リソースの再読み込みで別物になったら、仕切り直す)
     private static List<Object> original = List.of();   // 固定する前の、状態の一覧
     private static boolean fixed;
     private static int fixedTick;
@@ -49,52 +56,100 @@ public final class TextureAnimations {
         return texture instanceof TextureAtlas atlas ? atlas : null;
     }
 
+    /** 一覧(フィールド)ごと差し替える */
+    private static void setList(TextureAtlas atlas, List<?> value) {
+        try {
+            Field f = TextureAtlas.class.getDeclaredField(LIST_FIELD);
+            f.setAccessible(true);
+            f.set(atlas, value);
+        } catch (Throwable t) {
+            Cinema.LOGGER.warn("[Cinema] could not set {}", LIST_FIELD, t);
+        }
+    }
+
+    private static Cached analyze(Object state) {
+        List<Integer> times = frameTimes(state);
+        Object frameOwner = findOwner(state, FRAME_FIELDS, 0, Collections.newSetFromMap(new IdentityHashMap<>()));
+        Object subOwner = findOwner(state, SUB_FRAME_FIELDS, 0, Collections.newSetFromMap(new IdentityHashMap<>()));
+        return new Cached(times, frameOwner, subOwner);
+    }
+
+    private static boolean writeTo(Object owner, List<String> names, int value) {
+        if (owner == null) return false;
+        for (String name : names) {
+            if (EntityReflect.setIntQuiet(owner, name, value)) return true;
+        }
+        return false;
+    }
+
     /**
-     * 再生tick(0〜20)で固定する。
+     * 再生tick(0〜20)で固定する。固定中に呼べば、そのtickへ動かす。
      * @return 固定できたら true
      */
-    @SuppressWarnings("unchecked")
     public static boolean fix(int tick) {
         TextureAtlas atlas = blockAtlas();
         if (atlas == null) return false;
-        if (!(EntityReflect.getObjectQuiet(atlas, LIST_FIELD) instanceof List<?> liveList)) {
-            Cinema.LOGGER.warn("[Cinema] texture atlas has no '{}' list. Run /cinema atlas and send the log", LIST_FIELD);
-            return false;
-        }
-        List<Object> live = (List<Object>) liveList;
         if (atlasKey != atlas) {   // リソースの再読み込みで、アトラスが別物になった
             atlasKey = atlas;
             original = List.of();
             fixed = false;
+            CACHE.clear();
         }
-        // 固定中は、一覧が空なので、保存しておいた元の一覧を使う
-        if (!fixed) original = new ArrayList<>(live);
-
-        // 各状態を、目標の「1tick手前」の位置にする
-        int done = 0;
-        for (Object state : original) {
-            List<Integer> times = frameTimes(state);
-            if (times.isEmpty()) continue;
-            int[] before = positionBefore(times, positionAt(times, tick));
-            if (writeInt(state, FRAME_FIELDS, before[0]) & writeInt(state, SUB_FRAME_FIELDS, before[1])) done++;
+        if (!fixed) {
+            if (!(EntityReflect.getObjectQuiet(atlas, LIST_FIELD) instanceof List<?> liveList)) {
+                Cinema.LOGGER.warn("[Cinema] texture atlas has no '{}' list. Run /cinema atlas and send the log", LIST_FIELD);
+                return false;
+            }
+            original = new ArrayList<Object>(liveList);   // 固定中は一覧が空なので、固定する前にだけ読む
         }
-        if (done == 0) {
-            Cinema.LOGGER.warn("[Cinema] could not set any animation state ({} found). Run /cinema atlas and send the log",
-                    original.size());
+        if (original.isEmpty()) {
+            Cinema.LOGGER.warn("[Cinema] no animation states found");
             return false;
         }
 
-        // 一覧へ戻して、ゲーム自身に、1tickだけ進めさせる(状態が目標へ進み、画面へ送る印が付く)。そのあと、一覧を空にする
-        live.clear();
-        live.addAll(original);
-        atlas.tick();
-        EntityReflect.call(atlas, "uploadAnimationFrames");   // tick の中で送られない版のため(送られていれば、何も起きない)
-        freeze(atlas, live);
+        // 各状態を、目標の位置にして、「描き直す」印を付ける
+        int done = 0;
+        for (Object state : original) {
+            Cached c = CACHE.computeIfAbsent(state, TextureAnimations::analyze);
+            if (c.times().isEmpty()) continue;
+            int[] at = positionAt(c.times(), tick);
+            if (writeTo(c.frameOwner(), FRAME_FIELDS, at[0]) & writeTo(c.subOwner(), SUB_FRAME_FIELDS, at[1])) {
+                EntityReflect.setBooleanFirst(state, true, "isDirty");
+                done++;
+            }
+        }
+        if (done == 0) {
+            Cinema.LOGGER.warn("[Cinema] could not set any animation state ({} found)", original.size());
+            return false;
+        }
 
+        // 一覧を元に戻して、アップロードを1回だけ走らせ、また空にする
+        setList(atlas, new ArrayList<>(original));
+        try {
+            if (uploadMethod == null) {
+                uploadMethod = TextureAtlas.class.getDeclaredMethod("uploadAnimationFrames");
+                uploadMethod.setAccessible(true);
+            }
+            uploadMethod.invoke(atlas);
+        } catch (Throwable t) {
+            Cinema.LOGGER.warn("[Cinema] uploadAnimationFrames failed", t);
+        } finally {
+            setList(atlas, List.of());
+        }
+
+        if (!fixed) Cinema.LOGGER.info("[Cinema] texture animation fixed at tick {}: {} of {} states", tick, done, original.size());
         fixed = true;
         fixedTick = tick;
-        Cinema.LOGGER.info("[Cinema] texture animation fixed at tick {}: {} of {} states", tick, done, original.size());
         return true;
+    }
+
+    /** 固定を解く。元の一覧を戻す(固定した位置から、続きを進む) */
+    public static void release() {
+        TextureAtlas atlas = blockAtlas();
+        if (atlas != null && atlas == atlasKey && fixed) {
+            setList(atlas, new ArrayList<>(original));
+        }
+        fixed = false;
     }
 
     /** 再生tick の位置 {コマ番号, コマの中の経過} */
@@ -109,69 +164,7 @@ public final class TextureAnimations {
         return new int[] {0, 0};
     }
 
-    /** その位置の、1tick手前の位置(1tick進めると、その位置になる) */
-    private static int[] positionBefore(List<Integer> times, int[] position) {
-        if (position[1] > 0) return new int[] {position[0], position[1] - 1};
-        int previous = Math.floorMod(position[0] - 1, times.size());
-        return new int[] {previous, times.get(previous) - 1};
-    }
-    /** 固定を解く。元の一覧を戻す(固定した位置から、続きを進む) */
-    @SuppressWarnings("unchecked")
-    public static void release() {
-        TextureAtlas atlas = blockAtlas();
-        if (atlas != null && atlas == atlasKey && fixed) {
-            Object live = EntityReflect.getObjectQuiet(atlas, LIST_FIELD);
-            try {
-                ((List<Object>) live).addAll(original);
-            } catch (RuntimeException ex) {   // 変更できない一覧のときは、差し替える
-                EntityReflect.setObject(atlas, LIST_FIELD, new ArrayList<>(original));
-            }
-        }
-        fixed = false;
-    }
-
-    private static void freeze(TextureAtlas atlas, List<?> live) {
-        try {
-            live.clear();
-        } catch (RuntimeException ex) {   // 変更できない一覧のときは、空の一覧に差し替える
-            EntityReflect.setObject(atlas, LIST_FIELD, new ArrayList<>());
-        }
-    }
-
-    // ================= 状態の書き換え =================
-
-    /** 状態を、再生tick の位置(コマ番号と、コマの中の経過)にする。フィールドが見つからなければ false */
-    private static boolean setState(Object state, int tick) {
-        List<Integer> times = frameTimes(state);
-        if (times.isEmpty()) return false;
-        int total = times.stream().mapToInt(Integer::intValue).sum();
-        int t = Math.floorMod(tick, total);
-
-        int frame = 0;
-        int sub = 0;
-        int acc = 0;
-        for (int i = 0; i < times.size(); i++) {
-            if (t < acc + times.get(i)) {
-                frame = i;
-                sub = t - acc;
-                break;
-            }
-            acc += times.get(i);
-        }
-        boolean a = writeInt(state, FRAME_FIELDS, frame);
-        boolean b = writeInt(state, SUB_FRAME_FIELDS, sub);
-        return a && b;
-    }
-
-    /** 状態の中から、名前の候補のどれかの int フィールドを持つオブジェクトを探して、書き込む */
-    private static boolean writeInt(Object state, List<String> names, int value) {
-        Object owner = findOwner(state, names, 0, Collections.newSetFromMap(new IdentityHashMap<>()));
-        if (owner == null) return false;
-        for (String name : names) {
-            if (EntityReflect.setIntQuiet(owner, name, value)) return true;
-        }
-        return false;
-    }
+    // ================= 状態の探索(解析時に1回だけ) =================
 
     private static Object findOwner(Object o, List<String> names, int depth, Set<Object> seen) {
         if (o == null || depth > 3 || !seen.add(o)) return null;
@@ -217,8 +210,6 @@ public final class TextureAnimations {
         return out;
     }
 
-    // ================= コマごとの時間 =================
-
     /** 状態の中から、コマの一覧(frames)を探して、コマごとの時間(time)を返す。見つからなければ空 */
     private static List<Integer> frameTimes(Object state) {
         return findFrames(state, 0, Collections.newSetFromMap(new IdentityHashMap<>()));
@@ -253,7 +244,7 @@ public final class TextureAnimations {
 
     // ================= 診断 =================
 
-    /** /cinema atlas: アトラスと、動きの状態の内部構造を、ログに出す(名前が違うときの調査用) */
+    /** /cinema atlas: アトラスと、動きの状態の内部構造を、ログに出す */
     public static void dump() {
         TextureAtlas atlas = blockAtlas();
         if (atlas == null) {

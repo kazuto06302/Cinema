@@ -10,6 +10,7 @@
   ],
   "client": [
     "EntityRendererMixin",
+    "LevelRendererSelectionMixin",
     "MultiPlayerGameModeMixin"
   ],
   "injectors": {

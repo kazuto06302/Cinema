@@ -10,10 +10,10 @@ import net.minecraft.server.level.ServerLevel;
 
 /**
  * ワールド設定。NPCが選択されていないときの、右パネル。
- *   天気          : シングルプレイの統合サーバーを、直接操作する(コマンドは使わない)。コマンドで変えても、表示が追従する
+ *   天気          : シングルプレイの統合サーバーを、直接操作する。コマンドで変えても、表示が追従する
  *   時間          : 同上。現在の時刻は、毎フレーム、表示する
- *   時間・天候の進み: 止める/進める(ゲームルール)
- *   テクスチャのアニメーション: 炎・水・溶岩・ポータルなどの再生tick(0〜20)を指定して、固定する(クライアントだけの機能)
+ *   時間・天候の進み: ゲームルール(時間は、クロックの停止も一緒)。コマンドで変えても、追従する
+ *   テクスチャのアニメーション: 再生tick(0〜20)で固定する(クライアントだけ。設定は保存する)
  */
 public final class WorldPanel {
     private record Label(String text, int x, int y, int color) {}
@@ -21,10 +21,7 @@ public final class WorldPanel {
     /** 天気を変えたときの、その天気が続く長さ(tick)。ゲームのコマンドと同じ、5分 */
     private static final int WEATHER_TICKS = 6000;
 
-    /** スライダーを動かしてから、固定をやり直すまで待つ時間(ms) */
-    private static final long DEBOUNCE_MS = 300;
-
-    /** 天気のボタンを押してから、押した天気を先に表示しておく時間(ms)。サーバーの状態が、追いつくまで */
+    /** 天気のボタンを押してから、押した天気を先に表示しておく時間(ms) */
     private static final long PENDING_WEATHER_MS = 1500;
 
     /** ゲームルールを、読み直す間隔(ms) */
@@ -33,9 +30,6 @@ public final class WorldPanel {
     /** 自分が設定した時刻。クライアントの時刻は、サーバーから約1秒おきにしか届かず遅れているので、しばらくは、これを表示する */
     private static int shownTime = -1;
     private static long shownTimeUntil;
-
-    /** テクスチャのアニメーションの再生tick(画面を開き直しても保持する) */
-    private static int animationTick;
 
     private final List<Label> labels = new ArrayList<>();
     private final ModernButton[] weatherButtons = new ModernButton[3];
@@ -46,8 +40,6 @@ public final class WorldPanel {
     private boolean building;   // 画面を作っている間は、スライダーなどのコールバックを、無視する
     private boolean hasServer;
     private int clockX, clockY;
-    private int pendingTick = -1;
-    private long pendingAt;
     private int pendingWeather = -1;
     private long pendingWeatherAt;
     private long lastPoll;
@@ -120,7 +112,7 @@ public final class WorldPanel {
             boolean overridden = shownTime >= 0 && System.currentTimeMillis() < shownTimeUntil;
             int dayTime = overridden ? shownTime : WorldTime.timeOfDay(level);
             host.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, dayTime, v -> {
-                if (!building) setTime((int) v);   // 画面を作り直している間の呼び出しは、無視する
+                if (!building) setTime((int) v);
             }));
             y += sh;
             String[] presetNames = {"朝", "昼", "夕", "夜"};
@@ -136,7 +128,7 @@ public final class WorldPanel {
             }
             y += lay.btnH() + gap;
 
-            // --- 時間・天候の進み ---
+            // --- 時間・天候の進み(ゲームルールの実際の値から作る) ---
             timeStopBox = host.add(new ModernCheckbox(x, y, w, sh, "時間の進みを止める",
                     !WorldRules.isRunning(WorldRules.Rule.TIME), on -> {
                 if (!building) WorldRules.setRunning(WorldRules.Rule.TIME, !on);
@@ -155,40 +147,37 @@ public final class WorldPanel {
         labels.add(new Label(Theme.fit(host.font(), "炎・水・溶岩・ポータルなどを、指定のtickで止める", w), x, y, Theme.TEXT_DIM));
         y += lay.th() + Theme.u(4);
         host.add(new ModernSlider(x, y, w, sh, "再生tick", "tick", 0, 20, 1,
-                TextureAnimations.isFixed() ? TextureAnimations.fixedTick() : animationTick, v -> {
-            animationTick = (int) v;
-            if (!building && TextureAnimations.isFixed()) {   // 固定中は、スライダーが止まってから、固定し直す
-                pendingTick = animationTick;
-                pendingAt = System.currentTimeMillis();
-            }
+                TextureAnimations.isFixed() ? TextureAnimations.fixedTick() : WorldSettings.textureTick, v -> {
+            if (building) return;
+            int tick = (int) v;
+            if (tick == WorldSettings.textureTick && TextureAnimations.isFixed()) return;
+            WorldSettings.textureTick = tick;
+            if (TextureAnimations.isFixed()) TextureAnimations.fix(tick);   // 固定中は、すぐ反映
+            WorldSettings.save();
         }));
         y += sh;
         host.add(new ModernCheckbox(x, y, w, sh, "このtickで固定する", TextureAnimations.isFixed(), on -> {
             if (building) return;
-            if (on) TextureAnimations.fix(animationTick);
+            if (on) TextureAnimations.fix(WorldSettings.textureTick);
             else TextureAnimations.release();
+            WorldSettings.textureFixed = on;
+            WorldSettings.save();
         }));
     }
 
     // ================= 毎フレームの更新(コマンドなどで、外から変わったものに追従する) =================
 
     public void tick() {
-        long now = System.currentTimeMillis();
-
-        if (pendingTick >= 0 && now - pendingAt >= DEBOUNCE_MS) {
-            TextureAnimations.fix(pendingTick);
-            pendingTick = -1;
-        }
-
         if (!hasServer) return;
         updateWeatherButtons();
 
-        // ゲームルールは、読むのに少し手間がかかるので、間隔をあけて読む
-        if (now - lastPoll >= RULE_POLL_MS) {
-            lastPoll = now;
-            if (timeStopBox != null) timeStopBox.setChecked(!WorldRules.isRunning(WorldRules.Rule.TIME));
-            if (weatherStopBox != null) weatherStopBox.setChecked(!WorldRules.isRunning(WorldRules.Rule.WEATHER));
-        }
+        long now = System.currentTimeMillis();
+        if (now - lastPoll < RULE_POLL_MS) return;
+        lastPoll = now;
+
+        WorldRules.sync();   // 時間: ゲームルールとクロックを、そろえる
+        if (timeStopBox != null) timeStopBox.setChecked(!WorldRules.isRunning(WorldRules.Rule.TIME));
+        if (weatherStopBox != null) weatherStopBox.setChecked(!WorldRules.isRunning(WorldRules.Rule.WEATHER));
     }
 
     /** 天気のボタンの選択を、いまの天気に合わせる。押した直後は、押した天気を、先に出す */
@@ -202,10 +191,7 @@ public final class WorldPanel {
         for (int i = 0; i < 3; i++) weatherButtons[i].setSelected(shown == i);
     }
 
-    /**
-     * いまの天気(0 晴れ / 1 雨 / 2 雷雨)。
-     * サーバーの天気の状態を見る。クライアントの雨の量は、天気が変わってから、ゆっくり増減するので、使わない。
-     */
+    /** いまの天気(0 晴れ / 1 雨 / 2 雷雨)。サーバーの天気の状態を見る */
     private static int currentWeather(ClientLevel level) {
         MinecraftServer server = server();
         if (server != null) {
@@ -221,7 +207,7 @@ public final class WorldPanel {
         MinecraftServer server = server();
         if (server == null) return;
         server.execute(() -> {
-            ServerLevel level = server.overworld();   // 天気は、オーバーワールドが持つ
+            ServerLevel level = server.overworld();
             switch (mode) {
                 case 0 -> level.getServer().setWeatherParameters(WEATHER_TICKS, 0, false, false);
                 case 1 -> level.getServer().setWeatherParameters(0, WEATHER_TICKS, true, false);

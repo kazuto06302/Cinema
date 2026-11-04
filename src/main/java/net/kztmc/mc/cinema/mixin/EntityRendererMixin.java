@@ -2,6 +2,7 @@ package net.kztmc.mc.cinema.mixin;
 
 import net.kztmc.mc.cinema.npc.EntityTweaks;
 import net.kztmc.mc.cinema.npc.SceneFreeze;
+import net.kztmc.mc.cinema.ui.SelectionOutline;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;
@@ -32,6 +33,10 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
             float pinned = SceneFreeze.partialTickOf(entity);
             S state = self.createRenderState(entity, pinned);
             EntityTweaks.adjustRenderState(entity, state, pinned);   // プロフィールが描画状態を書き換えられる
+            if (SelectionOutline.isSelected(entity)) {
+                state.outlineColor = 0;   // バニラの発光には入れない
+                SelectionOutline.collect(state);
+            }
             cir.setReturnValue(state);
         } finally {
             cinema$pinning = false;

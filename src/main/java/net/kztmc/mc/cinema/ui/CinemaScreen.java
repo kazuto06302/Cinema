@@ -301,12 +301,12 @@ public class CinemaScreen extends Screen implements PanelHost {
         int mx = modal ? -1 : mouseX;
         int my = modal ? -1 : mouseY;
 
-        // 選択中のNPCの輪郭(パネルより下に描く)
-        UUID selected = NpcManager.selectedId();
-        Entity selectedEntity = selected == null ? null : NpcManager.entityOf(selected);
-        if (selectedEntity != null) {
-            SelectionOutline.draw(g, selectedEntity);
-        }
+//        // 選択中のNPCの輪郭(パネルより下に描く)
+//        UUID selected = NpcManager.selectedId();
+//        Entity selectedEntity = selected == null ? null : NpcManager.entityOf(selected);
+//        if (selectedEntity != null) {
+//            SelectionOutline.draw(g, selectedEntity);
+//        }
 
         left.extractBackground(g);
         if (hasRight) right.extractBackground(g);

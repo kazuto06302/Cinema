@@ -111,7 +111,7 @@ public final class CapeLibrary {
             } catch (ClassNotFoundException ignored) {
                 // 次のクラス名へ
             } catch (ReflectiveOperationException ex) {
-                Cinema.LOGGER.warn("[Cinema] could not create a ClientAsset", ex);
+                Cinema.LOGGER.warn("[Cinema] could not create selection_outline.json ClientAsset", ex);
             }
         }
         Cinema.LOGGER.warn("[Cinema] ClientAsset$ResourceTexture was not found");

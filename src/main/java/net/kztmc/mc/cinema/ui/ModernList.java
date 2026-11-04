@@ -99,9 +99,15 @@ public class ModernList<T> extends AbstractWidget {
 
             String subText = sub == null ? "" : sub.apply(item);
             int subW = subText.isEmpty() ? 0 : Theme.textWidth(font, subText) + Theme.u(6);
-            String main = Theme.fit(font, label.apply(item), textRight - (x + padL) - subW);
+            int textX = x + padL;
+            if (icon != null) {
+                int size = rowH - Theme.u(4);
+                icon.paint(g, item, textX - Theme.u(3), ry + (rowH - size) / 2, size);
+                textX += size + Theme.u(3);
+            }
+            String main = Theme.fit(font, label.apply(item), textRight - textX - subW);
             int ty = ry + (rowH - th) / 2;
-            Theme.text(g, font, main, x + padL, ty, sel ? 0xFFFFFFFF : Theme.TEXT);
+            Theme.text(g, font, main, textX, ty, sel ? 0xFFFFFFFF : Theme.TEXT);
             if (!subText.isEmpty()) {
                 Theme.textRight(g, font, subText, textRight, ty, Theme.TEXT_DIM);
             }

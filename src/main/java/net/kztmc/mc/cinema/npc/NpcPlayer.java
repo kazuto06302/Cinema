@@ -24,7 +24,7 @@ public class NpcPlayer extends RemotePlayer {
 
     // getSkin は毎フレーム呼ばれるので、作り直した結果を使い回す
     private PlayerSkin lastBase;
-    private String lastModel;
+    private PlayerModelType lastType;
     private Texture lastCape;
     private PlayerSkin lastResult;
 
@@ -48,31 +48,27 @@ public class NpcPlayer extends RemotePlayer {
         PlayerSkin base = skin.get();
         PlayerSkin owner = capeSource == null ? null : capeSource.get();
 
-        if (owner == null || modelName == null) return base;
+        // ケープ: 1. 画像ファイル  2. 持ち主のケープ(取得できたら)  3. 自分のスキンのケープ
+        Texture cape;
+        if (capeFileAsset instanceof Texture file) cape = file;
+        else if (owner != null && owner.cape() != null) cape = owner.cape();
+        else cape = base.cape();
 
-        PlayerModelType type = "slim".equals(modelName)
-                ? PlayerModelType.SLIM
-                : PlayerModelType.WIDE;
+        // モデル(腕の太さ): 指定がなければ、スキンの自動判定のまま
+        PlayerModelType type = modelName == null ? base.model()
+                : "slim".equals(modelName) ? PlayerModelType.SLIM : PlayerModelType.WIDE;
 
-        if (base == lastBase
-                && modelName.equals(lastModel)
-                && Objects.equals(owner.cape(), lastCape)) {
-            return lastResult;
-        }
+        // 何も変えないなら、元のスキンをそのまま返す
+        if (type == base.model() && Objects.equals(cape, base.cape())) return base;
 
-        boolean sameModel = base.model() == type;
-        boolean sameCape = Objects.equals(base.cape(), owner.cape());
-
-        PlayerSkin result = sameModel && sameCape ? base
-                : new PlayerSkin(base.body(), owner.cape(), base.elytra(), type, base.secure()
-        );
+        // 毎フレーム呼ばれるので、同じ条件なら前回の結果を使い回す
+        if (base == lastBase && type == lastType && Objects.equals(cape, lastCape)) return lastResult;
 
         lastBase = base;
-        lastModel = modelName;
-        lastCape = owner.cape();
-        lastResult = result;
-
-        return result;
+        lastType = type;
+        lastCape = cape;
+        lastResult = new PlayerSkin(base.body(), cape, base.elytra(), type, base.secure());
+        return lastResult;
     }
 
     public void setShowName(boolean showName) {

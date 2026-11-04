@@ -2,137 +2,128 @@ package net.kztmc.mc.cinema.ui;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.util.EnumMap;
-import java.util.List;
-import java.util.Map;
-import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityReflect;
-import net.minecraft.client.Minecraft;
 import net.minecraft.server.MinecraftServer;
+import net.minecraft.client.Minecraft;
 
 /**
- * 時間・天候の「進み」(ゲームルール)。シングルプレイの統合サーバーを、直接操作する(コマンドは使わない)。
- *   TIME    : advance_time    (旧: doDaylightCycle)
- *   WEATHER : advance_weather (旧: doWeatherCycle)
- * ゲームルールの形は、バージョンで違うので、ルールの定数を名前で探して、新しい形(rules.get / rules.set)と、
- * 古い形(rules.getBoolean / rules.getRule(...).set)の両方を試す。見つからなければ、ログに出して、何もしない。
+ * 時間・天候の「進み」。保存先はゲームルール(ワールドに保存される)。
+ *   時間: ゲームルールと、ワールドクロックの一時停止を、いつも同じ値にそろえる
+ *   天候: ゲームルールのみ
+ * コマンドで、どちらかが変わったら、sync() が、もう一方を合わせる。
  */
 public final class WorldRules {
     private WorldRules() {}
 
     public enum Rule {
-        TIME("ADVANCE_TIME", "RULE_DAYLIGHT", "DAYLIGHT_CYCLE"),
-        WEATHER("ADVANCE_WEATHER", "RULE_WEATHER_CYCLE", "WEATHER_CYCLE");
+        TIME("ADVANCE_TIME", "DO_DAYLIGHT_CYCLE"),
+        WEATHER("ADVANCE_WEATHER", "DO_WEATHER_CYCLE");
 
-        final String[] names;
+        final String[] fieldNames;
 
-        Rule(String... names) {
-            this.names = names;
+        Rule(String... fieldNames) {
+            this.fieldNames = fieldNames;
         }
     }
 
-    private static final Map<Rule, Object> KEYS = new EnumMap<>(Rule.class);
-    private static boolean warned;
+    // 前回の sync で見えていた状態(外から変わったかを調べる)
+    private static Boolean lastRule;
+    private static Boolean lastPaused;
 
     private static MinecraftServer server() {
         return Minecraft.getInstance().getSingleplayerServer();
     }
 
-    private static Object rules(MinecraftServer server) {
-        Object rules = EntityReflect.call(server, "getGameRules");
-        if (rules == null) rules = EntityReflect.call(server.overworld(), "getGameRules");
-        return rules;
-    }
-
-    /** ルールの定数(ゲームルールのクラスの static フィールド)を、名前で探す */
-    private static Object key(Object rules, Rule rule) {
-        Object cached = KEYS.get(rule);
-        if (cached != null) return cached;
+    /** ゲームルールの定義(static フィールド)を、名前の候補から探す */
+    private static Object ruleKey(Object rules, Rule rule) {
         for (Class<?> c = rules.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-            for (Field f : c.getDeclaredFields()) {
-                if (!Modifier.isStatic(f.getModifiers())) continue;
-                for (String name : rule.names) {
-                    if (!f.getName().equals(name)) continue;
-                    try {
-                        f.setAccessible(true);
-                        Object value = f.get(null);
-                        if (value != null) {
-                            KEYS.put(rule, value);
-                            return value;
-                        }
-                    } catch (ReflectiveOperationException | RuntimeException ignored) {
-                        // 次の候補へ
-                    }
+            for (String name : rule.fieldNames) {
+                try {
+                    Field f = c.getDeclaredField(name);
+                    if (!Modifier.isStatic(f.getModifiers())) continue;
+                    f.setAccessible(true);
+                    return f.get(null);
+                } catch (ReflectiveOperationException | RuntimeException ignored) {
+                    // 次の候補へ
                 }
             }
         }
         return null;
     }
 
-    private static void warnOnce(Object rules) {
-        if (warned) return;
-        warned = true;
-        Cinema.LOGGER.warn("[Cinema] game rule constants were not found on {}. Run /cinema rules and send the log",
-                rules == null ? "null" : rules.getClass().getName());
+    /** ゲームルールの値(進んでいるか)。読めなければ true */
+    private static boolean readRule(MinecraftServer server, Rule rule) {
+        Object rules = EntityReflect.call(server, "getGameRules");
+        if (rules == null) return true;
+        Object key = ruleKey(rules, rule);
+        if (key == null) return true;
+        return !(EntityReflect.call(rules, "get", key) instanceof Boolean b) || b;
     }
 
-    /** 進んでいるか(止めていなければ true)。読めないときも true */
+    /** サーバーのスレッドで呼ぶこと */
+    private static void writeRule(MinecraftServer server, Rule rule, boolean running) {
+        Object rules = EntityReflect.call(server, "getGameRules");
+        if (rules == null) return;
+        Object key = ruleKey(rules, rule);
+        if (key == null) return;
+        EntityReflect.call(rules, "set", key, running, server);
+    }
+
+    /** 進んでいるか。表示用 */
     public static boolean isRunning(Rule rule) {
         MinecraftServer server = server();
-        if (server == null) return true;
-        if (rule == Rule.TIME) {
-            Boolean paused = WorldTime.isPaused(server);
-            if (paused != null) return !paused;   // クロックの状態が読めれば、それを使う
-        }
-        Object rules = rules(server);
-        Object key = rules == null ? null : key(rules, rule);
-        if (key == null) {
-            warnOnce(rules);
-            return true;
-        }
-        if (EntityReflect.call(rules, "get", key) instanceof Boolean value) return value;
-        if (EntityReflect.call(rules, "getBoolean", key) instanceof Boolean value) return value;
-        Object holder = EntityReflect.call(rules, "getRule", key);
-        if (holder != null && EntityReflect.call(holder, "get") instanceof Boolean value) return value;
-        return true;
+        return server == null || readRule(server, rule);
     }
 
+    /** 止める/進める。時間は、ゲームルールとクロックを同時に変える */
     public static void setRunning(Rule rule, boolean running) {
         MinecraftServer server = server();
         if (server == null) return;
+        if (rule == Rule.TIME) {
+            lastRule = running;
+            lastPaused = !running;
+        }
         server.execute(() -> {
-            if (rule == Rule.TIME && WorldTime.setPaused(server, !running)) return;
-            Object rules = rules(server);
-            Object key = rules == null ? null : key(rules, rule);
-            if (key == null) {
-                warnOnce(rules);
-                return;
-            }
-            if (EntityReflect.invokeQuiet(rules, List.of("set"), key, running, server)) return;
-            Object holder = EntityReflect.call(rules, "getRule", key);
-            if (holder != null) EntityReflect.invokeQuiet(holder, List.of("set"), running, server);
+            writeRule(server, rule, running);
+            if (rule == Rule.TIME) WorldTime.setPaused(server, !running);
         });
     }
 
-    /** /cinema rules: ゲームルールのクラスの構造を、ログに出す(名前が違うときの調査用) */
-    public static void dump() {
+    /**
+     * 時間の、ゲームルールとクロックを、そろえる(毎フレーム呼んでよい。軽い)。
+     *   ゲームルールが変わった → クロックを合わせる
+     *   クロックが変わった(/time pause など) → ゲームルールを合わせる
+     */
+    public static void sync() {
         MinecraftServer server = server();
         if (server == null) {
-            Cinema.LOGGER.info("[Cinema] no integrated server");
+            lastRule = null;
+            lastPaused = null;
             return;
         }
-        Object rules = rules(server);
-        if (rules == null) {
-            Cinema.LOGGER.info("[Cinema] getGameRules was not found on the server");
+        boolean rule = readRule(server, Rule.TIME);
+        Boolean paused = WorldTime.isPaused(server);
+        if (paused == null) {   // クロックが読めないなら、ゲームルールだけ
+            lastRule = rule;
             return;
         }
-        EntityReflect.dumpObject(rules);
-        for (Class<?> c = rules.getClass(); c != null && c != Object.class; c = c.getSuperclass()) {
-            StringBuilder names = new StringBuilder();
-            for (Field f : c.getDeclaredFields()) {
-                if (Modifier.isStatic(f.getModifiers())) names.append(f.getName()).append(' ');
-            }
-            Cinema.LOGGER.info("[Cinema] {} static fields: {}", c.getSimpleName(), names);
+
+        if (lastRule == null || lastPaused == null) {   // 最初は、ゲームルールを正とする
+            if (paused == rule) server.execute(() -> WorldTime.setPaused(server, !rule));
+            lastRule = rule;
+            lastPaused = !rule;
+            return;
+        }
+
+        if (rule != lastRule) {   // ゲームルールが変わった
+            server.execute(() -> WorldTime.setPaused(server, !rule));
+            lastRule = rule;
+            lastPaused = !rule;
+        } else if (paused != lastPaused) {   // クロックが変わった
+            boolean running = !paused;
+            server.execute(() -> writeRule(server, Rule.TIME, running));
+            lastRule = running;
+            lastPaused = paused;
         }
     }
 }

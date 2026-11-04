@@ -55,10 +55,6 @@ public final class CinemaCommands {
                             TextureAnimations.dump();
                             return 1;
                         }))
-                        .then(ClientCommands.literal("rules").executes(ctx -> {
-                            WorldRules.dump();
-                            return 1;
-                        }))
                         .then(ClientCommands.literal("clock").executes(ctx -> {
                             MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
                             if (server != null) WorldTime.dump(server);

@@ -116,6 +116,7 @@ public final class LeftPanel {
                     NpcManager.select(d.id().equals(NpcManager.selectedId()) ? null : d.id());
                     host.refresh();
                 });
+        npcList.setIcon((g, d, ix, iy, size) -> NpcFaces.paint(g, d, ix, iy, size));
         npcList.setItems(NpcManager.defs());
         npcList.setScroll(npcScroll);
         host.add(npcList);
