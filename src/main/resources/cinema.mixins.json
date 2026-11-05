@@ -6,10 +6,12 @@
   "mixins": [
     "DragonPickMixin",
     "EntityCollisionMixin",
+    "LevelWeatherMixin",
     "LocalPlayerInfiniteMixin",
     "TickRateManagerMixin"
   ],
   "client": [
+    "ClientClockInstanceMixin",
     "CreativeScreenMixin",
     "EntityRendererMixin",
     "LevelRendererSelectionMixin",

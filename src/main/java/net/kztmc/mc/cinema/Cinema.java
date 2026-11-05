@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.CinemaHud;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
+import net.kztmc.mc.cinema.ui.ClientOverrides;
 import net.kztmc.mc.cinema.ui.WorldSettings;
 import net.minecraft.client.multiplayer.ClientLevel;
 import org.slf4j.Logger;
@@ -33,7 +34,7 @@ public class Cinema implements ClientModInitializer {
         net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents
                 .modifyOutputEvent(net.minecraft.world.item.CreativeModeTabs.TOOLS_AND_UTILITIES)
                 .register(entries -> entries.accept(CinemaWand.create()));
-        CinemaWand.init();
+        //CinemaWand.init();
         //log
         LOGGER.info("Cinema initialized");
     }

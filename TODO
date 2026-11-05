@@ -7,47 +7,24 @@ Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
 
-
-### 1. ClickType → ContainerInput
-26.3 Mojmapでは `ClickType` を `ContainerInput` に変更。
-
-### 2. MultiPlayerGameMode
-- `handleInventoryMouseClick` → `handleContainerInput`
-- 引数の `ClickType` → `ContainerInput`
-- `hasInfiniteItems()` は26.3では存在しない。
-- `GameModeInfiniteMixin` は削除。
-- `Player#hasInfiniteMaterials()` を無条件に変更する方法も採用しない。
-
-### 3. CreativeScreenMixin
-`CreativeModeInventoryScreen#containerTick()` をMixinで制御し、Cinemaの画面だけバニラの処理を停止する。
-
-```java
-@Mixin(CreativeModeInventoryScreen.class)
-public abstract class CreativeScreenMixin {
-
-    @Inject(
-        method = "containerTick",
-        at = @At("HEAD"),
-        cancellable = true
-    )
-    private void cinema$preventInventorySwitch(CallbackInfo ci) {
-        if ((Object) this instanceof CinemaCreativeScreen) {
-            ci.cancel();
-        }
-    }
-}
-```
-
-**最終構成**
-- `GameModeInfiniteMixin`：削除
-- `LocalPlayerInfiniteMixin`：削除
-- `CreativeScreenMixin`：追加
-- `CinemaCreativeScreen`：基本変更なし
-
-という変更を実装しました。
-
-また、サーバー内で動作するように、時間・天候についてもクライアント側でオーバーライドどいう形に変更しましょう
-時間を停止するのではなく、時間を上書きするというチェックボックスに変更しましょう。
-チェックボックスに印を入れてからスライダーで時間を調節するようにしましょう
-ゲームルール、ワールド内の時間は変更しないようにします。
-これを天候についても同様に実装しましょう。
+## 1
+CinemaWand.init();を登録すると、Missing blockmodel item/wandって出て途中で落ちちゃう
+ちゃんとテクスチャも入れないと動作しなかったりする？
+## 2
+雨のテクスチャもtickでいじれるようにしましょう
+## 3
+あとworldpanelに以下の項目を追加しましょう
+・スコアボード
+・アクションバー
+・タイトルテキスト
+・ボスバー
+・チャット
+・ブロック
+・エンティティ（npc/プレイヤー以外の）
+・パーティクル
+・ネームタグ
+・プレイヤー
+・ビーコンのビーム
+をレンダーするかどうか
+項目が多いのでパネル内にボタンを設置、そこから前の装備の装飾画面のような画面で切替式のボタンで（最初は全部オン）
+「選択した項目を描画する」をタイトルに画面を作ろうか

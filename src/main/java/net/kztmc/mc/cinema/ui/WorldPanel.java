@@ -5,49 +5,20 @@ import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.multiplayer.ClientLevel;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.server.level.ServerLevel;
 
 /**
  * ワールド設定。NPCが選択されていないときの、右パネル。
- *   天気          : シングルプレイの統合サーバーを、直接操作する。コマンドで変えても、表示が追従する
- *   時間          : 同上。現在の時刻は、毎フレーム、表示する
- *   時間・天候の進み: ゲームルール(時間は、クロックの停止も一緒)。コマンドで変えても、追従する
- *   テクスチャのアニメーション: 再生tick(0〜20)で固定する(クライアントだけ。設定は保存する)
+ *   時間・天候: クライアント側の上書き(サーバー・ゲームルールには触れない。どのサーバーでも使える)
+ *   テクスチャのアニメーション: 再生tickで固定(設定は保存する)
  */
 public final class WorldPanel {
     private record Label(String text, int x, int y, int color) {}
 
-    /** 天気を変えたときの、その天気が続く長さ(tick)。ゲームのコマンドと同じ、5分 */
-    private static final int WEATHER_TICKS = 6000;
-
-    /** 天気のボタンを押してから、押した天気を先に表示しておく時間(ms) */
-    private static final long PENDING_WEATHER_MS = 1500;
-
-    /** ゲームルールを、読み直す間隔(ms) */
-    private static final long RULE_POLL_MS = 250;
-
-    /** 自分が設定した時刻。クライアントの時刻は、サーバーから約1秒おきにしか届かず遅れているので、しばらくは、これを表示する */
-    private static int shownTime = -1;
-    private static long shownTimeUntil;
-
     private final List<Label> labels = new ArrayList<>();
-    private final ModernButton[] weatherButtons = new ModernButton[3];
-    private ModernCheckbox timeStopBox;
-    private ModernCheckbox weatherStopBox;
     private Layout lay;
     private PanelHost host;
-    private boolean building;   // 画面を作っている間は、スライダーなどのコールバックを、無視する
-    private boolean hasServer;
+    private boolean building;
     private int clockX, clockY;
-    private int pendingWeather = -1;
-    private long pendingWeatherAt;
-    private long lastPoll;
-
-    /** 統合サーバー(シングルプレイ)。ほかのサーバーに参加しているときは null */
-    private static MinecraftServer server() {
-        return Minecraft.getInstance().getSingleplayerServer();
-    }
 
     public void build(Layout lay, PanelHost host) {
         building = true;
@@ -62,8 +33,6 @@ public final class WorldPanel {
         this.lay = lay;
         this.host = host;
         labels.clear();
-        timeStopBox = null;
-        weatherStopBox = null;
 
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) return;
@@ -78,68 +47,67 @@ public final class WorldPanel {
         labels.add(new Label("ワールド設定", x, y, Theme.ACCENT));
         y += lay.th() + Theme.u(3);
         labels.add(new Label(Theme.fit(host.font(), "NPCを選ぶと、そのNPCの編集になります", w), x, y, Theme.TEXT_DIM));
+        y += lay.th() + Theme.u(3);
+        labels.add(new Label(Theme.fit(host.font(), "時間・天候は、自分の画面だけの上書きです", w), x, y, Theme.TEXT_DIM));
         y += lay.th() + Theme.u(8);
 
-        hasServer = server() != null;
-        if (!hasServer) {
-            labels.add(new Label(Theme.fit(host.font(), "天気と時間は、シングルプレイでだけ操作できます", w), x, y, 0xFFE5A04B));
-            y += lay.th() + Theme.u(8);
-        } else {
-            // --- 天気 ---
-            labels.add(new Label("天気", x, y, Theme.TEXT_DIM));
-            y += lh;
-            String[] weatherNames = {"晴れ", "雨", "雷雨"};
-            int bw = (w - gap * 2) / 3;
-            for (int i = 0; i < 3; i++) {
-                int mode = i;
-                weatherButtons[i] = host.add(new ModernButton(x + i * (bw + gap), y, bw, lay.btnH(), weatherNames[i],
-                        ModernButton.Style.DEFAULT, () -> {
-                    setWeather(mode);
-                    pendingWeather = mode;   // サーバーの状態が追いつくまで、押した天気を、先に表示する
-                    pendingWeatherAt = System.currentTimeMillis();
-                    updateWeatherButtons();
-                }));
-            }
-            updateWeatherButtons();
-            y += lay.btnH() + lay.gap() * 2;
-
-            // --- 時間 ---
-            labels.add(new Label("時間", x, y, Theme.TEXT_DIM));
-            y += lh;
-            clockX = x;
-            clockY = y;   // 現在の時刻は、毎フレーム描く
-            y += lay.th() + Theme.u(4);
-            boolean overridden = shownTime >= 0 && System.currentTimeMillis() < shownTimeUntil;
-            int dayTime = overridden ? shownTime : WorldTime.timeOfDay(level);
-            host.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, dayTime, v -> {
-                if (!building) setTime((int) v);
+        // --- 天気 ---
+        labels.add(new Label("天気", x, y, Theme.TEXT_DIM));
+        y += lh;
+        host.add(new ModernCheckbox(x, y, w, sh, "天気を上書きする", ClientOverrides.weatherOn, on -> {
+            if (building) return;
+            ClientOverrides.weatherOn = on;
+            WorldSettings.save();
+            host.refresh();
+        }));
+        y += sh;
+        String[] weatherNames = {"晴れ", "雨", "雷雨"};
+        int bw = (w - gap * 2) / 3;
+        for (int i = 0; i < 3; i++) {
+            int mode = i;
+            ModernButton b = host.add(new ModernButton(x + i * (bw + gap), y, bw, lay.btnH(), weatherNames[i],
+                    ModernButton.Style.DEFAULT, () -> {
+                ClientOverrides.weather = mode;
+                WorldSettings.save();
+                host.refresh();
             }));
-            y += sh;
-            String[] presetNames = {"朝", "昼", "夕", "夜"};
-            int[] presetTicks = {0, 6000, 12000, 18000};
-            int pw = (w - gap * 3) / 4;
-            for (int i = 0; i < 4; i++) {
-                int ticks = presetTicks[i];
-                host.add(new ModernButton(x + i * (pw + gap), y, pw, lay.btnH(), presetNames[i],
-                        ModernButton.Style.DEFAULT, () -> {
-                    setTime(ticks);
-                    host.refresh();   // 作り直すと、設定した時刻が、スライダーに出る
-                }));
-            }
-            y += lay.btnH() + gap;
-
-            // --- 時間・天候の進み(ゲームルールの実際の値から作る) ---
-            timeStopBox = host.add(new ModernCheckbox(x, y, w, sh, "時間の進みを止める",
-                    !WorldRules.isRunning(WorldRules.Rule.TIME), on -> {
-                if (!building) WorldRules.setRunning(WorldRules.Rule.TIME, !on);
-            }));
-            y += sh;
-            weatherStopBox = host.add(new ModernCheckbox(x, y, w, sh, "天候の進みを止める",
-                    !WorldRules.isRunning(WorldRules.Rule.WEATHER), on -> {
-                if (!building) WorldRules.setRunning(WorldRules.Rule.WEATHER, !on);
-            }));
-            y += sh + lay.gap() * 2;
+            b.setSelected(ClientOverrides.weatherOn && ClientOverrides.weather == i);
+            b.active = ClientOverrides.weatherOn;
         }
+        y += lay.btnH() + lay.gap() * 2;
+
+        // --- 時間 ---
+        labels.add(new Label("時間", x, y, Theme.TEXT_DIM));
+        y += lh;
+        clockX = x;
+        clockY = y;   // 実際の時刻は、毎フレーム描く
+        y += lay.th() + Theme.u(4);
+        host.add(new ModernCheckbox(x, y, w, sh, "時間を上書きする", ClientOverrides.timeOn, on -> {
+            if (building) return;
+            ClientOverrides.timeOn = on;   // 設定値(timeTicks)には触れない
+            WorldSettings.save();
+            host.refresh();
+        }));
+        y += sh;
+        host.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, ClientOverrides.timeTicks, v -> {
+            if (building) return;
+            ClientOverrides.timeTicks = (int) v;   // チェックに関係なく、設定値を変える
+            WorldSettings.markDirty();
+        }));
+        y += sh;
+        String[] presetNames = {"朝", "昼", "夕", "夜"};
+        int[] presetTicks = {0, 6000, 12000, 18000};
+        int pw = (w - gap * 3) / 4;
+        for (int i = 0; i < 4; i++) {
+            int ticks = presetTicks[i];
+            host.add(new ModernButton(x + i * (pw + gap), y, pw, lay.btnH(), presetNames[i],
+                    ModernButton.Style.DEFAULT, () -> {
+                ClientOverrides.timeTicks = ticks;   // こちらも、チェックに関係なく押せる
+                WorldSettings.save();
+                host.refresh();
+            }));
+        }
+        y += lay.btnH() + lay.gap() * 2;
 
         // --- テクスチャのアニメーション(炎・水・溶岩・ポータルなど) ---
         labels.add(new Label("テクスチャのアニメーション", x, y, Theme.TEXT_DIM));
@@ -152,7 +120,7 @@ public final class WorldPanel {
             int tick = (int) v;
             if (tick == WorldSettings.textureTick && TextureAnimations.isFixed()) return;
             WorldSettings.textureTick = tick;
-            if (TextureAnimations.isFixed()) TextureAnimations.fix(tick);   // 固定中は、すぐ反映
+            if (TextureAnimations.isFixed()) TextureAnimations.fix(tick);
             WorldSettings.save();
         }));
         y += sh;
@@ -165,81 +133,21 @@ public final class WorldPanel {
         }));
     }
 
-    // ================= 毎フレームの更新(コマンドなどで、外から変わったものに追従する) =================
-
+    /** 毎フレーム呼ばれる。いまは、追従するものがない */
     public void tick() {
-        if (!hasServer) return;
-        updateWeatherButtons();
-
-        long now = System.currentTimeMillis();
-        if (now - lastPoll < RULE_POLL_MS) return;
-        lastPoll = now;
-
-        WorldRules.sync();   // 時間: ゲームルールとクロックを、そろえる
-        if (timeStopBox != null) timeStopBox.setChecked(!WorldRules.isRunning(WorldRules.Rule.TIME));
-        if (weatherStopBox != null) weatherStopBox.setChecked(!WorldRules.isRunning(WorldRules.Rule.WEATHER));
+        WorldSettings.flush();
     }
-
-    /** 天気のボタンの選択を、いまの天気に合わせる。押した直後は、押した天気を、先に出す */
-    private void updateWeatherButtons() {
-        ClientLevel level = Minecraft.getInstance().level;
-        if (level == null || weatherButtons[0] == null) return;
-        int actual = currentWeather(level);
-        long now = System.currentTimeMillis();
-        int shown = pendingWeather >= 0 && now - pendingWeatherAt < PENDING_WEATHER_MS ? pendingWeather : actual;
-        if (shown == actual) pendingWeather = -1;
-        for (int i = 0; i < 3; i++) weatherButtons[i].setSelected(shown == i);
-    }
-
-    /** いまの天気(0 晴れ / 1 雨 / 2 雷雨)。サーバーの天気の状態を見る */
-    private static int currentWeather(ClientLevel level) {
-        MinecraftServer server = server();
-        if (server != null) {
-            var data = server.getWeatherData();
-            return data.isThundering() ? 2 : data.isRaining() ? 1 : 0;
-        }
-        return level.getThunderLevel(1.0f) > 0.5f ? 2 : level.getRainLevel(1.0f) > 0.2f ? 1 : 0;
-    }
-
-    // ================= サーバーの操作(サーバーのスレッドで実行する) =================
-
-    private static void setWeather(int mode) {
-        MinecraftServer server = server();
-        if (server == null) return;
-        server.execute(() -> {
-            ServerLevel level = server.overworld();
-            switch (mode) {
-                case 0 -> level.getServer().setWeatherParameters(WEATHER_TICKS, 0, false, false);
-                case 1 -> level.getServer().setWeatherParameters(0, WEATHER_TICKS, true, false);
-                default -> level.getServer().setWeatherParameters(0, WEATHER_TICKS, true, true);
-            }
-        });
-    }
-
-    private static void setTime(int ticks) {
-        shownTime = ticks;
-        shownTimeUntil = System.currentTimeMillis() + 2000;
-        MinecraftServer server = server();
-        if (server == null) return;
-        server.execute(() -> WorldTime.set(server, ticks));
-    }
-
-    // ================= 描画 =================
 
     public void extractBackground(GuiGraphicsExtractor g) {
         Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
         for (Label l : labels) {
             Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
         }
-
-        // 現在の時刻(コマンドで変えても、ここで分かる)。0 tick = 6:00
-        ClientLevel level = Minecraft.getInstance().level;
-        if (level != null && hasServer) {
-            int ticks = WorldTime.timeOfDay(level);
-            int hour = (ticks / 1000 + 6) % 24;
-            int minute = (ticks % 1000) * 60 / 1000;
-            Theme.text(g, host.font(), String.format("現在: %02d:%02d  (%d tick)", hour, minute, ticks),
-                    clockX, clockY, Theme.TEXT);
-        }
+        // 実際の(上書き前の)時刻。0 tick = 6:00
+        int ticks = (int) Math.floorMod(ClientOverrides.realTime, 24000L);
+        int hour = (ticks / 1000 + 6) % 24;
+        int minute = (ticks % 1000) * 60 / 1000;
+        Theme.text(g, host.font(), String.format("実際: %02d:%02d  (%d tick)", hour, minute, ticks),
+                clockX, clockY, Theme.TEXT);
     }
 }
