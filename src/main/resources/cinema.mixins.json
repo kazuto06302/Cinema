@@ -6,11 +6,14 @@
   "mixins": [
     "DragonPickMixin",
     "EntityCollisionMixin",
+    "LocalPlayerInfiniteMixin",
     "TickRateManagerMixin"
   ],
   "client": [
+    "CreativeScreenMixin",
     "EntityRendererMixin",
     "LevelRendererSelectionMixin",
+    "MultiPlayerGameModeInventoryMixin",
     "MultiPlayerGameModeMixin"
   ],
   "injectors": {

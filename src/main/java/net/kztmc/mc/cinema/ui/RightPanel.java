@@ -71,6 +71,8 @@ public final class RightPanel {
     private boolean dragScrolling;
     private long wheelLockUntil;
 
+    private int iconX, iconY, iconSize;
+
     // ================= 組み立て =================
 
     public void build(Layout lay, PanelHost host, NpcData d) {
@@ -88,7 +90,11 @@ public final class RightPanel {
         // --- 最上段: 名前(左)と、削除(右) ---
         String name = NpcNames.of(d);
         int delW = Theme.u(44);
-        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - lay.gap()), x,
+        iconSize = lay.btnH();
+        iconX = x;
+        iconY = y;
+        int nameX = x + iconSize + lay.gap();
+        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - iconSize - lay.gap() * 2), nameX,
                 y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
         UUID npcId = id;
         host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), "削除", ModernButton.Style.DANGER,
@@ -434,7 +440,7 @@ public final class RightPanel {
         int sh = lay.sliderH();
 
         // スロットは、クリックで外す。右クリックで装飾(エンチャント光沢・トリム)。入れるのは、インベントリの画面から
-        label(Theme.fit(host.font(), "装備(クリックで外す・右クリックで装飾)", w), x, y, Theme.TEXT_DIM);
+        label(Theme.fit(host.font(), "装備(左:開く 右:装飾 Shift:外す)", w), x, y, Theme.TEXT_DIM);
         y += lh;
 
         boolean animalGear = EntityProfiles.of(d.entityType()).hasAnimalGear();
@@ -445,15 +451,9 @@ public final class RightPanel {
         String heldLabel = EntityProfiles.of(d.entityType()).heldItemLabel();
         if (heldLabel != null) return sectionHeldItem(d, y, heldLabel);
 
-        // 上段: インベントリ / メイン / オフ / 全削除
-        add(new ItemButton(x, y, cw, ch, ItemStack.EMPTY, new ItemStack(Items.CHEST), b -> openInventory())
-                .tip("インベントリを開く(アイテムを持ってきて、装備させる)"));
+        // 上段: メイン/オフ
         addSlotButton(d, EquipmentSlot.MAINHAND, x + (cw + cgap), y, cw, ch, animalGear);
         addSlotButton(d, EquipmentSlot.OFFHAND, x + (cw + cgap) * 2, y, cw, ch, animalGear);
-        add(new ItemButton(x + (cw + cgap) * 3, y, cw, ch, ItemStack.EMPTY, new ItemStack(Items.BARRIER), b -> {
-            for (EquipmentSlot s : EquipmentEdit.SLOTS) EquipmentEdit.set(id, s, ItemStack.EMPTY);
-            host.refresh();
-        }).tip("装備をすべて外す"));
         y += ch + cgap;
 
         // 下段: 頭 / 胸 / 脚 / 足
@@ -509,37 +509,38 @@ public final class RightPanel {
         return !stack.isEmpty() && !"NONE".equals(stack.getUseAnimation().name());
     }
 
-    /** 標準のインベントリを開く。クリエイティブなら、タブつきのクリエイティブ画面 */
+    /** クリエ画面を、ゲームモード・OP に関係なく開く。サーバーへは何も送らない */
     private static void openInventory() {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
-        if (player.getAbilities().instabuild) {
-            mc.setScreenAndShow(new CinemaCreativeScreen(player, player.connection.enabledFeatures(),
-                    mc.options.operatorItemsTab().get()));
-        } else {
-            mc.setScreenAndShow(new CinemaInventoryScreen(player));
-        }
+        mc.setScreenAndShow(new CinemaCreativeScreen(player, player.connection.enabledFeatures(), true));
+        UiSounds.inventory();
     }
 
     private void addSlotButton(NpcData d, EquipmentSlot slot, int bx, int by, int bw, int bh, boolean animalGear) {
         ItemStack stack = EquipmentEdit.stackOf(d, slot);
         String slotName = EquipmentEdit.label(slot, animalGear);
         ItemButton button = new ItemButton(bx, by, bw, bh, stack, EquipmentEdit.ghostOf(slot), b -> {
-            if (stack.isEmpty()) {
-                say(slotName + "は空です(インベントリを開いて、アイテムを入れられます)");
+            if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
+                if (!stack.isEmpty()) {
+                    EquipmentEdit.set(id, slot, ItemStack.EMPTY);
+                    host.refresh();
+                }
                 return;
             }
-            if (b == 0) {   // 左クリック: 外す
-                EquipmentEdit.set(id, slot, ItemStack.EMPTY);
-                host.refresh();
-            } else {        // 右クリック: 装飾
+            if (b == 0) {   // 左クリック: インベントリを開く
+                openInventory();
+            } else if (stack.isEmpty()) {   // 右クリック: 装飾(空のときは、できない)
+                say(slotName + "は空です(左クリックでインベントリを開けます)");
+            } else {
                 Minecraft.getInstance().setScreenAndShow(new EquipmentMenuScreen(host.screen(), slotName,
                         () -> NpcManager.get(id).map(cur -> EquipmentEdit.stackOf(cur, slot)).orElse(ItemStack.EMPTY),
                         s -> EquipmentEdit.set(id, slot, s)));
             }
         });
-        button.tip(stack.isEmpty() ? slotName : slotName + ": " + stack.getHoverName().getString());
+        button.tip(stack.isEmpty() ? slotName + "(左クリック: インベントリ)"
+                : slotName + ": " + stack.getHoverName().getString() + "(右: 装飾 / Shift: 外す)");
         add(button);
     }
 
@@ -690,6 +691,7 @@ public final class RightPanel {
     /** パネルの背景と、文字。ウィジェットの前に呼ぶ */
     public void extractBackground(GuiGraphicsExtractor g) {
         Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
+        NpcManager.get(id).ifPresent(d -> NpcFaces.paint(g, d, iconX, iconY, iconSize));
         for (Label l : fixedLabels) {
             Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
         }
@@ -707,10 +709,10 @@ public final class RightPanel {
         }
     }
 
-    /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): インベントリを開くボタンと、メインハンドだけ */
+    /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): メインハンドのスロットだけ */
     private int sectionHeldItem(NpcData d, int y, String heldLabel) {
         int lh = lay.th() + Theme.u(3);
-        label(Theme.fit(host.font(), heldLabel + "(メインハンドに入れる)", w), x, y, Theme.TEXT_DIM);
+        label(Theme.fit(host.font(), heldLabel + "(左:開く Shift:外す)", w), x, y, Theme.TEXT_DIM);
         y += lh;
 
         int cgap = Math.max(1, Theme.u(3));
@@ -718,16 +720,20 @@ public final class RightPanel {
         int ch = Math.max(Theme.u(26), 26);
         ItemStack stack = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
 
-        add(new ItemButton(x, y, cw, ch, ItemStack.EMPTY, new ItemStack(Items.CHEST), b -> openInventory())
-                .tip("インベントリを開く(アイテムを持ってきて、入れる)"));
-        add(new ItemButton(x + cw + cgap, y, cw, ch, stack, EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
-            if (stack.isEmpty()) {
-                say("空です(インベントリを開いて、入れられます)");
-            } else {
-                EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);   // クリックで外す
-                host.refresh();
+        ItemButton slot = new ItemButton(x + cw + cgap, y, cw, ch, stack, EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
+            if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
+                if (!stack.isEmpty()) {
+                    EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+                    host.refresh();
+                }
+                return;
             }
-        }).tip(stack.isEmpty() ? heldLabel : heldLabel + ": " + stack.getHoverName().getString()));
+            if (b == 0) openInventory();
+            else say("このエンティティに装飾はありません");
+        });
+        slot.tip(stack.isEmpty() ? heldLabel + "(左クリック: インベントリ)"
+                : heldLabel + ": " + stack.getHoverName().getString() + "(Shift: 外す)");
+        add(slot);
         y += ch + lay.gap();
 
         statusY = y + Theme.u(2);

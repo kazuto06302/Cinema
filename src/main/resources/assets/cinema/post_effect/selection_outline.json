@@ -13,15 +13,10 @@
         },
         {
             "vertex_shader": "minecraft:core/screenquad",
-            "fragment_shader": "minecraft:post/blit",
+            "fragment_shader": "cinema:post/selection_blur",
             "inputs": [
-                { "sampler_name": "In", "target": "swap" }
+                { "sampler_name": "In", "target": "swap", "bilinear": true }
             ],
-            "uniforms": {
-                "BlitConfig": [
-                    { "name": "ColorModulate", "type": "vec4", "value": [ 1.0, 1.0, 1.0, 1.0 ] }
-                ]
-            },
             "output": "cinema:selection_outline"
         }
     ]

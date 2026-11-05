@@ -7,8 +7,47 @@ Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
 
-アウトライン、ぼかしを入れよう。ぼかす時に普通は外側の色を変えると思うんだけど、今回は色は変えないでほしい
-右パネルの名前の前にも左パネルと同じような画像を埋め込もう
-少し戻るけど、装備のところなんだけど、
-・左上のインベントリ、右上の全削除のボタンは削除。位置はそのままに保持
-・装備のボタンを左クリックでインベントリを開く、右クリックで装飾、シフト+クリック（左右両方）で削除という風に変更しよう
+
+### 1. ClickType → ContainerInput
+26.3 Mojmapでは `ClickType` を `ContainerInput` に変更。
+
+### 2. MultiPlayerGameMode
+- `handleInventoryMouseClick` → `handleContainerInput`
+- 引数の `ClickType` → `ContainerInput`
+- `hasInfiniteItems()` は26.3では存在しない。
+- `GameModeInfiniteMixin` は削除。
+- `Player#hasInfiniteMaterials()` を無条件に変更する方法も採用しない。
+
+### 3. CreativeScreenMixin
+`CreativeModeInventoryScreen#containerTick()` をMixinで制御し、Cinemaの画面だけバニラの処理を停止する。
+
+```java
+@Mixin(CreativeModeInventoryScreen.class)
+public abstract class CreativeScreenMixin {
+
+    @Inject(
+        method = "containerTick",
+        at = @At("HEAD"),
+        cancellable = true
+    )
+    private void cinema$preventInventorySwitch(CallbackInfo ci) {
+        if ((Object) this instanceof CinemaCreativeScreen) {
+            ci.cancel();
+        }
+    }
+}
+```
+
+**最終構成**
+- `GameModeInfiniteMixin`：削除
+- `LocalPlayerInfiniteMixin`：削除
+- `CreativeScreenMixin`：追加
+- `CinemaCreativeScreen`：基本変更なし
+
+という変更を実装しました。
+
+また、サーバー内で動作するように、時間・天候についてもクライアント側でオーバーライドどいう形に変更しましょう
+時間を停止するのではなく、時間を上書きするというチェックボックスに変更しましょう。
+チェックボックスに印を入れてからスライダーで時間を調節するようにしましょう
+ゲームルール、ワールド内の時間は変更しないようにします。
+これを天候についても同様に実装しましょう。

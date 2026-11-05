@@ -53,8 +53,16 @@ public final class UiSounds {
         play(SoundEvents.UI_BUTTON_CLICK, 2.0f, 1.0f);
     }
 
+    public static void inventory() {
+        play(SoundEvents.CHEST_OPEN, 1.0f, 0.5f);
+    }
+
     public static void open() {
         play(SoundEvents.UI_TOAST_IN, 1.2f, 0.7f);
+    }
+
+    public static void drop() {
+        play(SoundEvents.ITEM_PICKUP, 0.8f, 1.0f);
     }
 
     public static void success() {

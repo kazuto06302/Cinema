@@ -29,6 +29,11 @@ public class Cinema implements ClientModInitializer {
         //hud
         ClientTickEvents.END_CLIENT_TICK.register(CinemaScreen::tickOpen);
         CinemaHud.init();
+        //item
+        net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents
+                .modifyOutputEvent(net.minecraft.world.item.CreativeModeTabs.TOOLS_AND_UTILITIES)
+                .register(entries -> entries.accept(CinemaWand.create()));
+        CinemaWand.init();
         //log
         LOGGER.info("Cinema initialized");
     }

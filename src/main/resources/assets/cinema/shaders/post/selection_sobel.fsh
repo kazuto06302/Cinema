@@ -28,6 +28,7 @@ void main(){
     float upDiff    = abs(center.a - up.a);
     float downDiff  = abs(center.a - down.a);
     float total = clamp(leftDiff + rightDiff + upDiff + downDiff, 0.0, 1.0);
-    vec3 outColor = center.rgb * center.a + left.rgb * left.a + right.rgb * right.a + up.rgb * up.a + down.rgb * down.a;
-    fragColor = vec4(outColor * 0.2, total);
+    float sumA = center.a + left.a + right.a + up.a + down.a;
+    vec3 outColor = (center.rgb * center.a + left.rgb * left.a + right.rgb * right.a + up.rgb * up.a + down.rgb * down.a) / max(sumA, 0.0001);
+    fragColor = vec4(outColor, total);
 }

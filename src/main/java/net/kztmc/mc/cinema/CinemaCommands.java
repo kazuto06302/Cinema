@@ -3,6 +3,7 @@ package net.kztmc.mc.cinema;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
+import net.kztmc.mc.cinema.entity.EntityExport;
 import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
@@ -55,9 +56,17 @@ public final class CinemaCommands {
                             TextureAnimations.dump();
                             return 1;
                         }))
+                        .then(ClientCommands.literal("entities").executes(ctx -> {
+                            EntityExport.run();
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("clock").executes(ctx -> {
                             MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
                             if (server != null) WorldTime.dump(server);
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("wand").executes(ctx -> {
+                            CinemaWand.give();
                             return 1;
                         }))
                         .then(ClientCommands.literal("clear")
