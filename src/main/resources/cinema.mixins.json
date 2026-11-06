@@ -6,8 +6,6 @@
   "mixins": [
     "DragonPickMixin",
     "EntityCollisionMixin",
-    "LevelWeatherMixin",
-    "LocalPlayerInfiniteMixin",
     "TickRateManagerMixin"
   ],
   "client": [
@@ -18,6 +16,8 @@
     "EntityRendererMixin",
     "LevelRendererSelectionMixin",
     "LevelRendererToggleMixin",
+    "LevelWeatherMixin",
+    "LocalPlayerInfiniteMixin",
     "MultiPlayerGameModeInventoryMixin",
     "MultiPlayerGameModeMixin"
   ],

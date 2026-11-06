@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.ui.ui;
+package net.kztmc.mc.cinema.ui.widget;
 
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;

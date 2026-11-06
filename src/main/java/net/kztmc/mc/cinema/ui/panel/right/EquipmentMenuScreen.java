@@ -4,8 +4,8 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import net.kztmc.mc.cinema.ui.ui.ModernButton;
-import net.kztmc.mc.cinema.ui.ui.ModernCheckbox;
+import net.kztmc.mc.cinema.ui.widget.ModernButton;
+import net.kztmc.mc.cinema.ui.widget.ModernCheckbox;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

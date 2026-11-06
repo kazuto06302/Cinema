@@ -22,7 +22,7 @@ public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
     private final InventoryOverlay overlay = new InventoryOverlay(this, () -> this.getMenu().getCarried());
 
     public CinemaCreativeScreen(LocalPlayer player, FeatureFlagSet features, boolean operatorTab) {
-        super(player, features, false);   // OP タブは出さない
+        super(player, features, true);
     }
 
     @Override

@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.ui.function;
+package net.kztmc.mc.cinema.ui.core;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;

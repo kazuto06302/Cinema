@@ -4,13 +4,13 @@ import java.util.ArrayList;
 import java.util.List;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.IconStyle;
-import net.kztmc.mc.cinema.ui.function.CinemaState;
-import net.kztmc.mc.cinema.ui.function.Layout;
+import net.kztmc.mc.cinema.ui.core.CinemaState;
+import net.kztmc.mc.cinema.ui.core.Layout;
 import net.kztmc.mc.cinema.ui.npc.MobIcons;
-import net.kztmc.mc.cinema.ui.function.PanelHost;
+import net.kztmc.mc.cinema.ui.core.PanelHost;
 import net.kztmc.mc.cinema.ui.panel.Theme;
-import net.kztmc.mc.cinema.ui.ui.ModernButton;
-import net.kztmc.mc.cinema.ui.ui.ModernSlider;
+import net.kztmc.mc.cinema.ui.widget.ModernButton;
+import net.kztmc.mc.cinema.ui.widget.ModernSlider;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 

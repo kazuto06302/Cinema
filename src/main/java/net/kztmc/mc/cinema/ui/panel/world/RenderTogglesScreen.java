@@ -1,7 +1,7 @@
 package net.kztmc.mc.cinema.ui.panel.world;
 
-import net.kztmc.mc.cinema.ui.ui.ModernButton;
-import net.kztmc.mc.cinema.ui.ui.ModernCheckbox;
+import net.kztmc.mc.cinema.ui.widget.ModernButton;
+import net.kztmc.mc.cinema.ui.widget.ModernCheckbox;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;

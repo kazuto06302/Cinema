@@ -3,7 +3,7 @@ package net.kztmc.mc.cinema.ui.panel.left;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.kztmc.mc.cinema.ui.function.Layout;
+import net.kztmc.mc.cinema.ui.core.Layout;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

@@ -1,7 +1,7 @@
-package net.kztmc.mc.cinema.ui.function;
+package net.kztmc.mc.cinema.ui.core;
 
 import net.kztmc.mc.cinema.ui.panel.left.ContextMenu;
-import net.kztmc.mc.cinema.ui.ui.ModernDropdown;
+import net.kztmc.mc.cinema.ui.widget.ModernDropdown;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;

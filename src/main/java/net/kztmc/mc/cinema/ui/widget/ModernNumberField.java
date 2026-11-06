@@ -1,10 +1,10 @@
-package net.kztmc.mc.cinema.ui.ui;
+package net.kztmc.mc.cinema.ui.widget;
 
 import java.util.Locale;
 import java.util.function.DoubleConsumer;
 
-import net.kztmc.mc.cinema.ui.function.Draggable;
-import net.kztmc.mc.cinema.ui.function.Modifiers;
+import net.kztmc.mc.cinema.ui.core.Draggable;
+import net.kztmc.mc.cinema.ui.core.Modifiers;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.minecraft.client.Minecraft;

@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.ui.function;
+package net.kztmc.mc.cinema.ui.core;
 
 /** 画面を開き直しても保持する、画面全体の状態(devモードなど)。 */
 public final class CinemaState {

@@ -7,24 +7,9 @@ Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
 
-## 1
-CinemaWand.init();を登録すると、Missing blockmodel item/wandって出て途中で落ちちゃう
-ちゃんとテクスチャも入れないと動作しなかったりする？
-## 2
-雨のテクスチャもtickでいじれるようにしましょう
-## 3
-あとworldpanelに以下の項目を追加しましょう
-・スコアボード
-・アクションバー
-・タイトルテキスト
-・ボスバー
-・チャット
-・ブロック
-・エンティティ（npc/プレイヤー以外の）
-・パーティクル
-・ネームタグ
-・プレイヤー
-・ビーコンのビーム
-をレンダーするかどうか
-項目が多いのでパネル内にボタンを設置、そこから前の装備の装飾画面のような画面で切替式のボタンで（最初は全部オン）
-「選択した項目を描画する」をタイトルに画面を作ろうか
+/cinema weathersig
+[21:16:20] [Render thread/INFO] (cinema) [Cinema] extractRenderState[class net.minecraft.client.multiplayer.ClientLevel, float, class net.minecraft.world.phys.Vec3, class net.minecraft.client.renderer.state.level.WeatherRenderState]
+[21:16:20] [Render thread/INFO] (cinema) [Cinema] createRainColumnInstance[interface net.minecraft.util.RandomSource, long, int, int, int, int, int, float]
+[21:16:20] [Render thread/INFO] (cinema) [Cinema] createSnowColumnInstance[interface net.minecraft.util.RandomSource, long, int, int, int, int, int, float]
+
+wandをblaze_rodからbreeze_rodに、クラフト/醸造/エンチャント/名前変更の不可・アイテムid・属性を見れなくすることってできる？

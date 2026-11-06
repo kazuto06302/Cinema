@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.ui.function;
+package net.kztmc.mc.cinema.ui.core;
 
 import net.kztmc.mc.cinema.ui.panel.Theme;
 

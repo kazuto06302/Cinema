@@ -10,7 +10,6 @@ import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.*;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.kztmc.mc.cinema.ui.panel.world.TextureAnimations;
-import net.kztmc.mc.cinema.ui.panel.world.WorldTime;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -62,11 +61,6 @@ public final class CinemaCommands {
                             EntityExport.run();
                             return 1;
                         }))
-                        .then(ClientCommands.literal("clock").executes(ctx -> {
-                            MinecraftServer server = Minecraft.getInstance().getSingleplayerServer();
-                            if (server != null) WorldTime.dump(server);
-                            return 1;
-                        }))
                         .then(ClientCommands.literal("wand").executes(ctx -> {
                             CinemaWand.give();
                             return 1;
@@ -77,6 +71,14 @@ public final class CinemaCommands {
                                     EntityReflect.getObjectQuiet(lr, "levelRenderState"), "weatherRenderState");
                             if (state != null) EntityReflect.dumpObject(state);
                             EntityReflect.dumpObject(Minecraft.getInstance().levelRenderer.weatherEffectRenderer());
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("weathersig").executes(ctx -> {
+                            for (java.lang.reflect.Method m : net.minecraft.client.renderer.WeatherEffectRenderer.class.getDeclaredMethods()) {
+                                if (m.getName().equals("extractRenderState") || m.getName().startsWith("create")) {
+                                    Cinema.LOGGER.info("[Cinema] {}{}", m.getName(), java.util.Arrays.toString(m.getParameterTypes()));
+                                }
+                            }
                             return 1;
                         }))
                         .then(ClientCommands.literal("clear")

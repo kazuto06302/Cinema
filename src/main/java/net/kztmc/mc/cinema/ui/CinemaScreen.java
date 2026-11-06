@@ -3,7 +3,7 @@ package net.kztmc.mc.cinema.ui;
 import java.util.List;
 import java.util.UUID;
 import net.kztmc.mc.cinema.npc.NpcManager;
-import net.kztmc.mc.cinema.ui.function.*;
+import net.kztmc.mc.cinema.ui.core.*;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.panel.confirm.ConfirmDialog;
 import net.kztmc.mc.cinema.ui.panel.left.ContextMenu;
@@ -11,9 +11,9 @@ import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
 import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
 import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
 import net.kztmc.mc.cinema.ui.panel.world.WorldPanel;
-import net.kztmc.mc.cinema.ui.ui.ModernDropdown;
-import net.kztmc.mc.cinema.ui.ui.ModernNumberField;
-import net.kztmc.mc.cinema.ui.ui.ModernTextField;
+import net.kztmc.mc.cinema.ui.widget.ModernDropdown;
+import net.kztmc.mc.cinema.ui.widget.ModernNumberField;
+import net.kztmc.mc.cinema.ui.widget.ModernTextField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -310,13 +310,6 @@ public class CinemaScreen extends Screen implements PanelHost {
         boolean modal = confirm.isOpen();
         int mx = modal ? -1 : mouseX;
         int my = modal ? -1 : mouseY;
-
-//        // 選択中のNPCの輪郭(パネルより下に描く)
-//        UUID selected = NpcManager.selectedId();
-//        Entity selectedEntity = selected == null ? null : NpcManager.entityOf(selected);
-//        if (selectedEntity != null) {
-//            SelectionOutline.draw(g, selectedEntity);
-//        }
 
         left.extractBackground(g);
         if (hasRight) right.extractBackground(g);
