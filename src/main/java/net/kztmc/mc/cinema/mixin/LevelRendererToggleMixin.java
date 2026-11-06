@@ -2,7 +2,7 @@ package net.kztmc.mc.cinema.mixin;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.kztmc.mc.cinema.npc.NpcManager;
-import net.kztmc.mc.cinema.ui.RenderToggleFilter;
+import net.kztmc.mc.cinema.ui.panel.world.RenderToggleFilter;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderDispatcher;

@@ -3,6 +3,17 @@ package net.kztmc.mc.cinema.ui;
 import java.util.List;
 import java.util.UUID;
 import net.kztmc.mc.cinema.npc.NpcManager;
+import net.kztmc.mc.cinema.ui.function.*;
+import net.kztmc.mc.cinema.ui.panel.Theme;
+import net.kztmc.mc.cinema.ui.panel.confirm.ConfirmDialog;
+import net.kztmc.mc.cinema.ui.panel.left.ContextMenu;
+import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
+import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
+import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
+import net.kztmc.mc.cinema.ui.panel.world.WorldPanel;
+import net.kztmc.mc.cinema.ui.ui.ModernDropdown;
+import net.kztmc.mc.cinema.ui.ui.ModernNumberField;
+import net.kztmc.mc.cinema.ui.ui.ModernTextField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -13,7 +24,6 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
-import net.minecraft.world.entity.Entity;
 
 /**
  * 撮影用の編集画面の骨格。各パネルの中身は、別のクラスにある。

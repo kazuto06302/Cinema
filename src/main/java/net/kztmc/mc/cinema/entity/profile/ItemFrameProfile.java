@@ -3,7 +3,7 @@ package net.kztmc.mc.cinema.entity.profile;
 import java.util.List;
 import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.kztmc.mc.cinema.npc.NpcData;
-import net.kztmc.mc.cinema.ui.EquipmentEdit;
+import net.kztmc.mc.cinema.ui.panel.right.EquipmentEdit;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;

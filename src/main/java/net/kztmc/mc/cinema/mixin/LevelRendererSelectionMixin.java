@@ -16,7 +16,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
-import net.kztmc.mc.cinema.ui.SelectionOutline;
+import net.kztmc.mc.cinema.ui.npc.SelectionOutline;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.PostChain;

@@ -3,7 +3,7 @@ package net.kztmc.mc.cinema.mixin;
 import net.kztmc.mc.cinema.npc.EntityTweaks;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.npc.SceneFreeze;
-import net.kztmc.mc.cinema.ui.SelectionOutline;
+import net.kztmc.mc.cinema.ui.npc.SelectionOutline;
 import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;

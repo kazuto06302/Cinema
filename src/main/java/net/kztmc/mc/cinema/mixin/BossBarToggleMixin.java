@@ -1,6 +1,6 @@
 package net.kztmc.mc.cinema.mixin;
 
-import net.kztmc.mc.cinema.ui.RenderToggles;
+import net.kztmc.mc.cinema.ui.panel.world.RenderToggles;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.BossHealthOverlay;
 import org.spongepowered.asm.mixin.Mixin;

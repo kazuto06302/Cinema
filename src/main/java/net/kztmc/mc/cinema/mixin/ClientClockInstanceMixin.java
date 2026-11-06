@@ -1,6 +1,6 @@
 package net.kztmc.mc.cinema.mixin;
 
-import net.kztmc.mc.cinema.ui.ClientOverrides;
+import net.kztmc.mc.cinema.ui.panel.world.ClientOverrides;
 import net.minecraft.client.ClientClockManager.ClientClockInstance;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

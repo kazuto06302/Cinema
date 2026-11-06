@@ -1,6 +1,6 @@
 package net.kztmc.mc.cinema.mixin;
 
-import net.kztmc.mc.cinema.ui.CinemaCreativeScreen;
+import net.kztmc.mc.cinema.ui.panel.inventory.CinemaCreativeScreen;
 import net.minecraft.client.gui.screens.inventory.CreativeModeInventoryScreen;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;

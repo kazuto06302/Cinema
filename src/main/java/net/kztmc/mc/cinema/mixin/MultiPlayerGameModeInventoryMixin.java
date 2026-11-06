@@ -1,7 +1,7 @@
 package net.kztmc.mc.cinema.mixin;
 
-import net.kztmc.mc.cinema.ui.CinemaCreativeScreen;
-import net.kztmc.mc.cinema.ui.CinemaInventoryScreen;
+import net.kztmc.mc.cinema.ui.panel.inventory.CinemaCreativeScreen;
+import net.kztmc.mc.cinema.ui.panel.inventory.CinemaInventoryScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.MultiPlayerGameMode;
 import net.minecraft.world.entity.player.Player;

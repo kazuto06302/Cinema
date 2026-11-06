@@ -5,6 +5,9 @@ import java.lang.reflect.Proxy;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.VanillaHudElements;
+import net.kztmc.mc.cinema.ui.panel.inventory.CinemaCreativeScreen;
+import net.kztmc.mc.cinema.ui.panel.inventory.CinemaInventoryScreen;
+import net.kztmc.mc.cinema.ui.panel.right.EquipmentMenuScreen;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 

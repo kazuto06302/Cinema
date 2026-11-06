@@ -1,0 +1,810 @@
+package net.kztmc.mc.cinema.ui.panel.right;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Optional;
+import java.util.UUID;
+import java.util.function.UnaryOperator;
+import net.kztmc.mc.cinema.Cinema;
+import net.kztmc.mc.cinema.entity.EntityFlags;
+import net.kztmc.mc.cinema.entity.EntityMotion;
+import net.kztmc.mc.cinema.entity.EntityOption;
+import net.kztmc.mc.cinema.entity.EntityProfile;
+import net.kztmc.mc.cinema.entity.EntityProfiles;
+import net.kztmc.mc.cinema.entity.EntityReflect;
+import net.kztmc.mc.cinema.npc.*;
+import net.kztmc.mc.cinema.entity.profile.AnimationModeProfile;
+import net.kztmc.mc.cinema.ui.function.*;
+import net.kztmc.mc.cinema.ui.panel.Theme;
+import net.kztmc.mc.cinema.ui.panel.UiSounds;
+import net.kztmc.mc.cinema.ui.panel.inventory.CinemaCreativeScreen;
+import net.kztmc.mc.cinema.ui.panel.left.NpcFaces;
+import net.kztmc.mc.cinema.ui.ui.*;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.entity.Mob;
+import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+/**
+ * 右パネル: 選択中のNPCの編集。
+ *   最上段: 名前と削除
+ *   タブ  : [基本(2) | ポーズ(1)]
+ *   基本  : 位置・向き・状態(燃える/光る/子ども/ダメージ)・姿勢・モデル・アニメーション・動き・固有オプション・装備・手の動作
+ *   ポーズ: パーツごとのポーズ(翼・頭など)。これから追加していく
+ * 基本の中身は長いので、マウスホイールと右端のスクロールバーで、上下にスクロールできる。
+ */
+public final class RightPanel {
+    private enum RightTab {
+        MAIN("基本"), POSE("ポーズ");
+
+        final String label;
+
+        RightTab(String label) {
+            this.label = label;
+        }
+    }
+
+    private record Label(String text, int x, int y, int color) {}
+
+    private record Item(AbstractWidget widget, int baseY) {}
+
+    private static RightTab tab = RightTab.MAIN;
+    private static int scroll;   // 作り直しても保持する
+
+    private final List<Label> fixedLabels = new ArrayList<>();    // スクロールしない(名前)
+    private final List<Label> scrollLabels = new ArrayList<>();   // スクロールする
+    private final List<Item> items = new ArrayList<>();           // スクロールするウィジェット
+
+    private Layout lay;
+    private PanelHost host;
+    private UUID id;
+    private int x, w, contentTop, contentBottom, maxScroll;
+    private final double[] pos = new double[3];
+
+    private String status = "";
+    private long statusUntil;
+    private int statusY;
+
+    private boolean dragScrolling;
+    private long wheelLockUntil;
+
+    private int iconX, iconY, iconSize;
+
+    // ================= 組み立て =================
+
+    public void build(Layout lay, PanelHost host, NpcData d) {
+        this.lay = lay;
+        this.host = host;
+        this.id = d.id();
+        fixedLabels.clear();
+        scrollLabels.clear();
+        items.clear();
+
+        x = lay.rightX() + lay.pad();
+        w = lay.panelW() - lay.pad() * 2;
+        int y = lay.panelY() + Theme.u(8);
+
+        // --- 最上段: 名前(左)と、削除(右) ---
+        String name = NpcNames.of(d);
+        int delW = Theme.u(44);
+        iconSize = lay.btnH();
+        iconX = x;
+        iconY = y;
+        int nameX = x + iconSize + lay.gap();
+        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - iconSize - lay.gap() * 2), nameX,
+                y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
+        UUID npcId = id;
+        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), "削除", ModernButton.Style.DANGER,
+                () -> host.confirmDelete(npcId)));
+
+        // ← (戻る): 右パネルの左の外に、独立したボタンとして出す。選択を外して、ワールド設定へ戻る
+        int backW = Theme.u(26);
+        host.add(new ModernButton(lay.rightX() - backW - lay.gap(), lay.panelY(), backW, lay.btnH() + Theme.u(4), "←",
+                ModernButton.Style.DEFAULT, () -> {
+            NpcManager.select(null);
+            host.refresh();
+        }));
+        y += lay.btnH() + Theme.u(5);
+
+        // --- タブ行(2:1、角丸なし) ---
+        int mainW = w * 2 / 3;
+        host.add(new TabButton(x, y, mainW, lay.btnH(), RightTab.MAIN.label, () -> selectTab(RightTab.MAIN))
+                .setSelected(tab == RightTab.MAIN));
+        host.add(new TabButton(x + mainW, y, w - mainW, lay.btnH(), RightTab.POSE.label, () -> selectTab(RightTab.POSE))
+                .setSelected(tab == RightTab.POSE));
+        y += lay.btnH() + lay.gap();
+
+        contentTop = y;
+        contentBottom = lay.panelY() + lay.panelH() - lay.pad();
+
+        // スクロールバーの分だけ、中身の幅を狭くする
+        int barW = Theme.u(5);
+        int fullW = w;
+        w = fullW - barW - Theme.u(2);
+
+        int end;
+        if (tab == RightTab.MAIN) {
+            end = buildMain(d, y);
+        } else {
+            end = buildPose(y);
+        }
+
+        maxScroll = Math.max(0, end - contentBottom);
+        scroll = Mth.clamp(scroll, 0, maxScroll);
+
+        host.add(new ScrollBar(x + fullW - barW, contentTop, barW, contentBottom - contentTop));
+        w = fullW;
+        applyScroll();
+    }
+
+    private void selectTab(RightTab t) {
+        if (tab != t) UiSounds.tab();
+        tab = t;
+        scroll = 0;
+        host.refresh();
+    }
+
+    /** スクロールする部品として登録して、追加する */
+    private <T extends AbstractWidget> T add(T widget) {
+        host.add(widget);
+        items.add(new Item(widget, widget.getY()));
+        return widget;
+    }
+
+    private void label(String text, int lx, int ly, int color) {
+        scrollLabels.add(new Label(text, lx, ly, color));
+    }
+
+    private static void edit(UUID id, UnaryOperator<NpcData> fn) {
+        NpcManager.get(id).ifPresent(cur -> NpcManager.replace(fn.apply(cur)));
+    }
+
+    // ================= タブ「基本」 =================
+
+    private int buildMain(NpcData d, int y) {
+        y = sectionPosition(d, y);
+        y = sectionSize(d, y);
+        y = sectionPlayerTexts(d, y);
+        y = sectionOrientation(d, y);
+        y = sectionStates(y);
+        y = sectionPosture(d, y);
+        y = sectionAnimation(d, y);
+        y = sectionMotion(d, y);
+        y = sectionOptions(d, y);
+        y = sectionEquipment(d, y);
+        y = sectionDev(d, y);
+        return y;
+    }
+
+    // ---- 位置 ----
+
+    private int sectionPosition(NpcData d, int y) {
+        int lh = lay.th() + Theme.u(3);
+        label("位置", x, y, Theme.TEXT_DIM);
+        y += lh;
+
+        pos[0] = d.x();
+        pos[1] = d.y();
+        pos[2] = d.z();
+        String[] axisNames = {"X", "Y", "Z"};
+        int[] axisColors = {0xFFE5534B, 0xFF57AB5A, 0xFF539BF5};
+        for (int i = 0; i < 3; i++) {
+            final int axis = i;
+            add(new ModernNumberField(x, y, w, lay.sliderH(), axisNames[i], axisColors[i], pos[i], v -> {
+                pos[axis] = v;
+                edit(id, cur -> cur.withTransform(pos[0], pos[1], pos[2],
+                        cur.yRot(), cur.xRot(), cur.headYRot(), cur.bodyYRot()));
+            }));
+            y += lay.sliderH();
+        }
+        add(new ModernButton(x, y, w, lay.btnH(), "自分の前に移動", ModernButton.Style.DEFAULT, () -> {
+            Minecraft mc = Minecraft.getInstance();
+            if (mc.player == null) return;
+            float faceYaw = mc.player.getYRot() + 180f;
+            edit(id, cur -> cur.withTransform(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
+                    faceYaw, cur.xRot(), faceYaw, faceYaw));
+            host.refresh();   // 位置欄の表示も、新しい値にする
+        }));
+        return y + lay.btnH() + lay.gap();
+    }
+
+    // ---- サイズ(生き物だけ) ----
+
+    private int sectionSize(NpcData d, int y) {
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;
+        if (!living || EntityProfiles.of(d.entityType()).hasNoScale()) return y;
+
+        int lh = lay.th() + Theme.u(3);
+        label("サイズ", x, y, Theme.TEXT_DIM);
+        y += lh;
+        add(new ModernSlider(x, y, w, lay.sliderH(), "大きさ", "%", 10, 400, 5,
+                d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v))));
+        return y + lay.sliderH() + lay.gap();
+    }
+
+    // ---- 向き ----
+
+    private int sectionOrientation(NpcData d, int y) {
+        int lh = lay.th() + Theme.u(3);
+        int sh = lay.sliderH();
+        label("向き", x, y, Theme.TEXT_DIM);
+        y += lh;
+
+        float body = Mth.wrapDegrees(d.bodyYRot());
+        float headOffset = Mth.clamp(Mth.wrapDegrees(d.headYRot() - d.bodyYRot()), -75f, 75f);
+
+        add(new ModernSlider(x, y, w, sh, "体の向き", "°", -180, 180, body, v ->
+                edit(id, cur -> {
+                    float bo = (float) v;
+                    float off = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
+                    float head = bo + off;
+                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, bo);
+                })));
+        y += sh;
+        add(new ModernSlider(x, y, w, sh, "頭の左右", "°", -75, 75, headOffset, v ->
+                edit(id, cur -> {
+                    float head = cur.bodyYRot() + (float) v;
+                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, cur.bodyYRot());
+                })));
+        y += sh;
+        add(new ModernSlider(x, y, w, sh, "頭の上下", "°", -90, 90, d.xRot(), v ->
+                edit(id, cur -> cur.withTransform(cur.x(), cur.y(), cur.z(), cur.yRot(), (float) v,
+                        cur.headYRot(), cur.bodyYRot()))));
+        return y + sh + lay.gap();
+    }
+
+    // ---- 状態(燃えている・光っている・子ども・ダメージ) ----
+
+    private int sectionStates(int y) {
+        NpcData d = NpcManager.get(id).orElse(null);
+        if (d == null) return y;
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;
+        boolean canBaby = live != null && EntityReflect.hasMethodBefore(live, "setBaby", Mob.class);
+
+        EntityProfile profile = EntityProfiles.of(d.entityType());
+        List<String[]> flags = new ArrayList<>();
+        if (!profile.isStateHidden(EntityFlags.FIRE)) flags.add(new String[] {EntityFlags.FIRE, "燃えている (Fire)"});
+        if (!profile.isStateHidden(EntityFlags.GLOW)) flags.add(new String[] {EntityFlags.GLOW, "光っている (Glow)"});
+        if (canBaby) flags.add(new String[] {EntityFlags.BABY, "子ども (Age)"});
+        if (living) flags.add(new String[] {EntityFlags.DAMAGE, "ダメージ (Damage)"});
+        if (flags.isEmpty()) return y;
+
+        label("状態", x, y, Theme.TEXT_DIM);
+        y += lay.th() + Theme.u(3);
+
+        // 縦に並べる
+        for (String[] flag : flags) {
+            String key = flag[0];
+            add(new ModernCheckbox(x, y, w, lay.sliderH(), flag[1], d.option(key, 0) == 1,
+                    on -> edit(id, cur -> cur.withOption(key, on ? 1 : 0))));
+            y += lay.sliderH();
+        }
+        return y + lay.gap();
+    }
+
+    // ---- 姿勢・モデル ----
+
+    private int sectionPosture(NpcData d, int y) {
+        int lh = lay.th() + Theme.u(3);
+        int pgap = Math.max(1, Theme.u(3));
+
+        // 姿勢: モブごとに、意味のあるものだけを出す(選べるものがなければ、欄ごと出さない)
+        List<NpcPose> poses = NpcData.PLAYER.equals(d.kind())
+                ? NpcPose.PLAYER : EntityProfiles.of(d.entityType()).poses();
+        if (poses.size() > 1) {
+            label("姿勢", x, y, Theme.TEXT_DIM);
+            y += lh;
+            int pw = (w - pgap * (poses.size() - 1)) / poses.size();
+            for (int i = 0; i < poses.size(); i++) {
+                NpcPose p = poses.get(i);
+                add(new ModernButton(x + i * (pw + pgap), y, pw, lay.btnH(), p.label, ModernButton.Style.DEFAULT, () -> {
+                    edit(id, cur -> cur.withPose(p));
+                    host.refresh();
+                }).setSelected(d.npcPose() == p));
+            }
+            y += lay.btnH() + lay.gap();
+        }
+
+        // モデル(腕の太さ): プレイヤーのみ
+        if (NpcData.PLAYER.equals(d.kind())) {
+            label("モデル(腕の太さ)", x, y, Theme.TEXT_DIM);
+            y += lh;
+            String[] modelLabels = {"自動", "ノーマル", "スリム"};
+            String[] modelValues = {null, "wide", "slim"};
+            int mw = (w - pgap * 2) / 3;
+            for (int i = 0; i < 3; i++) {
+                String value = modelValues[i];
+                add(new ModernButton(x + i * (mw + pgap), y, mw, lay.btnH(), modelLabels[i],
+                        ModernButton.Style.DEFAULT, () -> {
+                    edit(id, cur -> cur.withModel(Optional.ofNullable(value)));
+                    host.refresh();
+                }).setSelected(java.util.Objects.equals(d.model().orElse(null), value)));
+            }
+            y += lay.btnH() + lay.gap();
+        }
+        return y;
+    }
+
+    // ---- アニメーション ----
+
+    private int sectionAnimation(NpcData d, int y) {
+        int lh = lay.th() + Theme.u(3);
+        label("アニメーション", x, y, Theme.TEXT_DIM);
+        y += lh;
+        add(new ModernSlider(x, y, w, lay.sliderH(), "時間", "tick", 0,
+                EntityTweaks.animTickMax(d.entityType()), 0.1, d.animTickOrDefault(),
+                v -> edit(id, cur -> cur.withAnimTick((float) v))));
+        return y + lay.sliderH() + lay.gap();
+    }
+
+    // ---- 動き(歩行・腕) ----
+
+    private int sectionMotion(NpcData d, int y) {
+        int lh = lay.th() + Theme.u(3);
+        int sh = lay.sliderH();
+
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;   // エンドクリスタルやボートは、生き物ではない
+        boolean isPlayer = NpcData.PLAYER.equals(d.kind());
+        boolean showWalk = living && (isPlayer || EntityProfiles.of(d.entityType()).walks());
+        boolean showArms = living && (isPlayer || EntityProfiles.of(d.entityType()).isHumanoid());
+
+        if (showWalk || showArms) {
+            label("動き", x, y, Theme.TEXT_DIM);
+            y += lh;
+        }
+        if (showWalk) {
+            add(new ModernSlider(x, y, w, sh, "歩行", "%", -100, 100, d.option(EntityMotion.WALK, 0),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v))));
+            y += sh;
+        }
+        if (showArms) {
+            int last = EntityMotion.ARM_NAMES.length - 1;
+            ModernSlider arms = new ModernSlider(x, y, w, sh, "腕", "", 0, last, d.option(EntityMotion.ARMS, 0),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, (int) v)));
+            arms.setValueFormatter(v -> EntityMotion.ARM_NAMES[Math.max(0, Math.min(last, (int) Math.round(v)))]);
+            add(arms);
+            y += sh;
+        }
+
+        // [DEV] キーフレーム歩行の、周期と強さの調整
+        if (CinemaState.devMode && showWalk) {
+            EntityProfile walker = EntityProfiles.of(d.entityType());
+            if (walker.walkCyclePosition() > 0f) {
+                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行周期", "秒", 0.2, 6.0, 0.05,
+                        walker.walkCycleSeconds(), v -> {
+                    walker.setWalkCycleSeconds((float) v);
+                    edit(id, cur -> cur);   // 歩行を、新しい周期で反映し直す
+                }));
+                y += sh;
+                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行の強さ", "", 0.05, 1.0, 0.05,
+                        walker.walkKeyframeIntensity(), v -> {
+                    walker.setWalkKeyframeIntensity((float) v);
+                    edit(id, cur -> cur);
+                }));
+                y += sh;
+                add(new ModernButton(x, y, w, lay.btnH(), "周期をコピー", ModernButton.Style.DEFAULT, () -> {
+                    String line = String.format(java.util.Locale.ROOT, "walkKeyframe(%.2ff, %.1ff, %.2ff);",
+                            walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed(), walker.walkKeyframeIntensity());
+                    Minecraft.getInstance().keyboardHandler.setClipboard(line);
+                    Cinema.LOGGER.info("[Cinema] {} -> {}", d.entityType(), line);
+                }));
+                y += lay.btnH() + lay.gap();
+            }
+        }
+
+        if (showWalk || showArms) y += lay.gap();
+        return y;
+    }
+
+    // ---- エンティティ固有のオプション(プロフィールが宣言したものだけ) ----
+
+    private int sectionOptions(NpcData d, int y) {
+        List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
+        if (specs.isEmpty()) return y;
+        int sh = lay.sliderH();
+
+        for (EntityOption spec : specs) {
+            if (spec.kind() == EntityOption.Kind.CHECKBOX) {
+                add(new ModernCheckbox(x, y, w, sh, spec.label(), d.option(spec.key(), spec.def()) == 1,
+                        on -> edit(id, cur -> cur.withOption(spec.key(), on ? 1 : 0))));
+            } else if (spec.kind() == EntityOption.Kind.DROPDOWN) {
+                add(new ModernDropdown(x, y, w, sh, spec.label(), spec.names(), d.option(spec.key(), spec.def()),
+                        i -> edit(id, cur -> cur.withOption(spec.key(), i)), host::onDropdownOpen));
+            } else {
+                ModernSlider slider = new ModernSlider(x, y, w, sh, spec.label(), "",
+                        spec.min(), spec.max(), d.option(spec.key(), spec.def()),
+                        v -> edit(id, cur -> cur.withOption(spec.key(), (int) v)));
+                if (!spec.names().isEmpty()) {
+                    slider.setValueFormatter(v -> {
+                        int i = Math.max(0, Math.min(spec.names().size() - 1, (int) Math.round(v)));
+                        return spec.names().get(i);
+                    });
+                }
+                add(slider);
+            }
+            y += sh;
+        }
+        return y + lay.gap();
+    }
+
+    // ---- 装備 ----
+
+    private int sectionEquipment(NpcData d, int y) {
+        int lh = lay.th() + Theme.u(3);
+        int sh = lay.sliderH();
+
+        // スロットは、クリックで外す。右クリックで装飾(エンチャント光沢・トリム)。入れるのは、インベントリの画面から
+        label(Theme.fit(host.font(), "装備(左:開く 右:装飾 Shift:外す)", w), x, y, Theme.TEXT_DIM);
+        y += lh;
+
+        boolean animalGear = EntityProfiles.of(d.entityType()).hasAnimalGear();
+        int cgap = Math.max(1, Theme.u(3));
+        int cw = (w - cgap * 3) / 4;
+        int ch = Math.max(Theme.u(26), 26);
+
+        String heldLabel = EntityProfiles.of(d.entityType()).heldItemLabel();
+        if (heldLabel != null) return sectionHeldItem(d, y, heldLabel);
+
+        // 上段: メイン/オフ
+        addSlotButton(d, EquipmentSlot.MAINHAND, x + (cw + cgap), y, cw, ch, animalGear);
+        addSlotButton(d, EquipmentSlot.OFFHAND, x + (cw + cgap) * 2, y, cw, ch, animalGear);
+        y += ch + cgap;
+
+        // 下段: 頭 / 胸 / 脚 / 足
+        addSlotButton(d, EquipmentSlot.HEAD, x, y, cw, ch, animalGear);
+        addSlotButton(d, EquipmentSlot.CHEST, x + (cw + cgap), y, cw, ch, animalGear);
+        addSlotButton(d, EquipmentSlot.LEGS, x + (cw + cgap) * 2, y, cw, ch, animalGear);
+        addSlotButton(d, EquipmentSlot.FEET, x + (cw + cgap) * 3, y, cw, ch, animalGear);
+        y += ch + lay.gap();
+
+        // 手の動作(使えるアイテムを持っているときだけ)
+        ItemStack mainItem = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
+        ItemStack offItem = EquipmentEdit.stackOf(d, EquipmentSlot.OFFHAND);
+        boolean anyMotion = EntityMotion.isSpear(mainItem) || hasUseMotion(mainItem) || hasUseMotion(offItem)
+                || mainItem.is(Items.CROSSBOW) || offItem.is(Items.CROSSBOW);
+        if (anyMotion) {
+            label("手の動作", x, y, Theme.TEXT_DIM);
+            y += lh;
+        }
+
+        if (EntityMotion.isSpear(mainItem)) {
+            // 槍: 突き(ジャブ)と突進(チャージ)は、別の動作。どちらの進み具合も、同じスライダーで決める
+            add(new ModernDropdown(x, y, w, sh, "槍の攻撃", List.of(EntityMotion.SPEAR_NAMES),
+                    d.option(EntityMotion.SPEAR, 0),
+                    i -> edit(id, cur -> cur.withOption(EntityMotion.SPEAR, i)), host::onDropdownOpen));
+            y += sh;
+            add(new ModernSlider(x, y, w, sh, "槍の進み具合", "%", 0, 100, d.option(EntityMotion.SPEAR_AMOUNT, 50),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.SPEAR_AMOUNT, (int) v))));
+            y += sh;
+        } else if (hasUseMotion(mainItem)) {
+            add(new ModernSlider(x, y, w, sh, "メイン 使用モーション", "%", 0, 100,
+                    d.option(EntityMotion.USE_MAIN, EntityMotion.defaultUse(mainItem)),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.USE_MAIN, (int) v))));
+            y += sh;
+        }
+        if (hasUseMotion(offItem)) {
+            add(new ModernSlider(x, y, w, sh, "オフ 使用モーション", "%", 0, 100,
+                    d.option(EntityMotion.USE_OFF, EntityMotion.defaultUse(offItem)),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.USE_OFF, (int) v))));
+            y += sh;
+        }
+        if (mainItem.is(Items.CROSSBOW) || offItem.is(Items.CROSSBOW)) {
+            add(new ModernCheckbox(x, y, w, sh, "装填済み(矢をつがえて構える)", d.option(EntityMotion.LOADED, 0) == 1,
+                    on -> edit(id, cur -> cur.withOption(EntityMotion.LOADED, on ? 1 : 0))));
+            y += sh;
+        }
+
+        statusY = y + Theme.u(2);   // メッセージの行
+        return y + lay.th() + Theme.u(6);
+    }
+
+    /** 使用モーション(弓・クロスボウ・トライデント・盾・食べ物など)があるアイテムか */
+    private static boolean hasUseMotion(ItemStack stack) {
+        return !stack.isEmpty() && !"NONE".equals(stack.getUseAnimation().name());
+    }
+
+    /** クリエ画面を、ゲームモード・OP に関係なく開く。サーバーへは何も送らない */
+    private static void openInventory() {
+        Minecraft mc = Minecraft.getInstance();
+        LocalPlayer player = mc.player;
+        if (player == null) return;
+        mc.setScreenAndShow(new CinemaCreativeScreen(player, player.connection.enabledFeatures(), true));
+        UiSounds.inventory();
+    }
+
+    private void addSlotButton(NpcData d, EquipmentSlot slot, int bx, int by, int bw, int bh, boolean animalGear) {
+        ItemStack stack = EquipmentEdit.stackOf(d, slot);
+        String slotName = EquipmentEdit.label(slot, animalGear);
+        ItemButton button = new ItemButton(bx, by, bw, bh, stack, EquipmentEdit.ghostOf(slot), b -> {
+            if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
+                if (!stack.isEmpty()) {
+                    EquipmentEdit.set(id, slot, ItemStack.EMPTY);
+                    host.refresh();
+                }
+                return;
+            }
+            if (b == 0) {   // 左クリック: インベントリを開く
+                openInventory();
+            } else if (stack.isEmpty()) {   // 右クリック: 装飾(空のときは、できない)
+                say(slotName + "は空です(左クリックでインベントリを開けます)");
+            } else {
+                Minecraft.getInstance().setScreenAndShow(new EquipmentMenuScreen(host.screen(), slotName,
+                        () -> NpcManager.get(id).map(cur -> EquipmentEdit.stackOf(cur, slot)).orElse(ItemStack.EMPTY),
+                        s -> EquipmentEdit.set(id, slot, s)));
+            }
+        });
+        button.tip(stack.isEmpty() ? slotName + "(左クリック: インベントリ)"
+                : slotName + ": " + stack.getHoverName().getString() + "(右: 装飾 / Shift: 外す)");
+        add(button);
+    }
+
+    private void say(String text) {
+        status = text;
+        statusUntil = System.currentTimeMillis() + 3000;
+        UiSounds.deny();
+    }
+
+    // ---- [DEV] 動作の長さの調整(AnimationState を使うモブ) ----
+
+    private int sectionDev(NpcData d, int y) {
+        if (!CinemaState.devMode || !(EntityProfiles.of(d.entityType()) instanceof AnimationModeProfile moded)) return y;
+        int modeIdx = d.option(moded.optionKey(), 0);
+        if (!moded.hasField(modeIdx)) return y;
+
+        add(new ModernSlider(x, y, w, lay.sliderH(), "[DEV] 動作の長さ", "秒", 0.0, 12.0, 0.05,
+                moded.secondsOf(modeIdx), v -> {
+            moded.setSeconds(modeIdx, (float) v);
+            edit(id, cur -> cur);   // 新しい長さで反映し直す
+        }));
+        y += lay.sliderH();
+        add(new ModernButton(x, y, w, lay.btnH(), "長さをコピー", ModernButton.Style.DEFAULT, () -> {
+            Minecraft.getInstance().keyboardHandler.setClipboard(moded.secondsLine());
+            Cinema.LOGGER.info("[Cinema] {} seconds -> {}", d.entityType(), moded.secondsLine());
+        }));
+        return y + lay.btnH() + lay.gap();
+    }
+
+    // ================= タブ「ポーズ」 =================
+
+    /** パーツごとのポーズ(翼・頭・腕など)を、これから足していく場所。いまは枠だけ */
+    private int buildPose(int y) {
+        label("パーツごとのポーズ", x, y, Theme.TEXT);
+        y += lay.th() + Theme.u(5);
+        label(Theme.fit(host.font(), "翼・頭・腕などの角度を、ここで調整できる", w), x, y, Theme.TEXT_DIM);
+        y += lay.th() + Theme.u(3);
+        label(Theme.fit(host.font(), "ようにします(準備中)", w), x, y, Theme.TEXT_DIM);
+        return y + lay.th();
+    }
+
+    // ================= スクロール =================
+
+    private void applyScroll() {
+        for (Item it : items) {
+            AbstractWidget widget = it.widget();
+            widget.setY(it.baseY() - scroll);
+            // 中身の領域に、完全に収まっているものだけを、表示して、操作できるようにする
+            boolean inside = widget.getY() >= contentTop && widget.getY() + widget.getHeight() <= contentBottom;
+            widget.visible = inside;
+            widget.active = inside;
+        }
+    }
+
+    private void setScroll(int value) {
+        scroll = Mth.clamp(value, 0, maxScroll);
+        applyScroll();
+    }
+
+    public boolean contains(double mx, double my) {
+        return mx >= lay.rightX() && mx < lay.rightX() + lay.panelW()
+                && my >= lay.panelY() && my < lay.panelY() + lay.panelH();
+    }
+
+    /** ホイール。スクロールしたら、短い間は、項目(スライダー・数値欄)より先に受けて、途中で止まらないようにする */
+    public boolean mouseScrolled(double mx, double my, double scrollY) {
+        if (!contains(mx, my) || maxScroll <= 0) return false;
+        setScroll(scroll - (int) Math.round(scrollY * Theme.u(24)));
+        wheelLockUntil = System.currentTimeMillis() + 400;
+        return true;
+    }
+
+    /** ホイールの「ロック」中か。ロック中は、画面が、項目より先に、パネルへホイールを渡す */
+    public boolean wheelLocked(double mx, double my) {
+        return System.currentTimeMillis() < wheelLockUntil && contains(mx, my);
+    }
+
+    // ---- 項目のない所からのドラッグでスクロール ----
+
+    /** 項目のない所を押したときに、画面が呼ぶ。スクロールできる中身の上なら、ドラッグでスクロールを始める */
+    public boolean beginDragScroll(double mx, double my) {
+        if (maxScroll <= 0 || mx < lay.rightX() || mx >= lay.rightX() + lay.panelW()
+                || my < contentTop || my >= contentBottom) {
+            return false;
+        }
+        dragScrolling = true;
+        return true;
+    }
+
+    public boolean isDragScrolling() {
+        return dragScrolling;
+    }
+
+    /** つかんで引く向き: 下へドラッグすると、中身が下へ動く(スクロール位置は減る) */
+    public void dragScrollBy(double dy) {
+        setScroll(scroll - (int) Math.round(dy));
+        wheelLockUntil = System.currentTimeMillis() + 400;
+    }
+
+    public void endDragScroll() {
+        dragScrolling = false;
+    }
+
+    /** 右端のスクロールバー。つまみをドラッグできる */
+    private final class ScrollBar extends AbstractWidget implements Draggable {
+        ScrollBar(int bx, int by, int bw, int bh) {
+            super(bx, by, bw, bh, Component.empty());
+        }
+
+        private int thumbH() {
+            int view = contentBottom - contentTop;
+            int total = view + maxScroll;
+            return Math.max(Theme.u(16), getHeight() * view / Math.max(1, total));
+        }
+
+        private int thumbY() {
+            int free = getHeight() - thumbH();
+            return getY() + (maxScroll == 0 ? 0 : free * scroll / maxScroll);
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+            if (maxScroll <= 0) return;
+            g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x22FFFFFF);
+            g.fill(getX(), thumbY(), getX() + getWidth(), thumbY() + thumbH(), 0x88FFFFFF);
+        }
+
+        @Override
+        public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
+            return maxScroll > 0 && Theme.isClick(event.button()) && isMouseOver(event.x(), event.y());
+        }
+
+        @Override
+        public void dragBy(double dx, double dy) {
+            int free = getHeight() - thumbH();
+            if (free > 0) setScroll(scroll + (int) Math.round(dy * maxScroll / free));
+        }
+
+        @Override
+        public void dragEnd(double mouseX, double mouseY) {}
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {}
+    }
+
+    // ================= 描画 =================
+
+    /** パネルの背景と、文字。ウィジェットの前に呼ぶ */
+    public void extractBackground(GuiGraphicsExtractor g) {
+        Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
+        NpcManager.get(id).ifPresent(d -> NpcFaces.paint(g, d, iconX, iconY, iconSize));
+        for (Label l : fixedLabels) {
+            Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
+        }
+        for (Label l : scrollLabels) {
+            int ly = l.y() - scroll;
+            if (ly >= contentTop && ly + lay.th() <= contentBottom) {
+                Theme.text(g, host.font(), l.text(), l.x(), ly, l.color());
+            }
+        }
+        if (tab == RightTab.MAIN && System.currentTimeMillis() < statusUntil) {
+            int sy = statusY - scroll;
+            if (sy >= contentTop && sy + lay.th() <= contentBottom) {
+                Theme.text(g, host.font(), Theme.fit(host.font(), status, w), x, sy, 0xFFE5A04B);
+            }
+        }
+    }
+
+    /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): メインハンドのスロットだけ */
+    private int sectionHeldItem(NpcData d, int y, String heldLabel) {
+        int lh = lay.th() + Theme.u(3);
+        label(Theme.fit(host.font(), heldLabel + "(左:開く Shift:外す)", w), x, y, Theme.TEXT_DIM);
+        y += lh;
+
+        int cgap = Math.max(1, Theme.u(3));
+        int cw = (w - cgap * 3) / 4;
+        int ch = Math.max(Theme.u(26), 26);
+        ItemStack stack = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
+
+        ItemButton slot = new ItemButton(x + cw + cgap, y, cw, ch, stack, EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
+            if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
+                if (!stack.isEmpty()) {
+                    EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+                    host.refresh();
+                }
+                return;
+            }
+            if (b == 0) openInventory();
+            else say("このエンティティに装飾はありません");
+        });
+        slot.tip(stack.isEmpty() ? heldLabel + "(左クリック: インベントリ)"
+                : heldLabel + ": " + stack.getHoverName().getString() + "(Shift: 外す)");
+        add(slot);
+        y += ch + lay.gap();
+
+        statusY = y + Theme.u(2);
+        return y + lay.th() + Theme.u(6);
+    }
+
+    // ---- プレイヤーのネームタグ・ケープの文字(プレイヤーだけ) ----
+
+    private int sectionPlayerTexts(NpcData d, int y) {
+        if (!NpcData.PLAYER.equals(d.kind())) return y;
+        int lh = lay.th() + Theme.u(3);
+
+        label("ネームタグ・ケープ", x, y, Theme.TEXT_DIM);
+        y += lh;
+
+        // 表示名(空欄: ユーザー名)
+        ModernTextField nameField = new ModernTextField(x, y, w, lay.btnH());
+        nameField.setHint("表示名(空欄 = ユーザー名)");
+        nameField.setMaxLength(48);
+        nameField.setValue(NpcTexts.get(id, NpcTexts.NAME_TAG));
+        nameField.setOnChange(s -> {
+            NpcTexts.set(id, NpcTexts.NAME_TAG, s);
+            edit(id, cur -> cur);   // 反映し直す
+        });
+        add(nameField);
+        y += lay.btnH() + lay.gap();
+
+        // BelowName(名前の下に出る文字)
+        ModernTextField belowField = new ModernTextField(x, y, w, lay.btnH());
+        belowField.setHint("BelowName(名前の下の文字)");
+        belowField.setMaxLength(48);
+        belowField.setValue(NpcTexts.get(id, NpcTexts.BELOW_NAME));
+        belowField.setOnChange(s -> {
+            NpcTexts.set(id, NpcTexts.BELOW_NAME, s);
+            edit(id, cur -> cur);
+        });
+        add(belowField);
+        y += lay.btnH() + lay.gap();
+
+
+        // ケープの画像(config/cinema/capes/*.png)。先頭は「なし」(スキンのケープ)
+        List<String> capeFiles = new ArrayList<>();
+        capeFiles.add("なし(スキンのケープ)");
+        capeFiles.addAll(CapeLibrary.names());
+        int capeIndex = Math.max(0, capeFiles.indexOf(NpcTexts.get(id, NpcTexts.CAPE_FILE)));
+        add(new ModernDropdown(x, y, w, lay.sliderH(), "ケープ画像", capeFiles, capeIndex, i -> {
+            NpcTexts.set(id, NpcTexts.CAPE_FILE, i == 0 ? "" : capeFiles.get(i));
+            edit(id, cur -> cur);
+        }, host::onDropdownOpen));
+        y += lay.sliderH();
+        label(Theme.fit(host.font(), "画像は config/cinema/capes/ に PNG(64×32)", w), x, y + Theme.u(2), Theme.TEXT_DIM);
+        y += lay.th() + Theme.u(6);
+
+        // ケープの持ち主(ユーザー名)。Enter で反映
+        ModernTextField capeField = new ModernTextField(x, y, w, lay.btnH());
+        capeField.setHint("ケープの持ち主(Enterで反映)");
+        capeField.setMaxLength(16);
+        capeField.setCharFilter(cp -> cp < 128 && (Character.isLetterOrDigit(cp) || cp == '_'));
+        capeField.setValue(NpcTexts.get(id, NpcTexts.CAPE_OWNER));
+        capeField.setOnEnter(s -> {
+            NpcTexts.set(id, NpcTexts.CAPE_OWNER, s.trim());
+            edit(id, cur -> cur);
+        });
+        add(capeField);
+        y += lay.btnH() + lay.gap();
+        return y;
+    }
+}
