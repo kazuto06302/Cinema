@@ -1,8 +1,6 @@
 package net.kztmc.mc.cinema.ui;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import net.kztmc.mc.cinema.npc.EntityIds;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.minecraft.client.Minecraft;
@@ -17,8 +15,8 @@ public final class SelectionOutline {
     public static final int COLOR = 0xFF4C9AFF;   // ARGB
     public static final Identifier CHAIN_ID = Identifier.fromNamespaceAndPath("cinema", "selection_outline");
     public static final Identifier TARGET_ID = Identifier.fromNamespaceAndPath("cinema", "selection_outline");
-
     private static final List<EntityRenderState> STATES = new ArrayList<>();
+    private static final Set<EntityRenderState> SELECTED_THIS_FRAME = Collections.newSetFromMap(new IdentityHashMap<>());
 
     public static boolean isSelected(Entity entity) {
         if (!(Minecraft.getInstance().gui.screen() instanceof CinemaScreen)) return false;
@@ -33,15 +31,25 @@ public final class SelectionOutline {
         return false;
     }
 
-    /** 描画状態を作った直後に呼ぶ(EntityRendererMixin から) */
-    public static void collect(EntityRenderState state) {
-        if (STATES.size() < 16) STATES.add(state);
-    }
-
     /** そのフレームで集めた、選択NPCの描画状態を渡して、空にする */
     public static List<EntityRenderState> take() {
         List<EntityRenderState> out = new ArrayList<>(STATES);
         STATES.clear();
         return out;
+    }
+
+    public static void collect(EntityRenderState state) {
+        if (STATES.size() < 16) STATES.add(state);
+        SELECTED_THIS_FRAME.add(state);
+    }
+
+    /** 選択中のNPCの描画状態か(エンティティの描画除外フィルターで使う) */
+    public static boolean isCollected(EntityRenderState state) {
+        return SELECTED_THIS_FRAME.contains(state);
+    }
+
+    /** フレームの終わりに呼ぶ(古い状態が残らないように) */
+    public static void endFrame() {
+        SELECTED_THIS_FRAME.clear();
     }
 }

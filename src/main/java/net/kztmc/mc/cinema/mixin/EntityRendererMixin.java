@@ -1,6 +1,7 @@
 package net.kztmc.mc.cinema.mixin;
 
 import net.kztmc.mc.cinema.npc.EntityTweaks;
+import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.npc.SceneFreeze;
 import net.kztmc.mc.cinema.ui.SelectionOutline;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -32,14 +33,25 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
             EntityRenderer<T, S> self = (EntityRenderer<T, S>) (Object) this;
             float pinned = SceneFreeze.partialTickOf(entity);
             S state = self.createRenderState(entity, pinned);
-            EntityTweaks.adjustRenderState(entity, state, pinned);   // プロフィールが描画状態を書き換えられる
+            EntityTweaks.adjustRenderState(entity, state, pinned);
+            if (NpcManager.isNpc(entity)) NpcManager.registerState(state);
             if (SelectionOutline.isSelected(entity)) {
-                state.outlineColor = 0;   // バニラの発光には入れない
+                state.outlineColor = 0;
                 SelectionOutline.collect(state);
             }
             cir.setReturnValue(state);
         } finally {
             cinema$pinning = false;
         }
+    }
+
+    /** 固定されていない NPC の状態も登録する(固定中は、上で登録済み) */
+    @Inject(
+            method = "createRenderState(Lnet/minecraft/world/entity/Entity;F)Lnet/minecraft/client/renderer/entity/state/EntityRenderState;",
+            at = @At("RETURN"))
+    private void cinema$registerNpc(T entity, float partialTick, CallbackInfoReturnable<S> cir) {
+        if (cinema$pinning || SceneFreeze.isFrozenNpc(entity)) return;
+        S state = cir.getReturnValue();
+        if (state != null && NpcManager.isNpc(entity)) NpcManager.registerState(state);
     }
 }

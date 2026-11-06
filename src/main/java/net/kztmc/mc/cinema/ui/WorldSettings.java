@@ -5,6 +5,9 @@ import com.google.gson.GsonBuilder;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.HashMap;
+import java.util.Map;
+
 import net.fabricmc.loader.api.FabricLoader;
 import net.kztmc.mc.cinema.Cinema;
 
@@ -23,6 +26,7 @@ public final class WorldSettings {
         int timeTicks;
         boolean weatherOn;
         int weather;
+        Map<String, Boolean> render = new HashMap<>();
     }
 
     public static boolean textureFixed;
@@ -42,6 +46,10 @@ public final class WorldSettings {
             ClientOverrides.timeTicks = Math.floorMod(d.timeTicks, 24000);
             ClientOverrides.weatherOn = d.weatherOn;
             ClientOverrides.weather = Math.max(0, Math.min(2, d.weather));
+            if (d.render != null) for (RenderToggles.Item i : RenderToggles.Item.values()) {
+                Boolean v = d.render.get(i.name());
+                if (v != null) i.set(v);
+            }
         } catch (IOException | RuntimeException e) {
             Cinema.LOGGER.warn("[Cinema] could not read world_panel.json", e);
         }
@@ -60,6 +68,7 @@ public final class WorldSettings {
             Files.writeString(FILE, GSON.toJson(d));
             dirty = false;
             lastWrite = System.currentTimeMillis();
+            for (RenderToggles.Item i : RenderToggles.Item.values()) d.render.put(i.name(), i.on());
         } catch (IOException e) {
             Cinema.LOGGER.warn("[Cinema] could not write world_panel.json", e);
         }

@@ -1,12 +1,7 @@
 package net.kztmc.mc.cinema.npc;
 
 import com.mojang.authlib.GameProfile;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
-import java.util.UUID;
+import java.util.*;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
@@ -17,7 +12,7 @@ import net.kztmc.mc.cinema.entity.EntityProfiles;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.client.player.RemotePlayer;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.core.HolderLookup;
 import net.minecraft.core.SectionPos;
 import net.minecraft.core.registries.BuiltInRegistries;
@@ -30,7 +25,6 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.phys.AABB;
 
 /**
  * NPC定義(NpcData)を保持し、クライアントのレベルに偽エンティティとして出し入れする。
@@ -49,6 +43,8 @@ public final class NpcManager {
     private static UUID selected;
     /** サーバー側エンティティIDと衝突しないよう高い値から払い出す */
     private static int nextEntityId = 0x40000000;
+
+    private static final Set<EntityRenderState> NPC_STATES = Collections.newSetFromMap(new IdentityHashMap<>());
 
     private NpcManager() {}
 
@@ -316,5 +312,30 @@ public final class NpcManager {
     /** 文字の設定など、NpcData の外にある設定が変わったときに、保存の対象にする */
     public static void markDirty() {
         dirty = true;
+    }
+
+    public static boolean isNpc(net.minecraft.world.entity.Entity entity) {
+        for (NpcData d : defs()) {
+            Entity live = entityOf(d.id());
+            if (live == entity) return true;
+            if (live != null) {
+                for (Entity part : EntityIds.subEntities(live)) {
+                    if (part == entity) return true;
+                }
+            }
+        }
+        return false;
+    }
+
+    public static void registerState(net.minecraft.client.renderer.entity.state.EntityRenderState state) {
+        NPC_STATES.add(state);
+    }
+
+    public static boolean isNpcState(net.minecraft.client.renderer.entity.state.EntityRenderState state) {
+        return NPC_STATES.contains(state);
+    }
+
+    public static void clearStates() {
+        NPC_STATES.clear();
     }
 }

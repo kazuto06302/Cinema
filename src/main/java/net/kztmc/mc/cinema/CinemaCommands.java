@@ -69,6 +69,14 @@ public final class CinemaCommands {
                             CinemaWand.give();
                             return 1;
                         }))
+                        .then(ClientCommands.literal("weather").executes(ctx -> {
+                            Object lr = Minecraft.getInstance().levelRenderer;
+                            Object state = EntityReflect.getObjectQuiet(
+                                    EntityReflect.getObjectQuiet(lr, "levelRenderState"), "weatherRenderState");
+                            if (state != null) EntityReflect.dumpObject(state);
+                            EntityReflect.dumpObject(Minecraft.getInstance().levelRenderer.weatherEffectRenderer());
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("clear")
                                 .executes(ctx -> {
                                     NpcManager.clear();

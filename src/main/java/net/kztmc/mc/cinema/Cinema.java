@@ -34,7 +34,7 @@ public class Cinema implements ClientModInitializer {
         net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents
                 .modifyOutputEvent(net.minecraft.world.item.CreativeModeTabs.TOOLS_AND_UTILITIES)
                 .register(entries -> entries.accept(CinemaWand.create()));
-        //CinemaWand.init();
+        CinemaWand.init();
         //log
         LOGGER.info("Cinema initialized");
     }

@@ -11,10 +11,13 @@
     "TickRateManagerMixin"
   ],
   "client": [
+    "BossBarToggleMixin",
+    "ChatToggleMixin",
     "ClientClockInstanceMixin",
     "CreativeScreenMixin",
     "EntityRendererMixin",
     "LevelRendererSelectionMixin",
+    "LevelRendererToggleMixin",
     "MultiPlayerGameModeInventoryMixin",
     "MultiPlayerGameModeMixin"
   ],
