@@ -75,9 +75,11 @@ public final class CinemaCommands {
                         }))
                         .then(ClientCommands.literal("weathersig").executes(ctx -> {
                             for (java.lang.reflect.Method m : net.minecraft.client.renderer.WeatherEffectRenderer.class.getDeclaredMethods()) {
-                                if (m.getName().equals("extractRenderState") || m.getName().startsWith("create")) {
-                                    Cinema.LOGGER.info("[Cinema] {}{}", m.getName(), java.util.Arrays.toString(m.getParameterTypes()));
-                                }
+                                if (!m.getName().startsWith("create")) continue;
+                                StringBuilder d = new StringBuilder("(");
+                                for (Class<?> p : m.getParameterTypes()) d.append(typeDesc(p));
+                                d.append(")").append(typeDesc(m.getReturnType()));
+                                Cinema.LOGGER.info("[Cinema] Lnet/minecraft/client/renderer/WeatherEffectRenderer;{}{}", m.getName(), d);
                             }
                             return 1;
                         }))
@@ -131,5 +133,19 @@ public final class CinemaCommands {
         Object model = EntityReflect.getObject(renderer, "model");
         if (model != null) EntityReflect.dumpObject(model);
         say("ログに出力しました: " + id);
+    }
+
+    private static String typeDesc(Class<?> c) {
+        if (c == void.class) return "V";
+        if (c == int.class) return "I";
+        if (c == long.class) return "J";
+        if (c == float.class) return "F";
+        if (c == double.class) return "D";
+        if (c == boolean.class) return "Z";
+        if (c == byte.class) return "B";
+        if (c == short.class) return "S";
+        if (c == char.class) return "C";
+        if (c.isArray()) return "[" + typeDesc(c.getComponentType());
+        return "L" + c.getName().replace('.', '/') + ";";
     }
 }

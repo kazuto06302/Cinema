@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.mixin;
+package net.kztmc.mc.cinema.mixin.ui.inventory;
 
 import net.kztmc.mc.cinema.ui.panel.inventory.CinemaCreativeScreen;
 import net.minecraft.client.Minecraft;

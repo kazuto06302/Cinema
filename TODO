@@ -7,9 +7,28 @@ Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
 
-/cinema weathersig
-[21:16:20] [Render thread/INFO] (cinema) [Cinema] extractRenderState[class net.minecraft.client.multiplayer.ClientLevel, float, class net.minecraft.world.phys.Vec3, class net.minecraft.client.renderer.state.level.WeatherRenderState]
-[21:16:20] [Render thread/INFO] (cinema) [Cinema] createRainColumnInstance[interface net.minecraft.util.RandomSource, long, int, int, int, int, int, float]
-[21:16:20] [Render thread/INFO] (cinema) [Cinema] createSnowColumnInstance[interface net.minecraft.util.RandomSource, long, int, int, int, int, int, float]
-
-wandをblaze_rodからbreeze_rodに、クラフト/醸造/エンチャント/名前変更の不可・アイテムid・属性を見れなくすることってできる？
+メインハンドだけの時はスロットをセンターにするようにしよう
+mixinのディレクトリも整理しました
+  "mixins": [
+    "entity.DragonPickMixin",
+    "entity.EntityCollisionMixin",
+    "entity.TickRateManagerMixin",
+    "wand.WandMenuGuardMixin",
+    "wand.WandTooltipMixin"
+  ],
+  "client": [
+    "entity.EntityRendererMixin",
+    "entity.LevelRendererSelectionMixin",
+    "entity.LevelRendererToggleMixin",
+    "entity.MultiPlayerGameModeMixin",
+    "ui.inventory.CreativeScreenMixin",
+    "ui.inventory.LocalPlayerInfiniteMixin",
+    "ui.inventory.MultiPlayerGameModeInventoryMixin",
+    "ui.toggle.BossBarToggleMixin",
+    "ui.toggle.ChatToggleMixin",
+    "world.ClientClockInstanceMixin",
+    "world.ClientLevelRainSoundMixin",
+    "world.LevelWeatherMixin",
+    "world.WeatherEffectRendererMixin"
+  ]
+また、ModernButtonとかSliderとかのwidgerはui/widgetに入ってます

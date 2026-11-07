@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.mixin;
+package net.kztmc.mc.cinema.mixin.world;
 
 import net.kztmc.mc.cinema.ui.panel.world.ClientOverrides;
 import net.minecraft.client.ClientClockManager.ClientClockInstance;

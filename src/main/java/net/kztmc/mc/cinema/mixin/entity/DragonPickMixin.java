@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.mixin;
+package net.kztmc.mc.cinema.mixin.entity;
 
 import net.kztmc.mc.cinema.npc.SceneFreeze;
 import net.minecraft.world.entity.Entity;

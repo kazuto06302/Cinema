@@ -48,13 +48,13 @@ public final class CinemaWand {
     }
 
     public static boolean isWand(ItemStack stack) {
-        if (stack.isEmpty() || !stack.is(Items.BLAZE_ROD)) return false;
+        if (stack.isEmpty() || !stack.is(Items.BREEZE_ROD)) return false;
         CustomData data = stack.get(DataComponents.CUSTOM_DATA);
         return data != null && data.copyTag().contains(TAG);
     }
 
     public static ItemStack create() {
-        ItemStack stack = new ItemStack(Items.BLAZE_ROD);
+        ItemStack stack = new ItemStack(Items.BREEZE_ROD);
         CompoundTag tag = new CompoundTag();
         tag.putBoolean(TAG, true);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));

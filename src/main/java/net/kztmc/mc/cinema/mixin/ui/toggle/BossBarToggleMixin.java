@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.mixin;
+package net.kztmc.mc.cinema.mixin.ui.toggle;
 
 import net.kztmc.mc.cinema.ui.panel.world.RenderToggles;
 import net.minecraft.client.gui.GuiGraphicsExtractor;

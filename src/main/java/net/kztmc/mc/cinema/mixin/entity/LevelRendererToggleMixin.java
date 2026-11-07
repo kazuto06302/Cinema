@@ -1,4 +1,4 @@
-package net.kztmc.mc.cinema.mixin;
+package net.kztmc.mc.cinema.mixin.entity;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import net.kztmc.mc.cinema.npc.NpcManager;

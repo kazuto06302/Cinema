@@ -92,31 +92,42 @@ public final class InventoryOverlay {
         int btn = Math.max(Theme.u(26), 26);
         int btnH = Math.max(th + 3, Theme.u(14));
 
-        w = btn * COLS + gap * (COLS - 1) + pad * 2;
+        Optional<NpcData> selected = NpcManager.selectedData();
+        hasNpc = selected.isPresent();
+
+        // スロット: 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁)は、メインハンドだけ
+        EquipmentSlot[] slots = ORDER;
+        EntityProfile profile = null;
+        NpcData d = null;
+        if (hasNpc) {
+            d = selected.get();
+            entityType = d.entityType();
+            profile = EntityProfiles.of(entityType);
+            if (profile.heldItemLabel() != null) slots = new EquipmentSlot[] {EquipmentSlot.MAINHAND};
+        }
+        boolean single = slots.length == 1;
+
+        // 枠の幅は、スロットの数に合わせる(文字が入る最低の幅は残す)
+        int cols = Math.min(COLS, slots.length);
+        int gridW = btn * cols + gap * (cols - 1);
+        w = Math.max(gridW + pad * 2, Theme.u(110));
         x = Math.max(Theme.u(6), inventoryLeft - w - Theme.u(8));
         y = top;
 
-        Optional<NpcData> selected = NpcManager.selectedData();
-        hasNpc = selected.isPresent();
         if (!hasNpc) {
             h = pad * 2 + th * 2;
             return;
         }
-        NpcData d = selected.get();
         UUID id = d.id();
-        entityType = d.entityType();
-        EntityProfile profile = EntityProfiles.of(entityType);
         boolean animalGear = profile.hasAnimalGear();
         title = NpcNames.of(d);
 
-        // 持ち物がそのまま内容物のエンティティは、メインハンドだけ
-        EquipmentSlot[] slots = profile.heldItemLabel() != null ? new EquipmentSlot[] {EquipmentSlot.MAINHAND} : ORDER;
-
+        int gx = x + (w - gridW) / 2;   // スロットの格子は、枠の中央に置く
         int cy = y + pad + th + Theme.u(5);
         for (int i = 0; i < slots.length; i++) {
             EquipmentSlot slot = slots[i];
-            int bx = x + pad + (i % COLS) * (btn + gap);
-            int by = cy + (i / COLS) * (btn + gap);
+            int bx = gx + (i % cols) * (btn + gap);
+            int by = cy + (i / cols) * (btn + gap);
             ItemStack stack = EquipmentEdit.stackOf(d, slot);
             String label = profile.heldItemLabel() != null && slot == EquipmentSlot.MAINHAND
                     ? profile.heldItemLabel()
@@ -128,18 +139,23 @@ public final class InventoryOverlay {
             hits.add(new Hit(bx, by, btn, btn, () -> onSlot(id, slot, animalGear, label, 0)));
         }
 
-        int slotRows = (slots.length + COLS - 1) / COLS;
-        int rowsBottom = cy + slotRows * (btn + gap);
+        int slotRows = (slots.length + cols - 1) / cols;
+        int by = cy + slotRows * (btn + gap);
         int bw = w - pad * 2;
-        register.accept(new ModernButton(x + pad, rowsBottom, bw, btnH, "装備をすべて外す",
-                ModernButton.Style.DEFAULT, () -> {
-            for (EquipmentSlot s : EquipmentEdit.SLOTS) EquipmentEdit.set(id, s, ItemStack.EMPTY);
-            rebuild = true;
-        }));
-        register.accept(new ModernButton(x + pad, rowsBottom + btnH + gap, bw, btnH, "Cinemaに戻る",
+        int buttons = 1;
+        if (!single) {   // 1枠のときは、「すべて外す」は不要(スロットを押して外せる)
+            register.accept(new ModernButton(x + pad, by, bw, btnH, "装備をすべて外す",
+                    ModernButton.Style.DEFAULT, () -> {
+                for (EquipmentSlot s : EquipmentEdit.SLOTS) EquipmentEdit.set(id, s, ItemStack.EMPTY);
+                rebuild = true;
+            }));
+            by += btnH + gap;
+            buttons = 2;
+        }
+        register.accept(new ModernButton(x + pad, by, bw, btnH, "Cinemaに戻る",
                 ModernButton.Style.PRIMARY, host::onClose));
 
-        statusY = rowsBottom + (btnH + gap) * 2 + gap;
+        statusY = by + btnH + gap;
         h = statusY - y + (th + 2) * 4 + pad;   // メッセージ用に4行ぶん
     }
 
