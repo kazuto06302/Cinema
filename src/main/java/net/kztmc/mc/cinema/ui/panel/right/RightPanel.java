@@ -521,7 +521,7 @@ public final class RightPanel {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
         if (player == null) return;
-        mc.setScreenAndShow(new CinemaCreativeScreen(player, player.connection.enabledFeatures(), true));
+        mc.gui.setScreen(new CinemaCreativeScreen(player, player.connection.enabledFeatures(), true));
         UiSounds.inventory();
     }
 
@@ -541,7 +541,7 @@ public final class RightPanel {
             } else if (stack.isEmpty()) {   // 右クリック: 装飾(空のときは、できない)
                 say(slotName + "は空です(左クリックでインベントリを開けます)");
             } else {
-                Minecraft.getInstance().setScreenAndShow(new EquipmentMenuScreen(host.screen(), slotName,
+                Minecraft.getInstance().gui.setScreen(new EquipmentMenuScreen(host.screen(), slotName,
                         () -> NpcManager.get(id).map(cur -> EquipmentEdit.stackOf(cur, slot)).orElse(ItemStack.EMPTY),
                         s -> EquipmentEdit.set(id, slot, s)));
             }

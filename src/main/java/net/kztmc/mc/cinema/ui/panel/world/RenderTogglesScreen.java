@@ -43,7 +43,7 @@ public class RenderTogglesScreen extends Screen {
 
     @Override
     public void onClose() {
-        Minecraft.getInstance().setScreenAndShow(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     private static ItemStack iconOf(RenderToggles.Item item) {

@@ -89,7 +89,7 @@ public final class CinemaWand {
 
         UUID target = pick(player);
         NpcManager.select(target);   // リーチ外・何もない所は null: 選択を外す(=ワールド設定)
-        mc.setScreenAndShow(new CinemaScreen());
+        mc.gui.setScreen(new CinemaScreen());
         return InteractionResult.SUCCESS;
     }
 

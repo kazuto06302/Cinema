@@ -35,7 +35,6 @@ import net.minecraft.network.chat.Component;
  * ゲーム画面は暗くしない。
  */
 public class CinemaScreen extends Screen implements PanelHost {
-    public static boolean blankTest;
     private static boolean openRequested;
 
     private final LeftPanel left = new LeftPanel();
@@ -75,9 +74,7 @@ public class CinemaScreen extends Screen implements PanelHost {
     public static void tickOpen(Minecraft mc) {
         if (openRequested && mc.gui.screen() == null && mc.level != null) {
             openRequested = false;
-            boolean blank = blankTest;
-            blankTest = false;
-            mc.setScreenAndShow(blank ? new BlankScreen() : new CinemaScreen());
+            mc.gui.setScreen(new CinemaScreen());
         }
     }
 

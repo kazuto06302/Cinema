@@ -204,7 +204,7 @@ public final class InventoryOverlay {
                 say(label + "は空です");
                 return;
             }
-            Minecraft.getInstance().setScreenAndShow(new EquipmentMenuScreen(host, label,
+            Minecraft.getInstance().gui.setScreen(new EquipmentMenuScreen(host, label,
                     () -> NpcManager.get(id).map(cur -> EquipmentEdit.stackOf(cur, slot)).orElse(ItemStack.EMPTY),
                     s -> EquipmentEdit.set(id, slot, s)));
             return;

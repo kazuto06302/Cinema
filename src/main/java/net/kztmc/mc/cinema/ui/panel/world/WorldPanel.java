@@ -141,7 +141,7 @@ public final class WorldPanel {
 
         y += sh + lay.gap();
         host.add(new ModernButton(x, y, w, lay.btnH(), "描画する項目を選ぶ...", ModernButton.Style.DEFAULT,
-                () -> Minecraft.getInstance().setScreenAndShow(new RenderTogglesScreen(host.screen()))));
+                () -> Minecraft.getInstance().gui.setScreen(new RenderTogglesScreen(host.screen()))));
     }
 
     /** 毎フレーム呼ばれる。いまは、追従するものがない */

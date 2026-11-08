@@ -39,11 +39,6 @@ public final class CinemaCommands {
                                     openGui();
                                     return 1;
                                 }))
-                        .then(ClientCommands.literal("blank").executes(ctx -> {
-                            CinemaScreen.blankTest = true;
-                            CinemaScreen.requestOpen();
-                            return 1;
-                        }))
                         .then(ClientCommands.literal("player")
                                 .executes(ctx -> spawn(NpcData.PLAYER, "minecraft:player", "NPC"))
                                 .then(ClientCommands.argument("name", StringArgumentType.word())

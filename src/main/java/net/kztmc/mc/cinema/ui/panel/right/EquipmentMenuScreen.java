@@ -71,7 +71,7 @@ public class EquipmentMenuScreen extends Screen {
 
     @Override
     public void onClose() {
-        Minecraft.getInstance().setScreenAndShow(parent);
+        Minecraft.getInstance().gui.setScreen(parent);
     }
 
     private static ItemStack itemOf(String path) {
