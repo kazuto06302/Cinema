@@ -1,6 +1,7 @@
 package net.kztmc.mc.cinema.mixin.ui.toggle;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.panel.world.RenderToggles;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.entity.EntityRenderer;
@@ -17,6 +18,7 @@ public abstract class NameTagToggleMixin {
             at = @At("HEAD"), cancellable = true)
     private void cinema$nameTag(EntityRenderState state, PoseStack pose, SubmitNodeCollector out,
                                 CameraRenderState camera, CallbackInfo ci) {
+        if (NpcManager.isNpcState(state)) return;
         if (!RenderToggles.isOn(RenderToggles.Item.NAME_TAGS)) ci.cancel();
     }
 

@@ -370,11 +370,12 @@ public final class RightPanel {
             y += sh;
         }
         if (showArms) {
-            int last = EntityMotion.ARM_NAMES.length - 1;
-            ModernSlider arms = new ModernSlider(x, y, w, sh, "腕", "", 0, last, d.option(EntityMotion.ARMS, 0),
-                    v -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, (int) v)));
-            arms.setValueFormatter(v -> EntityMotion.ARM_NAMES[Math.max(0, Math.min(last, (int) Math.round(v)))]);
-            add(arms);
+            add(new ModernCheckbox(x, y, w, sh, "構える(腕を上げる)", d.option(EntityMotion.ARMS, 0) == 1,
+                    on -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, on ? 1 : 0))));
+            y += sh;
+            int legacy = Math.round(EntityMotion.legacySwing(d.option(EntityMotion.ARMS, 0)) * 100f);
+            add(new ModernSlider(x, y, w, sh, "腕を振る", "%", 0, 100, 1, d.option(EntityMotion.SWING, legacy),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))));
             y += sh;
         }
 

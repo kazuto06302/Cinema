@@ -4,6 +4,7 @@ import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.kztmc.mc.cinema.entity.EntityExport;
+import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
@@ -16,10 +17,10 @@ import net.minecraft.client.renderer.entity.EntityRenderer;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
-import net.minecraft.server.MinecraftServer;
-import net.minecraft.world.entity.Entity;
-import net.minecraft.world.entity.EntitySpawnReason;
-import net.minecraft.world.entity.EntityType;
+import net.minecraft.world.entity.*;
+import net.minecraft.world.item.ItemStack;
+
+import java.util.UUID;
 
 /**
  *   /cinema gui              編集画面を開く
@@ -38,6 +39,11 @@ public final class CinemaCommands {
                                     openGui();
                                     return 1;
                                 }))
+                        .then(ClientCommands.literal("blank").executes(ctx -> {
+                            CinemaScreen.blankTest = true;
+                            CinemaScreen.requestOpen();
+                            return 1;
+                        }))
                         .then(ClientCommands.literal("player")
                                 .executes(ctx -> spawn(NpcData.PLAYER, "minecraft:player", "NPC"))
                                 .then(ClientCommands.argument("name", StringArgumentType.word())
@@ -63,6 +69,18 @@ public final class CinemaCommands {
                         }))
                         .then(ClientCommands.literal("wand").executes(ctx -> {
                             CinemaWand.give();
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("use").executes(ctx -> {
+                            UUID id = NpcManager.selectedId();
+                            Entity e = id == null ? null : NpcManager.entityOf(id);
+                            if (e instanceof LivingEntity l) {
+                                ItemStack main = l.getItemBySlot(EquipmentSlot.MAINHAND);
+                                Cinema.LOGGER.info("[Cinema] use: item={} anim={} duration={} isUsing={} ticksUsing={} remaining={} hand={} spearTag={}",
+                                        main.getItem(), main.getUseAnimation().name(), main.getUseDuration(l),
+                                        l.isUsingItem(), l.getTicksUsingItem(), l.getUseItemRemainingTicks(),
+                                        l.getUsedItemHand(), EntityMotion.isSpear(main));
+                            }
                             return 1;
                         }))
                         .then(ClientCommands.literal("togglesig").executes(ctx -> {

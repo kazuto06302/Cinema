@@ -1,13 +1,22 @@
 package net.kztmc.mc.cinema.npc;
 
 import java.util.Map;
+
+import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityProfile;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
+import net.kztmc.mc.cinema.entity.EntityReflect;
+import net.minecraft.client.renderer.entity.state.EntityRenderState;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.HumanoidArm;
+import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.item.Items;
 
 /** 呼び出し元(NpcManager など)から見た窓口。実際の設定は entity/ パッケージの各 EntityProfile にある。 */
 public final class EntityTweaks {
     private EntityTweaks() {}
+    private static boolean tridentLogged;
 
     public static int defaultAnimTick(String entityTypeId) {
         return EntityProfiles.of(entityTypeId).defaultAnimTick();
@@ -53,5 +62,28 @@ public final class EntityTweaks {
     /** 当たり判定を無効にするNPCか(ボート・イカダ・プレイヤー)。mixin から呼ばれる */
     public static boolean hasNoHitbox(Entity e) {
         return SceneFreeze.isFrozenNpc(e) && (e instanceof NpcPlayer || EntityProfiles.of(e).hasNoHitbox());
+    }
+
+    private static void fixTridentPose(Entity entity, EntityRenderState state) {
+        if (!(entity instanceof LivingEntity living) || !living.isUsingItem()) return;
+        if (!living.getUseItem().is(Items.TRIDENT)) return;
+
+        boolean mainHand = living.getUsedItemHand() == InteractionHand.MAIN_HAND;
+        boolean rightArm = mainHand == (living.getMainArm() == HumanoidArm.RIGHT);
+        String field = rightArm ? "rightArmPose" : "leftArmPose";
+
+        Object current = EntityReflect.getObjectQuiet(state, field);
+        if (!tridentLogged) {
+            tridentLogged = true;
+            Cinema.LOGGER.info("[Cinema] trident: {} = {} (state {})", field, current, state.getClass().getSimpleName());
+        }
+        if (!(current instanceof Enum<?> pose)) return;
+        for (Object k : pose.getDeclaringClass().getEnumConstants()) {
+            String name = ((Enum<?>) k).name();
+            if (name.equals("THROW_TRIDENT") || name.equals("THROW_SPEAR")) {
+                EntityReflect.setObject(state, field, k);
+                return;
+            }
+        }
     }
 }

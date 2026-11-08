@@ -19,7 +19,6 @@ import net.minecraft.world.item.component.SwingAnimation;
  */
 public final class EntityMotion {
     private EntityMotion() {}
-
     /**
      * 歩行(%、-100〜100)。0で直立。
      *  - 手足が cos で振れるモデル: プラスとマイナスで前に出る足が入れ替わる。絶対値が歩幅。
@@ -53,6 +52,13 @@ public final class EntityMotion {
     /** 水泳の、1tickあたりの歩行の位置の進み。腕のかきは、26で1周する */
     private static final float SWIM_PHASE_PER_TICK = 0.8f;
 
+    /** 腕を振る進み具合(0〜100%)。ARMS は「構える」(0/1)だけに使う */
+    public static final String SWING = "swing";
+
+    /** 古い保存データ(ARMS が 2〜4)を、振りの進み具合に読み替える */
+    public static float legacySwing(int arms) {
+        return SWING_OF_ARMS[Math.max(0, Math.min(SWING_OF_ARMS.length - 1, arms))];
+    }
     /**
      * NPCの状態に反映する。
      * partialTick は、描画に使う補間値(時間スライダーの小数部分)。
@@ -70,7 +76,8 @@ public final class EntityMotion {
         // 振る動作。槍は、アイテムが持つ「突き」の動きで振る(突き = 槍の左クリック攻撃)
         ItemStack mainStack = living.getItemBySlot(EquipmentSlot.MAINHAND);
         int spearMode = isSpear(mainStack) ? options.getOrDefault(SPEAR, 0) : 0;
-        float swing = spearMode == 1 ? options.getOrDefault(SPEAR_AMOUNT, 50) / 100f : SWING_OF_ARMS[arms];
+        int swingPercent = options.containsKey(SWING) ? options.get(SWING) : Math.round(legacySwing(arms) * 100f);
+        float swing = spearMode == 1 ? options.getOrDefault(SPEAR_AMOUNT, 50) / 100f : swingPercent / 100f;
         applySwing(living, swing, swingAnimationOf(mainStack));
         applyHandUse(living, options, spearMode == 2);
     }

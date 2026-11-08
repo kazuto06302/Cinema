@@ -362,7 +362,10 @@ public final class MobIcons {
             translation.y += HEIGHT_SIGN * (style.height() / 100f * size) / paramScale;
 
             EntityRenderState state = createState(e);
-            g.entity(state, paramScale, translation, rotation, rotX, x0, y0, x1, y1);
+            // g.entity は、描画の位置のずらし(pose)を見ないので、ここで反映する(スライド中も、アイコンが一緒に動く)
+            org.joml.Vector2f p0 = g.pose().transformPosition(x0, y0, new org.joml.Vector2f());
+            org.joml.Vector2f p1 = g.pose().transformPosition(x1, y1, new org.joml.Vector2f());
+            g.entity(state, paramScale, translation, rotation, rotX, Math.round(p0.x), Math.round(p0.y), Math.round(p1.x), Math.round(p1.y));
         } finally {
             e.setYRot(oYRot);
             e.setXRot(oXRot);

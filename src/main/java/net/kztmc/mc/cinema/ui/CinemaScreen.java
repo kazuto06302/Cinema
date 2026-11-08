@@ -5,6 +5,7 @@ import java.util.UUID;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.core.*;
 import net.kztmc.mc.cinema.ui.panel.Theme;
+import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.kztmc.mc.cinema.ui.panel.confirm.ConfirmDialog;
 import net.kztmc.mc.cinema.ui.panel.left.ContextMenu;
 import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
@@ -34,6 +35,7 @@ import net.minecraft.network.chat.Component;
  * ゲーム画面は暗くしない。
  */
 public class CinemaScreen extends Screen implements PanelHost {
+    public static boolean blankTest;
     private static boolean openRequested;
 
     private final LeftPanel left = new LeftPanel();
@@ -52,21 +54,30 @@ public class CinemaScreen extends Screen implements PanelHost {
     private final WorldPanel world = new WorldPanel();
     private boolean hasWorld;
 
+    private static boolean animateNext = false;   // 次に開く画面を、スライドで開くか
+    private static final long SLIDE_MS = 75;
+
+    private final boolean animate;
+    private boolean opened;     // 子画面(装飾・インベントリ)から戻ったときに、やり直さないための印
+    private long openedAt;
+
     public CinemaScreen() {
         super(Component.literal("Cinema"));
+        this.animate = animateNext;
+        animateNext = true;
     }
-
-    // ================= 開く処理(チャットが閉じてから開く) =================
 
     public static void requestOpen() {
         openRequested = true;
+        animateNext = true;
     }
 
     public static void tickOpen(Minecraft mc) {
         if (openRequested && mc.gui.screen() == null && mc.level != null) {
             openRequested = false;
-            // 26.2 で Minecraft#setScreen は setScreenAndShow に改名されている
-            mc.setScreenAndShow(new CinemaScreen());
+            boolean blank = blankTest;
+            blankTest = false;
+            mc.setScreenAndShow(blank ? new BlankScreen() : new CinemaScreen());
         }
     }
 
@@ -172,6 +183,7 @@ public class CinemaScreen extends Screen implements PanelHost {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+        if (isSliding()) return true;
         // 確認ダイアログの表示中は、ほかを操作できない
         if (confirm.isOpen()) return confirm.mouseClicked(event);
 
@@ -249,6 +261,7 @@ public class CinemaScreen extends Screen implements PanelHost {
     /** ホイール: パネルをスクロールしはじめたら、短い間は、項目(スライダー・数値欄)より先にパネルが受ける */
     @Override
     public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
+        if (isSliding()) return true;
         if (confirm.isOpen()) return true;
         if (openDropdown != null && openDropdown.isOpen() && openDropdown.popupScrolled(mouseX, mouseY, scrollY)) {
             return true;
@@ -306,25 +319,81 @@ public class CinemaScreen extends Screen implements PanelHost {
             rebuildWidgets();
         }
 
-        // 確認ダイアログの表示中は、後ろのウィジェットに、マウスが乗っていない扱いにする(ホバーの表示を止める)
         boolean modal = confirm.isOpen();
         int mx = modal ? -1 : mouseX;
         int my = modal ? -1 : mouseY;
+        if (hasWorld) world.tick();
+
+        float slide = hasTuner ? 1f : slideProgress();   // 下のパネル(dev)があるときは、アニメーションしない
+        if (slide < 1f) {
+            int mid = this.width / 2;
+            int fromLeft = -(layout.leftX() + layout.leftW());
+            int fromRight = this.width - layout.rightX();
+            extractSide(g, 0, mid, Math.round(fromLeft * (1f - slide)), true, delta);
+            extractSide(g, mid, this.width, Math.round(fromRight * (1f - slide)), false, delta);
+            return;
+        }
 
         left.extractBackground(g);
         if (hasRight) right.extractBackground(g);
         if (hasTuner) tuner.extractBackground(g);
-        if (hasWorld) {
-            world.tick();
-            world.extractBackground(g);
-        }
+        if (hasWorld) world.extractBackground(g);
         super.extractRenderState(g, mx, my, delta);
 
-        // 上に重ねるもの(下から順に): ドロップダウン → 右クリックメニュー → 確認ダイアログ
         if (openDropdown != null && openDropdown.isOpen()) {
             openDropdown.extractPopup(g, mx, my);
         }
         menu.extract(g, this.font, mx, my);
         confirm.extract(g, this.width, this.height, mouseX, mouseY, delta);
+    }
+
+    /** スライド中の描画: 画面の半分だけを、dx ずらして描く(はみ出しは切り取る) */
+    private void extractSide(GuiGraphicsExtractor g, int x0, int x1, int dx, boolean leftSide, float delta) {
+        g.enableScissor(x0, 0, x1, this.height);   // 切り取りの範囲は、ずらす前の座標で決める
+        g.pose().pushMatrix();
+        g.pose().translate(dx, 0);
+        if (leftSide) {
+            left.extractBackground(g);
+        } else {
+            if (hasRight) right.extractBackground(g);
+            if (hasWorld) world.extractBackground(g);
+        }
+        super.extractRenderState(g, -1, -1, delta);   // 動いている間は、ホバーの表示を止める
+        g.pose().popMatrix();
+        g.disableScissor();
+    }
+
+
+    /** インベントリなどから戻る: アニメーションなしで開く */
+    public static void requestReturn() {
+        openRequested = true;
+        animateNext = false;
+    }
+
+    @Override
+    public void added() {
+        if (opened) return;
+        opened = true;
+        openedAt = System.currentTimeMillis();
+        if (animate) UiSounds.slideOpen();
+    }
+
+    @Override
+    public void onClose() {
+        UiSounds.slideClose();
+        super.onClose();
+    }
+
+    /** 0(画面の外)〜1(定位置)。ゆっくり止まる動き */
+    private float slideProgress() {
+        if (!animate) return 1f;
+        float t = (System.currentTimeMillis() - openedAt) / (float) SLIDE_MS;
+        if (t >= 1f) return 1f;
+        float inv = 1f - Math.max(0f, t);
+        return 1f - inv * inv * inv;
+    }
+
+    private boolean isSliding() {
+        return !hasTuner && slideProgress() < 1f;
     }
 }
