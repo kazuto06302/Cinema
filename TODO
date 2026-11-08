@@ -6,29 +6,3 @@ Pose→右GUIの別タブ/中央にMobのパーツを自由に動かせるGUI
 Playerのスキン/ネームタグ/Capeの設定
 エクスポート
 カメラ位置
-
-メインハンドだけの時はスロットをセンターにするようにしよう
-mixinのディレクトリも整理しました
-  "mixins": [
-    "entity.DragonPickMixin",
-    "entity.EntityCollisionMixin",
-    "entity.TickRateManagerMixin",
-    "wand.WandMenuGuardMixin",
-    "wand.WandTooltipMixin"
-  ],
-  "client": [
-    "entity.EntityRendererMixin",
-    "entity.LevelRendererSelectionMixin",
-    "entity.LevelRendererToggleMixin",
-    "entity.MultiPlayerGameModeMixin",
-    "ui.inventory.CreativeScreenMixin",
-    "ui.inventory.LocalPlayerInfiniteMixin",
-    "ui.inventory.MultiPlayerGameModeInventoryMixin",
-    "ui.toggle.BossBarToggleMixin",
-    "ui.toggle.ChatToggleMixin",
-    "world.ClientClockInstanceMixin",
-    "world.ClientLevelRainSoundMixin",
-    "world.LevelWeatherMixin",
-    "world.WeatherEffectRendererMixin"
-  ]
-また、ModernButtonとかSliderとかのwidgerはui/widgetに入ってます

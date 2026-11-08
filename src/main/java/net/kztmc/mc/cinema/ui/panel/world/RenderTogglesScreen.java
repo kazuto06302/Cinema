@@ -1,27 +1,39 @@
 package net.kztmc.mc.cinema.ui.panel.world;
 
+import java.util.ArrayList;
+import java.util.List;
 import net.kztmc.mc.cinema.ui.panel.Theme;
+import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.kztmc.mc.cinema.ui.panel.right.ItemButton;
 import net.kztmc.mc.cinema.ui.widget.ModernButton;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
 /**
- * 「選択した項目を描画する」: 装備の装飾画面(鍛冶型の格子)と同じ見た目。
- * アイコンのボタンを押すたびに、描画のオン/オフが切り替わる。オン(描画する)のボタンが、選択色になる。
+ * 「選択した項目を描画する」: 鍛冶型のボタンと同じ見た目(ItemButton)の格子。4列×3行で、アイコンの下に文字を添える。
+ * 押すたびに、描画のオン/オフが切り替わる(オンは高い音、オフは低い音)。
  */
 public class RenderTogglesScreen extends Screen {
-    private static final int COLS = 6;
+    private static final int COLS = 4;
+
+    private record Caption(String text, int x, int y, int w, boolean on) {}
 
     private final Screen parent;
+    private final List<Caption> captions = new ArrayList<>();
 
     public RenderTogglesScreen(Screen parent) {
         super(Component.literal("選択した項目を描画する"));
         this.parent = parent;
+    }
+
+    @Override
+    public void added() {
+        UiSounds.open();
     }
 
     @Override
@@ -50,46 +62,88 @@ public class RenderTogglesScreen extends Screen {
         });
     }
 
+    /** アイコンの下に出す、短い名前(正式な名前は、ツールチップに出る) */
+    private static String shortLabel(RenderToggles.Item item) {
+        return switch (item) {
+            case SCOREBOARD -> "スコアボード";
+            case ACTION_BAR -> "アクションバー";
+            case TITLE -> "タイトル";
+            case BOSS_BAR -> "ボスバー";
+            case CHAT -> "チャット";
+            case BLOCKS -> "ブロック";
+            case ENTITIES -> "エンティティ";
+            case PARTICLES -> "パーティクル";
+            case NAME_TAGS -> "ネームタグ";
+            case PLAYERS -> "プレイヤー";
+            case BEACON_BEAMS -> "ビーコン";
+        };
+    }
+
+    private int panelW() {
+        return Math.min(width - Theme.u(20), Theme.u(300));
+    }
+
     private int panelX() {
-        return (width - Theme.u(240)) / 2;
+        return (width - panelW()) / 2;
+    }
+
+    private int cellH() {
+        return Math.max(Theme.u(24), 24);
+    }
+
+    private int gap() {
+        return Math.max(1, Theme.u(3));
+    }
+
+    private int captionH() {
+        return Theme.textH() + Theme.u(4);
+    }
+
+    private int rowH() {
+        return cellH() + captionH() + gap();
+    }
+
+    private int headH() {
+        return Theme.textH() * 2 + Theme.u(12);
     }
 
     private int panelTop() {
         int rows = (RenderToggles.Item.values().length + COLS - 1) / COLS;
-        int cell = Math.max(Theme.u(24), 24);
-        int gap = Math.max(1, Theme.u(3));
         int btnH = Math.max(Theme.u(22), 22);
-        int total = Theme.textH() * 2 + Theme.u(12) + rows * (cell + gap) + btnH + gap * 2;
+        int total = headH() + rows * rowH() + btnH + gap();
         return Math.max(Theme.u(10), (height - total) / 2);
     }
 
     @Override
     protected void init() {
-        int w = Theme.u(240);
+        captions.clear();
+        int w = panelW();
         int x = panelX();
-        int y = panelTop() + Theme.textH() * 2 + Theme.u(12);
-        int btnH = Math.max(Theme.u(22), 22);
-        int gap = Math.max(1, Theme.u(3));
-        int cell = Math.max(Theme.u(24), 24);
+        int y = panelTop() + headH();
+        int gap = gap();
         int cw = (w - gap * (COLS - 1)) / COLS;
 
         RenderToggles.Item[] items = RenderToggles.Item.values();
         for (int i = 0; i < items.length; i++) {
             RenderToggles.Item item = items[i];
             int cx = x + (i % COLS) * (cw + gap);
-            int cy = y + (i / COLS) * (cell + gap);
-            addRenderableWidget(new ItemButton(cx, cy, cw, cell, iconOf(item), ItemStack.EMPTY, b -> {
+            int cy = y + (i / COLS) * rowH();
+            addRenderableWidget(new ItemButton(cx, cy, cw, cellH(), iconOf(item), ItemStack.EMPTY, b -> {
                 item.set(!item.on());
+                UiSounds.click();  // オン=高い、オフ=低い
                 WorldSettings.save();
                 rebuildWidgets();
             }).setSelected(item.on()).tip(item.label + (item.on() ? "(描画する)" : "(描画しない)")));
+            captions.add(new Caption(shortLabel(item), cx, cy + cellH() + Theme.u(2), cw, item.on()));
         }
-        int rows = (items.length + COLS - 1) / COLS;
-        y += rows * (cell + gap) + gap;
 
+        int rows = (items.length + COLS - 1) / COLS;
+        y += rows * rowH();
+        int btnH = Math.max(Theme.u(22), 22);
         int half = (w - gap) / 2;
         addRenderableWidget(new ModernButton(x, y, half, btnH, "すべてオン", ModernButton.Style.DEFAULT, () -> {
             RenderToggles.resetAll();
+            UiSounds.success();
             WorldSettings.save();
             rebuildWidgets();
         }));
@@ -103,6 +157,12 @@ public class RenderTogglesScreen extends Screen {
         int x = panelX();
         int y = panelTop();
         Theme.text(g, font, title.getString(), x, y, Theme.TEXT);
-        Theme.text(g, font, "押すと切り替え(選択色 = 描画する)", x, y + Theme.textH() + Theme.u(4), Theme.TEXT_DIM);
+        Theme.text(g, font, "押すと切り替え(選択色・白い文字 = 描画する)", x, y + Theme.textH() + Theme.u(4), Theme.TEXT_DIM);
+
+        for (Caption c : captions) {
+            String text = Theme.fit(font, c.text(), c.w());
+            int tx = c.x() + (c.w() - Theme.textWidth(font, text)) / 2;
+            Theme.text(g, font, text, tx, c.y(), c.on() ? Theme.TEXT : Theme.TEXT_DIM);
+        }
     }
 }

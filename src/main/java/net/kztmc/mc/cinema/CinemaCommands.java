@@ -65,22 +65,12 @@ public final class CinemaCommands {
                             CinemaWand.give();
                             return 1;
                         }))
-                        .then(ClientCommands.literal("weather").executes(ctx -> {
-                            Object lr = Minecraft.getInstance().levelRenderer;
-                            Object state = EntityReflect.getObjectQuiet(
-                                    EntityReflect.getObjectQuiet(lr, "levelRenderState"), "weatherRenderState");
-                            if (state != null) EntityReflect.dumpObject(state);
-                            EntityReflect.dumpObject(Minecraft.getInstance().levelRenderer.weatherEffectRenderer());
-                            return 1;
-                        }))
-                        .then(ClientCommands.literal("weathersig").executes(ctx -> {
-                            for (java.lang.reflect.Method m : net.minecraft.client.renderer.WeatherEffectRenderer.class.getDeclaredMethods()) {
-                                if (!m.getName().startsWith("create")) continue;
-                                StringBuilder d = new StringBuilder("(");
-                                for (Class<?> p : m.getParameterTypes()) d.append(typeDesc(p));
-                                d.append(")").append(typeDesc(m.getReturnType()));
-                                Cinema.LOGGER.info("[Cinema] Lnet/minecraft/client/renderer/WeatherEffectRenderer;{}{}", m.getName(), d);
-                            }
+                        .then(ClientCommands.literal("togglesig").executes(ctx -> {
+                            dumpClass("net.minecraft.client.gui.Hud", "score", "title", "overlay", "action", "subtitle", "extract");
+                            dumpClass("net.minecraft.client.renderer.blockentity.BeaconRenderer");
+                            dumpClass("net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState");
+                            dumpClass("net.minecraft.client.renderer.entity.state.EntityRenderState", "name");
+                            dumpClass("net.minecraft.client.renderer.entity.EntityRenderer", "name", "extract");
                             return 1;
                         }))
                         .then(ClientCommands.literal("clear")
@@ -147,5 +137,35 @@ public final class CinemaCommands {
         if (c == char.class) return "C";
         if (c.isArray()) return "[" + typeDesc(c.getComponentType());
         return "L" + c.getName().replace('.', '/') + ";";
+    }
+
+    /** 診断: クラスのメソッド(ディスクリプタつき)とフィールドを、ログに出す。キーワードがあれば、名前に含むものだけ */
+    private static void dumpClass(String className, String... keywords) {
+        try {
+            Class<?> c = Class.forName(className);
+            Cinema.LOGGER.info("[Cinema] ===== {} =====", className);
+            for (java.lang.reflect.Method m : c.getDeclaredMethods()) {
+                if (m.isSynthetic() || !matchesAny(m.getName(), keywords)) continue;
+                StringBuilder d = new StringBuilder("(");
+                for (Class<?> p : m.getParameterTypes()) d.append(typeDesc(p));
+                d.append(")").append(typeDesc(m.getReturnType()));
+                Cinema.LOGGER.info("[Cinema] {}{}", m.getName(), d);
+            }
+            for (java.lang.reflect.Field f : c.getDeclaredFields()) {
+                if (f.isSynthetic() || !matchesAny(f.getName(), keywords)) continue;
+                Cinema.LOGGER.info("[Cinema] field {} : {}", f.getName(), typeDesc(f.getType()));
+            }
+        } catch (ClassNotFoundException e) {
+            Cinema.LOGGER.info("[Cinema] class not found: {}", className);
+        }
+    }
+
+    private static boolean matchesAny(String name, String[] keywords) {
+        if (keywords.length == 0) return true;
+        String lower = name.toLowerCase(java.util.Locale.ROOT);
+        for (String k : keywords) {
+            if (lower.contains(k)) return true;
+        }
+        return false;
     }
 }

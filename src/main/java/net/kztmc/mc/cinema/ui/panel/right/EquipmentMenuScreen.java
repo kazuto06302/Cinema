@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.kztmc.mc.cinema.ui.widget.ModernButton;
 import net.kztmc.mc.cinema.ui.widget.ModernCheckbox;
 import net.kztmc.mc.cinema.ui.panel.Theme;
@@ -95,6 +96,7 @@ public class EquipmentMenuScreen extends Screen {
             ItemStack s = getter.get().copy();
             if (on) s.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
             else s.remove(DataComponents.ENCHANTMENT_GLINT_OVERRIDE);
+            UiSounds.click();
             setter.accept(s);
         }));
         y += btnH + gap * 2;
@@ -104,12 +106,14 @@ public class EquipmentMenuScreen extends Screen {
                     i -> itemOf(PATTERNS.get(i) + "_armor_trim_smithing_template"),
                     i -> PATTERN_NAMES.get(i), i -> PATTERNS.get(i).equals(pattern), i -> {
                         pattern = PATTERNS.get(i).equals(pattern) ? null : PATTERNS.get(i);
+                        UiSounds.click();
                         applyTrim();
                     });
             y = addGrid(x, y, w, cell, gap, "トリムの素材(鉱石など)", MATERIALS.size(),
                     i -> itemOf(MATERIAL_ITEMS.get(i)),
                     i -> MATERIAL_NAMES.get(i), i -> MATERIALS.get(i).equals(material), i -> {
                         material = MATERIALS.get(i).equals(material) ? null : MATERIALS.get(i);
+                        UiSounds.click();
                         applyTrim();
                     });
         }

@@ -716,17 +716,19 @@ public final class RightPanel {
     }
 
     /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): メインハンドのスロットだけ */
+    /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): メインハンドのスロットだけ(中央に置く) */
     private int sectionHeldItem(NpcData d, int y, String heldLabel) {
         int lh = lay.th() + Theme.u(3);
         label(Theme.fit(host.font(), heldLabel + "(左:開く Shift:外す)", w), x, y, Theme.TEXT_DIM);
         y += lh;
 
         int cgap = Math.max(1, Theme.u(3));
-        int cw = (w - cgap * 3) / 4;
+        int cw = (w - cgap * 3) / 4;   // 通常の装備の1マスと同じ大きさ
         int ch = Math.max(Theme.u(26), 26);
         ItemStack stack = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
 
-        ItemButton slot = new ItemButton(x + cw + cgap, y, cw, ch, stack, EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
+        ItemButton slot = new ItemButton(x + (w - cw) / 2, y, cw, ch, stack,
+                EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
             if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
                 if (!stack.isEmpty()) {
                     EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);
