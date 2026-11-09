@@ -1,6 +1,7 @@
 package net.kztmc.mc.cinema.npc;
 
 import net.kztmc.mc.cinema.entity.EntityProfile;
+import net.kztmc.mc.cinema.entity.EquipmentMode;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.item.ItemStack;
@@ -27,8 +28,11 @@ public final class EquipmentRules {
     }
 
     public static boolean accepts(EquipmentSlot slot, ItemStack stack, boolean animalGear, EntityProfile profile) {
-        if (profile != null && profile.heldItemLabel() != null) {
-            return slot == EquipmentSlot.MAINHAND && (stack.isEmpty() || profile.acceptsHeld(stack));
+        if (profile != null) {
+            if (profile.equipmentMode() == EquipmentMode.NONE) return false;
+            if (profile.isMainHandOnly()) {
+                return slot == EquipmentSlot.MAINHAND && (stack.isEmpty() || profile.acceptsHeld(stack));
+            }
         }
         return accepts(slot, stack, animalGear);
     }

@@ -1,0 +1,18 @@
+{
+  "cinema.title.installed": "Cinema installed",
+  "cinema.pause.open": "Open Cinema",
+
+  "cinema.ui.right.basic": "Basic",
+  "cinema.ui.right.pose": "Pose",
+  "cinema.ui.right.delete": "Delete",
+  "cinema.ui.right.position": "Position",
+  "cinema.ui.right.movetomyself": "Move to myself",
+  "cinema.ui.right.size": "Size",
+  "cinema.ui.right.orientation": "Orientation",
+  "cinema.ui.right.orientation.body": "Body Orientation",
+
+  "cinema.ui.right.fire": "🔥 Fire",
+  "cinema.ui.right.glow": "☀ Glow",
+  "cinema.ui.right.child": "☺ Child",
+  "cinema.ui.right.damage": "\uD83D\uDDE1 Damage"
+}

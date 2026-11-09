@@ -11,12 +11,15 @@
     "wand.WandTooltipMixin"
   ],
   "client": [
+    "bugfix.MinimizedSurfaceMixin",
     "entity.EntityRendererMixin",
     "entity.LevelRendererSelectionMixin",
     "entity.MultiPlayerGameModeMixin",
     "ui.inventory.CreativeScreenMixin",
     "ui.inventory.LocalPlayerInfiniteMixin",
     "ui.inventory.MultiPlayerGameModeInventoryMixin",
+    "ui.title.SplashColorMixin",
+    "ui.title.TitleScreenMixin",
     "ui.toggle.BeaconToggleMixin",
     "ui.toggle.BossBarToggleMixin",
     "ui.toggle.ChatToggleMixin",

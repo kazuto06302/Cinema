@@ -62,6 +62,8 @@ public final class InventoryOverlay {
     private long statusUntil;
     private boolean rebuild;
 
+    private boolean noEquipment;   // 装備欄のないエンティティ(equipment が none)
+
     public InventoryOverlay(Screen host, Supplier<ItemStack> carried) {
         this.host = host;
         this.carried = carried;
@@ -95,20 +97,25 @@ public final class InventoryOverlay {
         Optional<NpcData> selected = NpcManager.selectedData();
         hasNpc = selected.isPresent();
 
-        // スロット: 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁)は、メインハンドだけ
+        // スロット: 装備欄の形(entities.csv の equipment 列)で決まる
         EquipmentSlot[] slots = ORDER;
         EntityProfile profile = null;
         NpcData d = null;
+        noEquipment = false;
         if (hasNpc) {
             d = selected.get();
             entityType = d.entityType();
             profile = EntityProfiles.of(entityType);
-            if (profile.heldItemLabel() != null) slots = new EquipmentSlot[] {EquipmentSlot.MAINHAND};
+            slots = switch (profile.equipmentMode()) {
+                case MAIN -> new EquipmentSlot[] {EquipmentSlot.MAINHAND};
+                case NONE -> new EquipmentSlot[0];
+                default -> ORDER;
+            };
+            noEquipment = slots.length == 0;
         }
-        boolean single = slots.length == 1;
 
-        // 枠の幅は、スロットの数に合わせる(文字が入る最低の幅は残す)
-        int cols = Math.min(COLS, slots.length);
+        // 枠の幅は、スロットの数に合わせる(文字が入る最低の幅は残す)。スロットが0個でも、列は1以上にする
+        int cols = Math.max(1, Math.min(COLS, slots.length));
         int gridW = btn * cols + gap * (cols - 1);
         w = Math.max(gridW + pad * 2, Theme.u(110));
         x = Math.max(Theme.u(6), inventoryLeft - w - Theme.u(8));
@@ -129,8 +136,8 @@ public final class InventoryOverlay {
             int bx = gx + (i % cols) * (btn + gap);
             int by = cy + (i / cols) * (btn + gap);
             ItemStack stack = EquipmentEdit.stackOf(d, slot);
-            String label = profile.heldItemLabel() != null && slot == EquipmentSlot.MAINHAND
-                    ? profile.heldItemLabel()
+            String label = profile.isMainHandOnly() && slot == EquipmentSlot.MAINHAND
+                    ? profile.heldItemLabelOrDefault()
                     : EquipmentEdit.label(slot, animalGear);
             ItemButton button = new ItemButton(bx, by, btn, btn, stack, EquipmentEdit.ghostOf(slot),
                     b -> onSlot(id, slot, animalGear, label, b));
@@ -142,15 +149,13 @@ public final class InventoryOverlay {
         int slotRows = (slots.length + cols - 1) / cols;
         int by = cy + slotRows * (btn + gap);
         int bw = w - pad * 2;
-        int buttons = 1;
-        if (!single) {   // 1枠のときは、「すべて外す」は不要(スロットを押して外せる)
+        if (slots.length > 1) {   // スロットが2つ以上のときだけ、「すべて外す」(1つなら、スロットを押して外せる)
             register.accept(new ModernButton(x + pad, by, bw, btnH, "装備をすべて外す",
                     ModernButton.Style.DEFAULT, () -> {
                 for (EquipmentSlot s : EquipmentEdit.SLOTS) EquipmentEdit.set(id, s, ItemStack.EMPTY);
                 rebuild = true;
             }));
             by += btnH + gap;
-            buttons = 2;
         }
         register.accept(new ModernButton(x + pad, by, bw, btnH, "Cinemaに戻る",
                 ModernButton.Style.PRIMARY, host::onClose));
@@ -244,7 +249,9 @@ public final class InventoryOverlay {
         Theme.text(g, font, Theme.fit(font, "装備先: " + title, w - pad * 2), x + pad, y + pad, Theme.TEXT);
 
         boolean showStatus = System.currentTimeMillis() < statusUntil;
-        String text = showStatus ? status : "つかんだアイテムを、スロットへクリック(またはドラッグ)。クリックで外す・右クリックで装飾";
+        String text = showStatus ? status
+                : noEquipment ? "このエンティティには、装備欄がありません"
+                : "つかんだアイテムを、スロットへクリック(またはドラッグ)。クリックで外す・右クリックで装飾";
         int color = showStatus ? 0xFFE5A04B : Theme.TEXT_DIM;
         int ly = statusY;
         for (String line : wrap(font, text, w - pad * 2)) {

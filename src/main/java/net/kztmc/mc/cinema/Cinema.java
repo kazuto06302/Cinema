@@ -3,11 +3,17 @@ package net.kztmc.mc.cinema;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
+import net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents;
+
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.CinemaHud;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
+import net.kztmc.mc.cinema.ui.PauseMenuButton;
 import net.kztmc.mc.cinema.ui.panel.world.WorldSettings;
+
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.world.item.CreativeModeTabs;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,10 +35,9 @@ public class Cinema implements ClientModInitializer {
         //hud
         ClientTickEvents.END_CLIENT_TICK.register(CinemaScreen::tickOpen);
         CinemaHud.init();
+        PauseMenuButton.init();
         //item
-        net.fabricmc.fabric.api.creativetab.v1.CreativeModeTabEvents
-                .modifyOutputEvent(net.minecraft.world.item.CreativeModeTabs.TOOLS_AND_UTILITIES)
-                .register(entries -> entries.accept(CinemaWand.create()));
+        CreativeModeTabEvents.modifyOutputEvent(CreativeModeTabs.TOOLS_AND_UTILITIES).register(entries -> entries.accept(CinemaWand.create()));
         CinemaWand.init();
         //log
         LOGGER.info("Cinema initialized");

@@ -6,6 +6,7 @@ import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
 import net.kztmc.mc.cinema.entity.EntityExport;
 import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityReflect;
+import net.kztmc.mc.cinema.entity.EntityTable;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.*;
@@ -58,10 +59,17 @@ public final class CinemaCommands {
                             TextureAnimations.dump();
                             return 1;
                         }))
-                        .then(ClientCommands.literal("entities").executes(ctx -> {
-                            EntityExport.run();
-                            return 1;
-                        }))
+                        .then(ClientCommands.literal("entities")
+                                .executes(ctx -> {
+                                    EntityExport.run();
+                                    return 1;
+                                })
+                                .then(ClientCommands.literal("reload").executes(ctx -> {
+                                    EntityTable.reload();
+                                    Minecraft mc = Minecraft.getInstance();
+                                    if (mc.player != null) mc.player.sendOverlayMessage(Component.literal("[Cinema] entities.csv を読み込み直しました"));
+                                    return 1;
+                                })))
                         .then(ClientCommands.literal("wand").executes(ctx -> {
                             CinemaWand.give();
                             return 1;

@@ -1,0 +1,18 @@
+{
+  "cinema.title.installed": "Cinema導入済み",
+  "cinema.pause.open": "Cinemaを開く",
+
+  "cinema.ui.right.basic": "基本",
+  "cinema.ui.right.pose": "ポーズ",
+  "cinema.ui.right.delete": "削除",
+  "cinema.ui.right.position": "位置",
+  "cinema.ui.right.movetomyself": "自分の位置に移動させる",
+  "cinema.ui.right.size": "大きさ",
+  "cinema.ui.right.orientation": "向き",
+  "cinema.ui.right.orientation.body": "体の向き",
+
+  "cinema.ui.right.fire": "🔥 発火",
+  "cinema.ui.right.glow": "☀ 発光",
+  "cinema.ui.right.child": "☺ 子供",
+  "cinema.ui.right.damage": "\uD83D\uDDE1 ダメージ"
+}

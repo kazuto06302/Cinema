@@ -26,14 +26,12 @@ public final class UiSounds {
 
     public static void play(SoundEvent sound, float pitch, float volume) {
         if (!enabled) return;
-        Minecraft.getInstance().getSoundManager()
-                .play(SimpleSoundInstance.forUI(sound, pitch, volume * MASTER_VOLUME * VANILLA_UI_VOLUME));
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(sound, pitch, volume * MASTER_VOLUME * VANILLA_UI_VOLUME));
     }
 
     public static void play(Holder<SoundEvent> sound, float pitch, float volume) {
         if (!enabled) return;
-        Minecraft.getInstance().getSoundManager()
-                .play(SimpleSoundInstance.forUI(sound.value(), pitch, volume * MASTER_VOLUME * VANILLA_UI_VOLUME));
+        Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(sound.value(), pitch, volume * MASTER_VOLUME * VANILLA_UI_VOLUME));
     }
 
     // ---- 名前つきの音 ----
@@ -77,9 +75,7 @@ public final class UiSounds {
         play(SoundEvents.AMETHYST_BLOCK_CHIME, 1.0f, 1f);
     }
 
-    public static void equip() {
-        play(SoundEvents.ARMOR_EQUIP_DIAMOND, 1.0f, 0.6f);
-    }
+    public static void equip() {play(SoundEvents.ARMOR_EQUIP_DIAMOND, 1.0f, 0.6f);}
 
     public static void slideOpen() {play(SoundEvents.UI_TOAST_IN, 1.2f, 0.7f);}
 

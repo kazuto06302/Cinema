@@ -6,12 +6,7 @@ import java.util.Optional;
 import java.util.UUID;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
-import net.kztmc.mc.cinema.entity.EntityFlags;
-import net.kztmc.mc.cinema.entity.EntityMotion;
-import net.kztmc.mc.cinema.entity.EntityOption;
-import net.kztmc.mc.cinema.entity.EntityProfile;
-import net.kztmc.mc.cinema.entity.EntityProfiles;
-import net.kztmc.mc.cinema.entity.EntityReflect;
+import net.kztmc.mc.cinema.entity.*;
 import net.kztmc.mc.cinema.npc.*;
 import net.kztmc.mc.cinema.entity.profile.AnimationModeProfile;
 import net.kztmc.mc.cinema.ui.core.*;
@@ -44,7 +39,7 @@ import net.minecraft.world.item.Items;
  */
 public final class RightPanel {
     private enum RightTab {
-        MAIN("基本"), POSE("ポーズ");
+        MAIN("cinema.ui.right.basic"), POSE("cinema.ui.right.pose");
 
         final String label;
 
@@ -103,7 +98,7 @@ public final class RightPanel {
         fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - iconSize - lay.gap() * 2), nameX,
                 y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
         UUID npcId = id;
-        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), "削除", ModernButton.Style.DANGER,
+        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), Tr.get("cinema.ui.right.delete"), ModernButton.Style.DANGER,
                 () -> host.confirmDelete(npcId)));
 
         // ← (戻る): 右パネルの左の外に、独立したボタンとして出す。選択を外して、ワールド設定へ戻る
@@ -189,7 +184,7 @@ public final class RightPanel {
 
     private int sectionPosition(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
-        label("位置", x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.position"), x, y, Theme.TEXT_DIM);
         y += lh;
 
         pos[0] = d.x();
@@ -206,7 +201,7 @@ public final class RightPanel {
             }));
             y += lay.sliderH();
         }
-        add(new ModernButton(x, y, w, lay.btnH(), "自分の前に移動", ModernButton.Style.DEFAULT, () -> {
+        add(new ModernButton(x, y, w, lay.btnH(), Tr.get("cinema.ui.right.movetomyself"), ModernButton.Style.DEFAULT, () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
             float faceYaw = mc.player.getYRot() + 180f;
@@ -225,9 +220,9 @@ public final class RightPanel {
         if (!living || EntityProfiles.of(d.entityType()).hasNoScale()) return y;
 
         int lh = lay.th() + Theme.u(3);
-        label("サイズ", x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.size"), x, y, Theme.TEXT_DIM);
         y += lh;
-        add(new ModernSlider(x, y, w, lay.sliderH(), "大きさ", "%", 10, 400, 5,
+        add(new ModernSlider(x, y, w, lay.sliderH(), Tr.get("cinema.ui.right.size"), "%", 10, 400, 5,
                 d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v))));
         return y + lay.sliderH() + lay.gap();
     }
@@ -237,13 +232,13 @@ public final class RightPanel {
     private int sectionOrientation(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         int sh = lay.sliderH();
-        label("向き", x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.orientation"), x, y, Theme.TEXT_DIM);
         y += lh;
 
         float body = Mth.wrapDegrees(d.bodyYRot());
         float headOffset = Mth.clamp(Mth.wrapDegrees(d.headYRot() - d.bodyYRot()), -75f, 75f);
 
-        add(new ModernSlider(x, y, w, sh, "体の向き", "°", -180, 180, body, v ->
+        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.orientation.body"), "°", -180, 180, body, v ->
                 edit(id, cur -> {
                     float bo = (float) v;
                     float off = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
@@ -274,10 +269,10 @@ public final class RightPanel {
 
         EntityProfile profile = EntityProfiles.of(d.entityType());
         List<String[]> flags = new ArrayList<>();
-        if (!profile.isStateHidden(EntityFlags.FIRE)) flags.add(new String[] {EntityFlags.FIRE, "燃えている (Fire)"});
-        if (!profile.isStateHidden(EntityFlags.GLOW)) flags.add(new String[] {EntityFlags.GLOW, "光っている (Glow)"});
-        if (canBaby) flags.add(new String[] {EntityFlags.BABY, "子ども (Age)"});
-        if (living) flags.add(new String[] {EntityFlags.DAMAGE, "ダメージ (Damage)"});
+        if (!profile.isStateHidden(EntityFlags.FIRE)) flags.add(new String[] {EntityFlags.FIRE, Tr.get("cinema.ui.right.fire")});
+        if (!profile.isStateHidden(EntityFlags.GLOW)) flags.add(new String[] {EntityFlags.GLOW, Tr.get("cinema.ui.right.glow")});
+        if (canBaby) flags.add(new String[] {EntityFlags.BABY, Tr.get("cinema.ui.right.child")});
+        if (living) flags.add(new String[] {EntityFlags.DAMAGE, Tr.get("cinema.ui.right.damage")});
         if (flags.isEmpty()) return y;
 
         label("状態", x, y, Theme.TEXT_DIM);
@@ -443,6 +438,9 @@ public final class RightPanel {
     // ---- 装備 ----
 
     private int sectionEquipment(NpcData d, int y) {
+        EntityProfile profile = EntityProfiles.of(d.entityType());
+        if (profile.equipmentMode() == EquipmentMode.NONE) return y;   // 装備欄なし(手の動作も出さない)
+
         int lh = lay.th() + Theme.u(3);
         int sh = lay.sliderH();
 
@@ -457,6 +455,8 @@ public final class RightPanel {
 
         String heldLabel = EntityProfiles.of(d.entityType()).heldItemLabel();
         if (heldLabel != null) return sectionHeldItem(d, y, heldLabel);
+
+        if (profile.isMainHandOnly()) return sectionHeldItem(d, y, profile.heldItemLabelOrDefault());
 
         // 上段: メイン/オフ
         addSlotButton(d, EquipmentSlot.MAINHAND, x + (cw + cgap), y, cw, ch, animalGear);
