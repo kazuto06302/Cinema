@@ -17,30 +17,17 @@ import net.minecraft.locale.Language;
 /** モブ選択リスト用のカタログ。MOD追加のモブも自動で含まれる。 */
 public final class MobCatalog {
     private MobCatalog() {}
+    private static Language builtFor;
 
     public record Entry(String id, String name) {}
-
-    /**
-     * モブ追加画面に出さないエンティティ。
-     * devモード(検索欄に「cinema」と入力)の間は、これも全部表示される。
-     * 出したくないモブはここにIDを足す。
-     */
-    private static final Set<String> HIDDEN = Set.of(
-            "minecraft:marker",
-            "minecraft:interaction",
-            "minecraft:area_effect_cloud",
-            "minecraft:block_display",
-            "minecraft:item_display",
-            "minecraft:text_display",
-            "minecraft:item",
-            "minecraft:ominous_item_spawner"
-    );
 
     private static List<Entry> all;
     private static Map<String, Entry> byId;
 
     private static void ensure() {
-        if (all != null) return;
+        Language now = Language.getInstance();
+        if (all != null && builtFor == now) return;   // 言語が変わっていなければ、そのまま
+        builtFor = now;
         all = BuiltInRegistries.ENTITY_TYPE.stream()
                 .filter(t -> t.canSummon())
                 .map(t -> new Entry(BuiltInRegistries.ENTITY_TYPE.getKey(t).toString(),

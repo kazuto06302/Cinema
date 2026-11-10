@@ -112,10 +112,8 @@ public final class RightPanel {
 
         // --- タブ行(2:1、角丸なし) ---
         int mainW = w * 2 / 3;
-        host.add(new TabButton(x, y, mainW, lay.btnH(), RightTab.MAIN.label, () -> selectTab(RightTab.MAIN))
-                .setSelected(tab == RightTab.MAIN));
-        host.add(new TabButton(x + mainW, y, w - mainW, lay.btnH(), RightTab.POSE.label, () -> selectTab(RightTab.POSE))
-                .setSelected(tab == RightTab.POSE));
+        host.add(new TabButton(x, y, mainW, lay.btnH(), Tr.get(RightTab.MAIN.label), () -> selectTab(RightTab.MAIN)).setSelected(tab == RightTab.MAIN));
+        host.add(new TabButton(x + mainW, y, w - mainW, lay.btnH(), Tr.get(RightTab.POSE.label), () -> selectTab(RightTab.POSE)).setSelected(tab == RightTab.POSE));
         y += lay.btnH() + lay.gap();
 
         contentTop = y;

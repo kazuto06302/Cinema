@@ -1,0 +1,163 @@
+﻿# y=はい n=いいえ 空欄=コードの設定のまま / equipment: full, animal, main(メインハンドだけ), none / poses: STANDING/CROUCHING/SWIMMING/FALL_FLYING/SITTING
+id,listed,icon,walks,humanoid,scalable,hitbox,equipment,held_label,poses,name,category,summon,behavior,options
+minecraft:acacia_boat,y,y,n,n,y,n,none,,,アカシアのボート,MISC,y,BoatProfile,
+minecraft:acacia_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのアカシアのボート,MISC,y,BoatProfile,
+minecraft:allay,y,y,n,n,y,y,main,手持ち,,アレイ,CREATURE,y,EntityProfile,
+minecraft:area_effect_cloud,n,n,y,n,y,y,none,,,エリアエフェクトクラウド,MISC,y,EntityProfile,
+minecraft:armadillo,y,y,y,n,y,y,none,,,アルマジロ,CREATURE,y,ArmadilloProfile,状態(SLIDER)
+minecraft:armor_stand,y,y,y,n,y,y,full,,,防具立て,MISC,y,EntityProfile,
+minecraft:arrow,y,y,y,n,y,y,none,,,矢,MISC,y,EntityProfile,
+minecraft:axolotl,y,y,y,n,y,y,none,,,ウーパールーパー,AXOLOTLS,y,AxolotlProfile,状態(SLIDER) | 色(DROPDOWN)
+minecraft:bamboo_chest_raft,y,y,n,n,y,n,none,,,チェスト付きの竹のイカダ,MISC,y,BoatProfile,
+minecraft:bamboo_raft,y,y,n,n,y,n,none,,,竹のイカダ,MISC,y,BoatProfile,
+minecraft:bat,y,y,n,n,y,y,none,,,コウモリ,AMBIENT,y,BatProfile,状態(SLIDER)
+minecraft:bee,y,y,n,n,y,y,none,,,ミツバチ,CREATURE,y,BeeProfile,攻撃モード(CHECKBOX)
+minecraft:birch_boat,y,y,n,n,y,n,none,,,シラカバのボート,MISC,y,BoatProfile,
+minecraft:birch_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのシラカバのボート,MISC,y,BoatProfile,
+minecraft:blaze,y,y,n,n,y,y,none,,,ブレイズ,MONSTER,y,EntityProfile,
+minecraft:block_display,n,n,y,n,y,y,none,,,ブロック表示エンティティ,MISC,y,EntityProfile,
+minecraft:bogged,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ボグド,MONSTER,y,EntityProfile,
+minecraft:breeze,y,y,y,n,y,y,none,,,ブリーズ,MONSTER,y,BreezeProfile,動作(SLIDER)
+minecraft:breeze_wind_charge,n,y,y,n,y,y,none,,,ウィンドチャージ,MISC,y,EntityProfile,
+minecraft:camel,y,y,y,n,y,y,animal,,,ラクダ,CREATURE,y,CamelProfile,動作(SLIDER)
+minecraft:camel_husk,y,y,y,n,y,y,animal,,,ラクダハスク,MONSTER,y,CamelProfile,動作(SLIDER)
+minecraft:cat,y,y,y,n,y,y,none,,STANDING/SITTING,ネコ,CREATURE,y,CatProfile,種類(SLIDER) | 飼い猫(CHECKBOX) | 首輪の色(SLIDER)
+minecraft:cave_spider,y,y,y,n,y,y,none,,,洞窟グモ,MONSTER,y,EntityProfile,
+minecraft:cherry_boat,y,y,n,n,y,n,none,,,サクラのボート,MISC,y,BoatProfile,
+minecraft:cherry_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのサクラのボート,MISC,y,BoatProfile,
+minecraft:chest_minecart,y,y,y,n,y,y,none,,,チェスト付きのトロッコ,MISC,y,EntityProfile,
+minecraft:chicken,y,y,y,n,y,y,none,,,ニワトリ,CREATURE,y,ChickenProfile,
+minecraft:cod,y,y,n,n,y,y,none,,,タラ,WATER_AMBIENT,y,FishProfile,
+minecraft:command_block_minecart,y,y,y,n,y,y,none,,,コマンドブロック付きのトロッコ,MISC,y,EntityProfile,
+minecraft:copper_golem,y,y,y,n,y,y,main,手持ち,,カッパーゴーレム,MISC,y,CopperGolemProfile,動作(SLIDER) | 酸化(DROPDOWN)
+minecraft:cow,y,y,y,n,y,y,none,,,ウシ,CREATURE,y,EntityProfile,
+minecraft:creaking,y,y,y,n,y,y,none,,,クリーキング,MONSTER,y,EntityProfile,
+minecraft:creeper,y,y,y,n,y,y,none,,,クリーパー,MONSTER,y,CreeperProfile,帯電(CHECKBOX)
+minecraft:cushion,y,y,y,n,y,y,none,,,クッション,MISC,y,CushionProfile,色(SLIDER)
+minecraft:dark_oak_boat,y,y,n,n,y,n,none,,,ダークオークのボート,MISC,y,BoatProfile,
+minecraft:dark_oak_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのダークオークのボート,MISC,y,BoatProfile,
+minecraft:dolphin,y,y,n,n,y,y,main,手持ち,,イルカ,WATER_CREATURE,y,DolphinProfile,
+minecraft:donkey,y,y,y,n,y,y,animal,,,ロバ,CREATURE,y,EntityProfile,
+minecraft:dragon_fireball,y,y,y,n,y,y,none,,,ドラゴンの火の玉,MISC,y,EntityProfile,
+minecraft:drowned,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ドラウンド,MONSTER,y,EntityProfile,
+minecraft:egg,y,y,y,n,y,y,none,,,投げられた卵,MISC,y,EntityProfile,
+minecraft:elder_guardian,y,y,n,n,y,y,none,,,エルダーガーディアン,MONSTER,y,GuardianProfile,
+minecraft:end_crystal,y,y,y,n,y,y,none,,,エンドクリスタル,MISC,y,EndCrystalProfile,台座(CHECKBOX)
+minecraft:ender_dragon,y,y,n,n,n,n,none,,,エンダードラゴン,MONSTER,y,EnderDragonProfile,
+minecraft:ender_pearl,y,y,y,n,y,y,none,,,投げられたエンダーパール,MISC,y,EntityProfile,
+minecraft:enderman,y,y,y,n,y,y,none,,,エンダーマン,MONSTER,y,EntityProfile,
+minecraft:endermite,y,y,y,n,y,y,none,,,エンダーマイト,MONSTER,y,EntityProfile,
+minecraft:evoker,y,y,y,n,y,y,none,,,エヴォーカー,MONSTER,y,EvokerProfile,詠唱(CHECKBOX)
+minecraft:evoker_fangs,y,y,y,n,y,y,none,,,エヴォーカーの牙,MISC,y,EvokerFangsProfile,
+minecraft:experience_bottle,y,y,y,n,y,y,none,,,投げられたエンチャントの瓶,MISC,y,EntityProfile,
+minecraft:experience_orb,y,y,y,n,y,y,none,,,経験値オーブ,MISC,y,EntityProfile,
+minecraft:eye_of_ender,y,y,y,n,y,y,none,,,エンダーアイ,MISC,y,EntityProfile,
+minecraft:falling_block,y,y,n,n,y,y,main,ブロック,,落下中のブロック,MISC,y,FallingBlockProfile,
+minecraft:fireball,y,y,y,n,y,y,none,,,火の玉,MISC,y,EntityProfile,
+minecraft:firework_rocket,y,y,y,n,y,y,none,,,ロケット花火,MISC,y,EntityProfile,
+minecraft:fishing_bobber,y,y,y,n,y,y,none,,,,MISC,n,EntityProfile,
+minecraft:fox,y,y,y,n,y,y,main,手持ち,,キツネ,CREATURE,y,FoxProfile,姿勢(SLIDER) | 首をかしげる(CHECKBOX) | 雪(CHECKBOX)
+minecraft:frog,y,y,y,n,y,y,none,,,カエル,CREATURE,y,FrogProfile,動作(SLIDER) | 色(DROPDOWN)
+minecraft:furnace_minecart,y,y,y,n,y,y,none,,,かまど付きのトロッコ,MISC,y,EntityProfile,
+minecraft:ghast,y,y,y,n,y,y,none,,,ガスト,MONSTER,y,GhastProfile,攻撃モード(CHECKBOX)
+minecraft:giant,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ジャイアント,MONSTER,y,EntityProfile,
+minecraft:glow_item_frame,y,y,n,n,y,n,main,中身,,輝く額縁,MISC,y,ItemFrameProfile,中身の回転(DROPDOWN)
+minecraft:glow_squid,y,y,n,n,y,y,none,,,ヒカリイカ,UNDERGROUND_WATER_CREATURE,y,SquidProfile,
+minecraft:goat,y,y,y,n,y,y,none,,,ヤギ,CREATURE,y,EntityProfile,
+minecraft:guardian,y,y,n,n,y,y,none,,,ガーディアン,MONSTER,y,GuardianProfile,
+minecraft:happy_ghast,y,y,y,n,y,y,animal,,,ハッピーガスト,CREATURE,y,GhastProfile,
+minecraft:hoglin,y,y,y,n,y,y,none,,,ホグリン,MONSTER,y,HoglinProfile,
+minecraft:hopper_minecart,y,y,y,n,y,y,none,,,ホッパー付きのトロッコ,MISC,y,EntityProfile,
+minecraft:horse,y,y,y,n,y,y,animal,,,ウマ,CREATURE,y,HorseProfile,毛色(DROPDOWN) | 模様(DROPDOWN)
+minecraft:husk,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ハスク,MONSTER,y,EntityProfile,
+minecraft:illusioner,y,y,y,y,y,y,main,手持ち,STANDING/CROUCHING/SWIMMING,イリュージョナー,MONSTER,y,EntityProfile,
+minecraft:interaction,n,n,y,n,y,y,none,,,操作記録エンティティ,MISC,y,EntityProfile,
+minecraft:iron_golem,y,y,y,n,y,y,none,,,アイアンゴーレム,MISC,y,IronGolemProfile,攻撃(CHECKBOX) | 花を差し出す(CHECKBOX)
+minecraft:item,n,n,y,n,y,y,none,,,アイテム,MISC,y,EntityProfile,
+minecraft:item_display,n,n,y,n,y,y,none,,,アイテム表示エンティティ,MISC,y,EntityProfile,
+minecraft:item_frame,y,y,n,n,y,n,main,中身,,額縁,MISC,y,ItemFrameProfile,中身の回転(DROPDOWN)
+minecraft:jungle_boat,y,y,n,n,y,n,none,,,ジャングルのボート,MISC,y,BoatProfile,
+minecraft:jungle_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのジャングルのボート,MISC,y,BoatProfile,
+minecraft:leash_knot,y,y,y,n,y,y,none,,,リードの結び目,MISC,y,EntityProfile,
+minecraft:lightning_bolt,y,n,y,n,y,y,none,,,雷,MISC,y,EntityProfile,
+minecraft:lingering_potion,y,y,y,n,y,y,none,,,残留ポーション,MISC,y,EntityProfile,
+minecraft:llama,y,y,y,n,y,y,animal,,,ラマ,CREATURE,y,LlamaProfile,毛色(DROPDOWN)
+minecraft:llama_spit,y,y,y,n,y,y,none,,,ラマの唾,MISC,y,EntityProfile,
+minecraft:magma_cube,y,y,n,n,y,y,none,,,マグマキューブ,MONSTER,y,SlimeProfile,サイズ(SLIDER)
+minecraft:mangrove_boat,y,y,n,n,y,n,none,,,マングローブのボート,MISC,y,BoatProfile,
+minecraft:mangrove_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのマングローブのボート,MISC,y,BoatProfile,
+minecraft:mannequin,y,y,y,n,y,y,full,,,マネキン,MISC,y,EntityProfile,
+minecraft:marker,n,n,y,n,y,y,none,,,マーカー,MISC,y,EntityProfile,
+minecraft:minecart,y,y,y,n,y,y,none,,,トロッコ,MISC,y,EntityProfile,
+minecraft:mooshroom,y,y,y,n,y,y,none,,,ムーシュルーム,CREATURE,y,MooshroomProfile,雷(CHECKBOX)
+minecraft:mule,y,y,y,n,y,y,animal,,,ラバ,CREATURE,y,EntityProfile,
+minecraft:nautilus,y,y,y,n,y,y,animal,,,オウムガイ,WATER_CREATURE,y,EntityProfile,
+minecraft:oak_boat,y,y,n,n,y,n,none,,,オークのボート,MISC,y,BoatProfile,
+minecraft:oak_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのオークのボート,MISC,y,BoatProfile,
+minecraft:ocelot,y,y,y,n,y,y,none,,,ヤマネコ,CREATURE,y,EntityProfile,
+minecraft:ominous_item_spawner,n,n,y,n,y,y,none,,,不吉なアイテムスポナー,MISC,y,EntityProfile,
+minecraft:painting,y,y,n,n,y,n,none,,,絵画,MISC,y,PaintingProfile,絵(DROPDOWN)
+minecraft:pale_oak_boat,y,y,n,n,y,n,none,,,ペールオークのボート,MISC,y,BoatProfile,
+minecraft:pale_oak_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのペールオークのボート,MISC,y,BoatProfile,
+minecraft:panda,y,y,y,n,y,y,main,手持ち,,パンダ,CREATURE,y,PandaProfile,ポーズ(SLIDER) | 種類(DROPDOWN)
+minecraft:parched,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,パーチド,MONSTER,y,EntityProfile,
+minecraft:parrot,y,y,y,n,y,y,none,,STANDING/SITTING,オウム,CREATURE,y,ParrotProfile,
+minecraft:phantom,y,y,n,n,y,y,none,,,ファントム,MONSTER,y,PhantomProfile,サイズ(SLIDER)
+minecraft:pig,y,y,y,n,y,y,animal,,,ブタ,CREATURE,y,EntityProfile,
+minecraft:piglin,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ピグリン,MONSTER,y,EntityProfile,
+minecraft:piglin_brute,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ピグリンブルート,MONSTER,y,EntityProfile,
+minecraft:pillager,y,y,y,y,y,y,main,手持ち,STANDING/CROUCHING/SWIMMING,ピリジャー,MONSTER,y,EntityProfile,
+minecraft:player,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,,MISC,n,PlayerProfile,ネームタグを表示(CHECKBOX) | ケープを表示(CHECKBOX) | ケープを開く(SLIDER) | ケープの左右(SLIDER)
+minecraft:polar_bear,y,y,y,n,y,y,none,,,シロクマ,CREATURE,y,PolarBearProfile,姿勢(SLIDER)
+minecraft:poplar_boat,y,y,n,n,y,n,none,,,ポプラのボート,MISC,y,BoatProfile,
+minecraft:poplar_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのポプラのボート,MISC,y,BoatProfile,
+minecraft:pufferfish,y,y,n,n,y,y,none,,,フグ,WATER_AMBIENT,y,PufferfishProfile,膨らみ(DROPDOWN)
+minecraft:rabbit,y,y,y,n,y,y,none,,,ウサギ,CREATURE,y,EntityProfile,
+minecraft:ravager,y,y,y,n,y,y,none,,,ラヴェジャー,MONSTER,y,EntityProfile,
+minecraft:salmon,y,y,n,n,y,y,none,,,サケ,WATER_AMBIENT,y,FishProfile,
+minecraft:sheep,y,y,y,n,y,y,none,,,ヒツジ,CREATURE,y,SheepProfile,草を食べる(CHECKBOX) | 毛の色(SLIDER) | 毛刈り(CHECKBOX)
+minecraft:shulker,y,y,n,n,y,y,none,,,シュルカー,MONSTER,y,ShulkerProfile,
+minecraft:shulker_bullet,y,y,y,n,y,y,none,,,シュルカーの弾,MISC,y,EntityProfile,
+minecraft:silverfish,y,y,y,n,y,y,none,,,シルバーフィッシュ,MONSTER,y,EntityProfile,
+minecraft:skeleton,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,スケルトン,MONSTER,y,EntityProfile,
+minecraft:skeleton_horse,y,y,y,n,y,y,animal,,,スケルトンホース,CREATURE,y,EntityProfile,
+minecraft:slime,y,y,n,n,y,y,none,,,スライム,MONSTER,y,SlimeProfile,サイズ(SLIDER)
+minecraft:small_fireball,y,y,y,n,y,y,none,,,小さな火の玉,MISC,y,EntityProfile,
+minecraft:sniffer,y,y,y,n,y,y,none,,,スニッファー,CREATURE,y,SnifferProfile,動作(SLIDER)
+minecraft:snow_golem,y,y,y,n,y,y,none,,,スノウゴーレム,MISC,y,SnowGolemProfile,かぼちゃ(CHECKBOX)
+minecraft:snowball,y,y,y,n,y,y,none,,,雪玉,MISC,y,EntityProfile,
+minecraft:spawner_minecart,y,y,y,n,y,y,none,,,モンスタースポナー付きのトロッコ,MISC,y,EntityProfile,
+minecraft:spectral_arrow,y,y,y,n,y,y,none,,,光の矢,MISC,y,EntityProfile,
+minecraft:spider,y,y,y,n,y,y,none,,,クモ,MONSTER,y,EntityProfile,
+minecraft:splash_potion,y,y,y,n,y,y,none,,,スプラッシュポーション,MISC,y,EntityProfile,
+minecraft:spruce_boat,y,y,n,n,y,n,none,,,トウヒのボート,MISC,y,BoatProfile,
+minecraft:spruce_chest_boat,y,y,n,n,y,n,none,,,チェスト付きのトウヒのボート,MISC,y,BoatProfile,
+minecraft:squid,y,y,n,n,y,y,none,,,イカ,WATER_CREATURE,y,SquidProfile,
+minecraft:stray,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ストレイ,MONSTER,y,EntityProfile,
+minecraft:strider,y,y,y,n,y,y,animal,,,ストライダー,CREATURE,y,StriderProfile,マグマ(CHECKBOX)
+minecraft:sulfur_cube,y,y,y,n,y,y,none,,,サルファーキューブ,MONSTER,y,SlimeProfile,サイズ(SLIDER)
+minecraft:tadpole,y,y,y,n,y,y,none,,,オタマジャクシ,CREATURE,y,EntityProfile,
+minecraft:text_display,n,n,y,n,y,y,none,,,テキスト表示エンティティ,MISC,y,EntityProfile,
+minecraft:tnt,y,y,y,n,y,y,none,,,着火されたTNT,MISC,y,EntityProfile,
+minecraft:tnt_minecart,y,y,y,n,y,y,none,,,TNT付きのトロッコ,MISC,y,EntityProfile,
+minecraft:trader_llama,y,y,y,n,y,y,animal,,,商人のラマ,CREATURE,y,LlamaProfile,毛色(DROPDOWN)
+minecraft:trident,y,y,y,n,y,y,none,,,トライデント,MISC,y,EntityProfile,
+minecraft:tropical_fish,y,y,n,n,y,y,none,,,熱帯魚,WATER_AMBIENT,y,FishProfile,
+minecraft:turtle,y,y,y,n,y,y,none,,,カメ,CREATURE,y,TurtleProfile,水中(CHECKBOX) | 卵(CHECKBOX)
+minecraft:vex,y,y,n,n,y,y,main,手持ち,,ヴェックス,MONSTER,y,EntityProfile,
+minecraft:villager,y,y,y,n,y,y,main,手持ち,,村人,MISC,y,EntityProfile,
+minecraft:vindicator,y,y,y,y,y,y,main,手持ち,STANDING/CROUCHING/SWIMMING,ヴィンディケーター,MONSTER,y,EntityProfile,
+minecraft:wandering_trader,y,y,y,n,y,y,main,手持ち,,行商人,CREATURE,y,EntityProfile,
+minecraft:warden,y,y,y,n,y,y,none,,,ウォーデン,MONSTER,y,WardenProfile,モーション(SLIDER) | 触角(SLIDER)
+minecraft:wind_charge,y,y,y,n,y,y,none,,,ウィンドチャージ,MISC,y,EntityProfile,
+minecraft:witch,y,y,y,n,y,y,main,手持ち,,ウィッチ,MONSTER,y,EntityProfile,
+minecraft:wither,y,y,n,n,y,y,none,,,ウィザー,MONSTER,y,WitherProfile,青い(無敵状態)(CHECKBOX) | 装甲(体力が半分以下)(CHECKBOX)
+minecraft:wither_skeleton,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ウィザースケルトン,MONSTER,y,EntityProfile,
+minecraft:wither_skull,y,y,y,n,y,y,none,,,ウィザーの頭蓋骨,MISC,y,WitherSkullProfile,青い頭(CHECKBOX)
+minecraft:wolf,y,y,y,n,y,y,animal,,STANDING/SITTING,オオカミ,CREATURE,y,WolfProfile,種類(SLIDER) | 飼い犬(CHECKBOX) | 首輪の色(SLIDER) | 攻撃モード(CHECKBOX)
+minecraft:zoglin,y,y,y,n,y,y,none,,,ゾグリン,MONSTER,y,HoglinProfile,
+minecraft:zombie,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ゾンビ,MONSTER,y,EntityProfile,
+minecraft:zombie_horse,y,y,y,n,y,y,animal,,,ゾンビホース,MONSTER,y,EntityProfile,
+minecraft:zombie_nautilus,y,y,y,n,y,y,animal,,,ゾンビオウムガイ,MONSTER,y,EntityProfile,
+minecraft:zombie_villager,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,村人ゾンビ,MONSTER,y,EntityProfile,
+minecraft:zombified_piglin,y,y,y,y,y,y,full,,STANDING/CROUCHING/SWIMMING,ゾンビピグリン,MONSTER,y,EntityProfile,
