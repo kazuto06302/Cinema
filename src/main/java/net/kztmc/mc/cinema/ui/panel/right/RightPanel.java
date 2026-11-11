@@ -39,10 +39,8 @@ import net.minecraft.world.item.Items;
  */
 public final class RightPanel {
     private enum RightTab {
-        MAIN("cinema.ui.right.basic"), POSE("cinema.ui.right.pose");
-
+        MAIN("cinema.ui.right.basic"), POSE("cinema.ui.right.adjustment");
         final String label;
-
         RightTab(String label) {
             this.label = label;
         }
@@ -146,6 +144,16 @@ public final class RightPanel {
         host.refresh();
     }
 
+    private static int sectionGap() {
+        return Theme.u(8);
+    }
+
+    /** セクションを組み立てて、何か出したときだけ、余白を足す */
+    private int run(java.util.function.IntUnaryOperator section, int y) {
+        int next = section.applyAsInt(y);
+        return next > y ? next + sectionGap() : next;
+    }
+
     /** スクロールする部品として登録して、追加する */
     private <T extends AbstractWidget> T add(T widget) {
         host.add(widget);
@@ -157,6 +165,10 @@ public final class RightPanel {
         scrollLabels.add(new Label(text, lx, ly, color));
     }
 
+    private void note(String text, int lx, int ly) {
+        scrollLabels.add(new Label(text, lx, ly, Theme.TEXT_DIM));
+    }
+
     private static void edit(UUID id, UnaryOperator<NpcData> fn) {
         NpcManager.get(id).ifPresent(cur -> NpcManager.replace(fn.apply(cur)));
     }
@@ -164,17 +176,17 @@ public final class RightPanel {
     // ================= タブ「基本」 =================
 
     private int buildMain(NpcData d, int y) {
-        y = sectionPosition(d, y);
-        y = sectionSize(d, y);
-        y = sectionPlayerTexts(d, y);
-        y = sectionOrientation(d, y);
-        y = sectionStates(y);
-        y = sectionPosture(d, y);
-        y = sectionAnimation(d, y);
-        y = sectionMotion(d, y);
-        y = sectionOptions(d, y);
-        y = sectionEquipment(d, y);
-        y = sectionDev(d, y);
+        y = run(yy -> sectionPosition(d, yy), y);
+        y = run(yy -> sectionSize(d, yy), y);
+        y = run(yy -> sectionPlayerTexts(d, yy), y);
+        y = run(yy -> sectionOrientation(d, yy), y);
+        y = run(yy -> sectionStates(yy), y);
+        y = run(yy -> sectionPose(d, yy), y);
+        y = run(yy -> sectionAnimation(d, yy), y);
+        y = run(yy -> sectionMotion(d, yy), y);
+        y = run(yy -> sectionOptions(d, yy), y);
+        y = run(yy -> sectionEquipment(d, yy), y);
+        y = run(yy -> sectionDev(d, yy), y);
         return y;
     }
 
@@ -182,7 +194,7 @@ public final class RightPanel {
 
     private int sectionPosition(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
-        label(Tr.get("cinema.ui.right.position"), x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.position"), x, y, Theme.SECTION);
         y += lh;
 
         pos[0] = d.x();
@@ -205,7 +217,7 @@ public final class RightPanel {
             float faceYaw = mc.player.getYRot() + 180f;
             edit(id, cur -> cur.withTransform(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
                     faceYaw, cur.xRot(), faceYaw, faceYaw));
-            host.refresh();   // 位置欄の表示も、新しい値にする
+            host.refresh();
         }));
         return y + lay.btnH() + lay.gap();
     }
@@ -218,7 +230,7 @@ public final class RightPanel {
         if (!living || EntityProfiles.of(d.entityType()).hasNoScale()) return y;
 
         int lh = lay.th() + Theme.u(3);
-        label(Tr.get("cinema.ui.right.size"), x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.size"), x, y, Theme.SECTION);
         y += lh;
         add(new ModernSlider(x, y, w, lay.sliderH(), Tr.get("cinema.ui.right.size"), "%", 10, 400, 5,
                 d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v))));
@@ -230,7 +242,7 @@ public final class RightPanel {
     private int sectionOrientation(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         int sh = lay.sliderH();
-        label(Tr.get("cinema.ui.right.orientation"), x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.orientation"), x, y, Theme.SECTION);
         y += lh;
 
         float body = Mth.wrapDegrees(d.bodyYRot());
@@ -273,10 +285,8 @@ public final class RightPanel {
         if (living) flags.add(new String[] {EntityFlags.DAMAGE, Tr.get("cinema.ui.right.damage")});
         if (flags.isEmpty()) return y;
 
-        label("状態", x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.modifier"), x, y, Theme.SECTION);
         y += lay.th() + Theme.u(3);
-
-        // 縦に並べる
         for (String[] flag : flags) {
             String key = flag[0];
             add(new ModernCheckbox(x, y, w, lay.sliderH(), flag[1], d.option(key, 0) == 1,
@@ -288,7 +298,7 @@ public final class RightPanel {
 
     // ---- 姿勢・モデル ----
 
-    private int sectionPosture(NpcData d, int y) {
+    private int sectionPose(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         int pgap = Math.max(1, Theme.u(3));
 
@@ -296,7 +306,7 @@ public final class RightPanel {
         List<NpcPose> poses = NpcData.PLAYER.equals(d.kind())
                 ? NpcPose.PLAYER : EntityProfiles.of(d.entityType()).poses();
         if (poses.size() > 1) {
-            label("姿勢", x, y, Theme.TEXT_DIM);
+            label(Tr.get("cinema.ui.right.pose"), x, y, Theme.SECTION);
             y += lh;
             int pw = (w - pgap * (poses.size() - 1)) / poses.size();
             for (int i = 0; i < poses.size(); i++) {
@@ -311,9 +321,9 @@ public final class RightPanel {
 
         // モデル(腕の太さ): プレイヤーのみ
         if (NpcData.PLAYER.equals(d.kind())) {
-            label("モデル(腕の太さ)", x, y, Theme.TEXT_DIM);
+            label(Tr.get("cinema.ui.right.model"), x, y, Theme.SECTION);
             y += lh;
-            String[] modelLabels = {"自動", "ノーマル", "スリム"};
+            String[] modelLabels = {Tr.get("cinema.ui.right.model.auto"), Tr.get("cinema.ui.right.model.normal"), Tr.get("cinema.ui.right.model.slim")};
             String[] modelValues = {null, "wide", "slim"};
             int mw = (w - pgap * 2) / 3;
             for (int i = 0; i < 3; i++) {
@@ -333,9 +343,9 @@ public final class RightPanel {
 
     private int sectionAnimation(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
-        label("アニメーション", x, y, Theme.TEXT_DIM);
+        label(Tr.get("cinema.ui.right.animation"), x, y, Theme.SECTION);
         y += lh;
-        add(new ModernSlider(x, y, w, lay.sliderH(), "時間", "tick", 0,
+        add(new ModernSlider(x, y, w, lay.sliderH(), Tr.get("cinema.ui.right.animation.frame"), "tick", 0,
                 EntityTweaks.animTickMax(d.entityType()), 0.1, d.animTickOrDefault(),
                 v -> edit(id, cur -> cur.withAnimTick((float) v))));
         return y + lay.sliderH() + lay.gap();
@@ -354,20 +364,20 @@ public final class RightPanel {
         boolean showArms = living && (isPlayer || EntityProfiles.of(d.entityType()).isHumanoid());
 
         if (showWalk || showArms) {
-            label("動き", x, y, Theme.TEXT_DIM);
+            label(Tr.get("cinema.ui.right.movement"), x, y, Theme.SECTION);
             y += lh;
         }
         if (showWalk) {
-            add(new ModernSlider(x, y, w, sh, "歩行", "%", -100, 100, d.option(EntityMotion.WALK, 0),
+            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.walk"), "%", -100, 100, d.option(EntityMotion.WALK, 0),
                     v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v))));
             y += sh;
         }
         if (showArms) {
-            add(new ModernCheckbox(x, y, w, sh, "構える(腕を上げる)", d.option(EntityMotion.ARMS, 0) == 1,
+            add(new ModernCheckbox(x, y, w, sh, Tr.get("cinema.ui.right.movement.ready"), d.option(EntityMotion.ARMS, 0) == 1,
                     on -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, on ? 1 : 0))));
             y += sh;
             int legacy = Math.round(EntityMotion.legacySwing(d.option(EntityMotion.ARMS, 0)) * 100f);
-            add(new ModernSlider(x, y, w, sh, "腕を振る", "%", 0, 100, 1, d.option(EntityMotion.SWING, legacy),
+            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.swing"), "%", 0, 100, 1, d.option(EntityMotion.SWING, legacy),
                     v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))));
             y += sh;
         }
@@ -443,7 +453,7 @@ public final class RightPanel {
         int sh = lay.sliderH();
 
         // スロットは、クリックで外す。右クリックで装飾(エンチャント光沢・トリム)。入れるのは、インベントリの画面から
-        label(Theme.fit(host.font(), "装備(左:開く 右:装飾 Shift:外す)", w), x, y, Theme.TEXT_DIM);
+        label(Theme.fit(host.font(), Tr.get("cinema.ui.right.equipment"), w), x, y, Theme.SECTION);
         y += lh;
 
         boolean animalGear = EntityProfiles.of(d.entityType()).hasAnimalGear();
@@ -474,7 +484,7 @@ public final class RightPanel {
         boolean anyMotion = EntityMotion.isSpear(mainItem) || hasUseMotion(mainItem) || hasUseMotion(offItem)
                 || mainItem.is(Items.CROSSBOW) || offItem.is(Items.CROSSBOW);
         if (anyMotion) {
-            label("手の動作", x, y, Theme.TEXT_DIM);
+            label("手の動作", x, y, Theme.SECTION);
             y += lh;
         }
 
@@ -581,9 +591,9 @@ public final class RightPanel {
     private int buildPose(int y) {
         label("パーツごとのポーズ", x, y, Theme.TEXT);
         y += lay.th() + Theme.u(5);
-        label(Theme.fit(host.font(), "翼・頭・腕などの角度を、ここで調整できる", w), x, y, Theme.TEXT_DIM);
+        note(Theme.fit(host.font(), "翼・頭・腕などの角度を、ここで調整できる", w), x, y);
         y += lay.th() + Theme.u(3);
-        label(Theme.fit(host.font(), "ようにします(準備中)", w), x, y, Theme.TEXT_DIM);
+        note(Theme.fit(host.font(), "ようにします(準備中)", w), x, y);
         return y + lay.th();
     }
 
@@ -791,7 +801,7 @@ public final class RightPanel {
             edit(id, cur -> cur);
         }, host::onDropdownOpen));
         y += lay.sliderH();
-        label(Theme.fit(host.font(), "画像は config/cinema/capes/ に PNG(64×32)", w), x, y + Theme.u(2), Theme.TEXT_DIM);
+        note(Theme.fit(host.font(), "画像は config/cinema/capes/ に PNG(64×32)", w), x, y + Theme.u(2));
         y += lay.th() + Theme.u(6);
 
         // ケープの持ち主(ユーザー名)。Enter で反映

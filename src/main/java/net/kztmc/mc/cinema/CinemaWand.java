@@ -9,6 +9,7 @@ import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
+import net.kztmc.mc.cinema.ui.core.Tr;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.core.component.DataComponents;
@@ -59,7 +60,7 @@ public final class CinemaWand {
         tag.putBoolean(TAG, true);
         stack.set(DataComponents.CUSTOM_DATA, CustomData.of(tag));
         stack.set(DataComponents.ITEM_MODEL, Identifier.fromNamespaceAndPath("cinema", "wand"));
-        stack.set(DataComponents.CUSTOM_NAME, Component.literal("Cinema ワンド")
+        stack.set(DataComponents.CUSTOM_NAME, Component.translatable("cinema.item.wand")
                 .withStyle(s -> s.withItalic(false).withColor(0x4C9AFF)));
         return stack;
     }
