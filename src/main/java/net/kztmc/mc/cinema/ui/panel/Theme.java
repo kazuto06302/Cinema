@@ -23,6 +23,13 @@ public final class Theme {
     public static final int DANGER = 0xFFE5575F;
     public static final int DANGER_DIM = 0xFF3A1D23;
     public static final int GHOST_HOVER = 0x00232938; // alpha 0 から補間して出す
+    public static final int SECTION = 0xFF7FA8E0;
+
+    // ---- 絵文字つきのラベル ----
+    private static final float ICON_BOX = 9f;    // 絵文字を入れる箱の幅(8pxフォント基準)
+    private static final float ICON_GAP = 3f;    // 箱と文字の間(同じ基準)
+    private static final float ICON_DX = 0f;     // 絵文字の位置の微調整(右が+、8px基準)
+    private static final float ICON_DY = 0.5f;   // 絵文字の位置の微調整(下が+、8px基準)
 
     // ---- サイズ(GUIスケールに連動) ----
 
@@ -42,10 +49,8 @@ public final class Theme {
         return Math.max(3, Math.round(8 * fontScale()));
     }
 
-    /**
-     * クリックとして扱うボタン番号。
-     * ログでは物理クリックが 1 や 3 で届いていたため、0 と 1 を許可している。
-     */
+    public record IconLabel(String icon, String text) {}
+
     public static boolean probeAnyButton;
 
     public static boolean isClick(int button) {
@@ -131,5 +136,47 @@ public final class Theme {
 
     public static boolean isRightClick(int button) {
         return button == 2 || button == 3;
+    }
+
+    public static IconLabel splitIcon(String label) {
+        int space = label.indexOf(' ');
+        if (space <= 0 || space >= label.length() - 1) return new IconLabel(null, label);
+        String head = label.substring(0, space);
+        if (head.codePointCount(0, head.length()) > 3) return new IconLabel(null, label);
+        for (int i = 0; i < head.length(); ) {
+            int cp = head.codePointAt(i);
+            if (cp < 0x80 || Character.isLetterOrDigit(cp)) return new IconLabel(null, label);
+            i += Character.charCount(cp);
+        }
+        return new IconLabel(head, label.substring(space + 1).stripLeading());
+    }
+
+    /** 絵文字の箱 + 隙間の幅(GUI単位)。絵文字つきのラベルは、文字がこの分だけ右から始まる */
+    public static int iconSlot() {
+        return Math.round((ICON_BOX + ICON_GAP) * fontScale());
+    }
+
+    /** 絵文字つきのラベルを描く。絵文字は箱の中央、文字は箱の右から。maxWidth を超えるぶんは、文字を省略する */
+    public static void labelWithIcon(GuiGraphicsExtractor g, Font font, String label, int x, int y, int color, int maxWidth) {
+        IconLabel l = splitIcon(label);
+        if (l.icon() == null) {
+            text(g, font, fit(font, label, maxWidth), x, y, color);
+            return;
+        }
+        float fs = fontScale();
+        float w = font.width(l.icon());                          // 8px基準の幅
+        float scale = fs * (w > ICON_BOX ? ICON_BOX / w : 1f);   // 広い絵文字だけ、箱に収まるまで縮める
+        float ix = x + (ICON_BOX * fs - w * scale) / 2f + ICON_DX * fs;   // 箱の中で、横を中央に
+        float iy = y + (8f * fs - 8f * scale) / 2f + ICON_DY * fs;        // 縮めたぶん、縦も文字の中央に
+
+        var pose = g.pose();
+        pose.pushMatrix();
+        pose.translate(ix, iy);
+        pose.scale(scale, scale);
+        g.text(font, l.icon(), 0, 0, color, false);
+        pose.popMatrix();
+
+        int slot = iconSlot();
+        text(g, font, fit(font, l.text(), Math.max(0, maxWidth - slot)), x + slot, y, color);
     }
 }

@@ -1,9 +1,10 @@
 {
   "cinema.title.installed": "Cinema導入済み",
   "cinema.pause.open": "Cinemaを開く",
+  "cinema.item.wand": "Cinemaワンド",
 
   "cinema.ui.right.basic": "基本",
-  "cinema.ui.right.pose": "ポーズ",
+  "cinema.ui.right.adjustment": "調整",
   "cinema.ui.right.delete": "削除",
   "cinema.ui.right.position": "位置",
   "cinema.ui.right.movetomyself": "自分の位置に移動させる",
@@ -14,5 +15,19 @@
   "cinema.ui.right.fire": "🔥 発火",
   "cinema.ui.right.glow": "☀ 発光",
   "cinema.ui.right.child": "☺ 子供",
-  "cinema.ui.right.damage": "\uD83D\uDDE1 ダメージ"
+  "cinema.ui.right.damage": "\uD83D\uDDE1 ダメージ",
+
+  "cinema.ui.right.modifier": "状態",
+  "cinema.ui.right.model": "モデル",
+  "cinema.ui.right.model.auto": "自動",
+  "cinema.ui.right.model.normal": "ノーマル",
+  "cinema.ui.right.model.slim": "スリム",
+  "cinema.ui.right.animation": "アニメーション",
+  "cinema.ui.right.animation.frame": "フレーム",
+  "cinema.ui.right.movement": "動き",
+  "cinema.ui.right.movement.walk": "歩行",
+  "cinema.ui.right.movement.ready": "構える",
+  "cinema.ui.right.movement.swing": "腕を振る",
+
+  "cinema.ui.right.equipment": "装備"
 }

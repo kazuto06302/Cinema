@@ -1,9 +1,10 @@
 {
   "cinema.title.installed": "Cinema installed",
   "cinema.pause.open": "Open Cinema",
+  "cinema.item.wand": "Cinema Wand",
 
   "cinema.ui.right.basic": "Basic",
-  "cinema.ui.right.pose": "Pose",
+  "cinema.ui.right.adjustment": "Adjustment",
   "cinema.ui.right.delete": "Delete",
   "cinema.ui.right.position": "Position",
   "cinema.ui.right.movetomyself": "Move to myself",
@@ -14,5 +15,20 @@
   "cinema.ui.right.fire": "🔥 Fire",
   "cinema.ui.right.glow": "☀ Glow",
   "cinema.ui.right.child": "☺ Child",
-  "cinema.ui.right.damage": "\uD83D\uDDE1 Damage"
+  "cinema.ui.right.damage": "\uD83D\uDDE1 Damage",
+
+  "cinema.ui.right.modifier": "Modifier",
+  "cinema.ui.right.pose": "Pose",
+  "cinema.ui.right.model": "Model",
+  "cinema.ui.right.model.auto": "Auto",
+  "cinema.ui.right.model.normal": "Normal",
+  "cinema.ui.right.model.slim": "Slim",
+  "cinema.ui.right.animation": "Animation",
+  "cinema.ui.right.animation.frame": "Frame",
+  "cinema.ui.right.movement": "Movement",
+  "cinema.ui.right.movement.walk": "Walking",
+  "cinema.ui.right.movement.ready": "Ready",
+  "cinema.ui.right.movement.swing": "Swing arms",
+
+  "cinema.ui.right.equipment": "Equipment"
 }

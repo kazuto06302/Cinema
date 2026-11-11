@@ -1,7 +1,6 @@
 package net.kztmc.mc.cinema.ui.widget;
 
 import java.util.function.Consumer;
-
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.minecraft.client.Minecraft;
@@ -12,7 +11,7 @@ import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
 
-/** チェックボックス。左にラベル、右に四角。オンのときは、四角の中に、塗りつぶした小さい四角が入る。 */
+/** チェックボックス。左にラベル(先頭の絵文字は、別に描く)、右に四角。オンのときは、四角の中に、塗りつぶした小さい四角が入る。 */
 public class ModernCheckbox extends AbstractWidget {
     private final String label;
     private final Consumer<Boolean> onChange;
@@ -36,10 +35,14 @@ public class ModernCheckbox extends AbstractWidget {
                 Theme.lerp(Theme.SURFACE, Theme.SURFACE_HOVER, hover));
 
         int pad = Theme.u(7);
-        Theme.text(g, font, label, getX() + pad, getY() + (getHeight() - Theme.textH()) / 2, Theme.TEXT_DIM);
+        int size = Math.max(6, Math.min(getHeight() - Theme.u(6), Theme.u(12)));
+
+        // ラベル: 四角と重ならない幅まで(絵文字は別に描くので、文字の位置が、そろう)
+        int labelRoom = getWidth() - pad * 3 - size;
+        Theme.labelWithIcon(g, font, label, getX() + pad, getY() + (getHeight() - Theme.textH()) / 2,
+                Theme.TEXT_DIM, labelRoom);
 
         // 右の四角: 外側の枠 + (オンのとき)中の塗りつぶし
-        int size = Math.max(6, Math.min(getHeight() - Theme.u(6), Theme.u(12)));
         int bx = getX() + getWidth() - pad - size;
         int by = getY() + (getHeight() - size) / 2;
         g.outline(bx, by, size, size, checked ? Theme.ACCENT : Theme.lerp(Theme.TEXT_DIM, Theme.TEXT, hover));
