@@ -1,5 +1,6 @@
 package net.kztmc.mc.cinema.ui;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
 import net.kztmc.mc.cinema.npc.NpcManager;
@@ -12,6 +13,7 @@ import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
 import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
 import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
 import net.kztmc.mc.cinema.ui.panel.world.WorldPanel;
+import net.kztmc.mc.cinema.ui.widget.DockButton;
 import net.kztmc.mc.cinema.ui.widget.ModernDropdown;
 import net.kztmc.mc.cinema.ui.widget.ModernNumberField;
 import net.kztmc.mc.cinema.ui.widget.ModernTextField;
@@ -25,6 +27,7 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Mth;
 
 /**
  * 撮影用の編集画面の骨格。各パネルの中身は、別のクラスにある。
@@ -59,6 +62,16 @@ public class CinemaScreen extends Screen implements PanelHost {
     private final boolean animate;
     private boolean opened;     // 子画面(装飾・インベントリ)から戻ったときに、やり直さないための印
     private long openedAt;
+
+    private static final long PANEL_MS = 80;
+
+    private final List<AbstractWidget> leftWidgets = new ArrayList<>();   // 左パネルの中身(広がっていないときは隠す)
+    private final List<DockButton> dock = new ArrayList<>();              // 左側の四角のボタン(広がっていないときだけ出す)
+    private DockButton minimize;                                          // 広がっているとき、右上に出す、小さくするボタン
+
+    private float panelAnim = CinemaState.leftOpen ? 1f : 0f;   // 0 = 四角、1 = 広がった状態
+    private float animFrom, animTo = panelAnim;
+    private long animStart;
 
     public CinemaScreen() {
         super(Component.literal("Cinema"));
@@ -148,7 +161,16 @@ public class CinemaScreen extends Screen implements PanelHost {
         pressed = null;
 
         hasWorld = false;
+
+        // 左パネルの中身(あとで、まとめて隠せるように、足されたウィジェットを覚える)
+        leftWidgets.clear();
+        int before = children().size();
         left.build(layout, this);
+        for (int i = before; i < children().size(); i++) {
+            if (children().get(i) instanceof AbstractWidget w) leftWidgets.add(w);
+        }
+        buildDock();
+
         NpcManager.selectedData().ifPresentOrElse(d -> {
             hasRight = true;
             right.build(layout, this, d);
@@ -161,6 +183,83 @@ public class CinemaScreen extends Screen implements PanelHost {
             hasTuner = true;
             tuner.build(layout, this);
         }
+        updateLeftPanel();
+    }
+
+    private int dockSize() {
+        return Theme.u(28);
+    }
+
+    /** 左側の四角のボタン。今後、エクスポート・設定などを、ここに足す */
+    private void buildDock() {
+        dock.clear();
+        int s = dockSize();
+        int x = layout.leftX();
+        int y = layout.panelY();
+
+        dock.add(add(new DockButton(x, y, s, DockButton.MENU, "メニューを開く", () -> setLeftOpen(true))));
+        // 例: y += s + layout.gap();
+        //     dock.add(add(new DockButton(x, y, s, 〈アイコン〉, "エクスポート", () -> { ... })));
+
+        // 広がっているとき、左パネルの右上に出す、小さくするボタン
+        int ms = Theme.u(16);
+        minimize = add(new DockButton(layout.leftX() + layout.leftW() - ms - Theme.u(4), layout.panelY() + Theme.u(4),
+                ms, DockButton.MINIMIZE, "小さくする", () -> setLeftOpen(false)));
+    }
+
+    /** 広げる/まとめる。アニメーションを始める */
+    private void setLeftOpen(boolean open) {
+        if (CinemaState.leftOpen == open) return;
+        CinemaState.leftOpen = open;
+        animFrom = panelAnim;
+        animTo = open ? 1f : 0f;
+        animStart = System.currentTimeMillis();
+        menu.close();
+        if (openDropdown != null) openDropdown.close();
+        openDropdown = null;
+        setFocused(null);
+        if (open) UiSounds.open();
+        else UiSounds.tab();
+    }
+
+    /** アニメーションを進めて、広がり具合に合わせて、ウィジェットの表示を切り替える */
+    private void updateLeftPanel() {
+        float target = animTo;
+        if (panelAnim != target) {
+            float t = (System.currentTimeMillis() - animStart) / (float) PANEL_MS;
+            if (t >= 1f) {
+                panelAnim = target;
+            } else {
+                float inv = 1f - Math.max(0f, t);
+                panelAnim = animFrom + (target - animFrom) * (1f - inv * inv * inv);   // ゆっくり止まる動き
+            }
+        }
+        boolean open = panelAnim >= 0.999f;
+        boolean closed = panelAnim <= 0.001f;
+        for (AbstractWidget w : leftWidgets) {
+            w.visible = open;
+            w.active = open;
+        }
+        for (DockButton b : dock) {
+            b.visible = closed;
+            b.active = closed;
+        }
+        if (minimize != null) {
+            minimize.visible = open;
+            minimize.active = open;
+        }
+    }
+
+    /** 左パネルの背景。広がりきっていないときは、四角から広がる途中の大きさで描く */
+    private void drawLeftBackground(GuiGraphicsExtractor g) {
+        if (panelAnim >= 0.999f) {
+            left.extractBackground(g);   // パネルと、「CINEMA」などの文字
+            return;
+        }
+        int s = dockSize();
+        int w = Math.round(Mth.lerp(panelAnim, s, layout.leftW()));
+        int h = Math.round(Mth.lerp(panelAnim, s, layout.panelH()));
+        Theme.panel(g, layout.leftX(), layout.panelY(), w, h);
     }
 
     // ================= マウス・キー =================
@@ -320,6 +419,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         int mx = modal ? -1 : mouseX;
         int my = modal ? -1 : mouseY;
         if (hasWorld) world.tick();
+        updateLeftPanel();
 
         float slide = hasTuner ? 1f : slideProgress();   // 下のパネル(dev)があるときは、アニメーションしない
         if (slide < 1f) {
@@ -331,7 +431,7 @@ public class CinemaScreen extends Screen implements PanelHost {
             return;
         }
 
-        left.extractBackground(g);
+        drawLeftBackground(g);
         if (hasRight) right.extractBackground(g);
         if (hasTuner) tuner.extractBackground(g);
         if (hasWorld) world.extractBackground(g);
@@ -350,7 +450,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         g.pose().pushMatrix();
         g.pose().translate(dx, 0);
         if (leftSide) {
-            left.extractBackground(g);
+            drawLeftBackground(g);
         } else {
             if (hasRight) right.extractBackground(g);
             if (hasWorld) world.extractBackground(g);

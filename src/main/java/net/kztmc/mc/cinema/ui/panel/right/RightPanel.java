@@ -145,7 +145,7 @@ public final class RightPanel {
     }
 
     private static int sectionGap() {
-        return Theme.u(8);
+        return Theme.u(9);
     }
 
     /** セクションを組み立てて、何か出したときだけ、余白を足す */

@@ -13,4 +13,7 @@ public final class CinemaState {
     /** アイコン調整で選んでいるモブ */
     public static String tuneId;
     public static String tuneName;
+
+    /** 左パネルを広げているか(画面を開き直しても保持する) */
+    public static boolean leftOpen = false;
 }

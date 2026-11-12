@@ -11,17 +11,17 @@ public final class Theme {
 
     public static final float FONT_PX = 18f;
 
-    public static final int PANEL = 0xB80F1218;
+    public static final int PANEL = 0xCC0F1218;
     public static final int PANEL_BORDER = 0xFF262C38;
-    public static final int SURFACE = 0xFF191D26;
-    public static final int SURFACE_HOVER = 0xFF232938;
+    public static final int SURFACE = 0xE6191D26;
+    public static final int SURFACE_HOVER = 0xE6232938;
     public static final int BORDER = 0xFF303848;
     public static final int ACCENT = 0xFF5B9DFF;
     public static final int ACCENT_DIM = 0xFF2C5BA6;
     public static final int TEXT = 0xFFE8ECF4;
     public static final int TEXT_DIM = 0xFF8D95A8;
-    public static final int DANGER = 0xFFE5575F;
-    public static final int DANGER_DIM = 0xFF3A1D23;
+    public static final int DANGER = 0xE6E5575F;
+    public static final int DANGER_DIM = 0xE63A1D23;
     public static final int GHOST_HOVER = 0x00232938; // alpha 0 から補間して出す
     public static final int SECTION = 0xFF7FA8E0;
 
@@ -31,6 +31,8 @@ public final class Theme {
     private static final float ICON_DX = 0f;     // 絵文字の位置の微調整(右が+、8px基準)
     private static final float ICON_DY = 0.5f;   // 絵文字の位置の微調整(下が+、8px基準)
 
+    /** 文字に、マイクラ標準の影を付けるか(false にすると、元の見た目に戻る) */
+    public static final boolean TEXT_SHADOW = true;
     // ---- サイズ(GUIスケールに連動) ----
 
     /** バニラのフォントは8px。GUIスケール込みで FONT_PX になるような拡大率 */
@@ -58,13 +60,25 @@ public final class Theme {
     }
     // ---- 描画 ----
 
-    /** 角を落とした簡易角丸(小さいときは1px) */
+    /** 角を落とした簡易角丸(小さいときは1px)。半透明の色でも、濃さが変わらないように、塗る範囲が重ならない */
     public static void roundRect(GuiGraphicsExtractor g, int x, int y, int w, int h, int color) {
-        if (((color >>> 24) & 0xFF) == 0) return;
+        if (((color >>> 24) & 0xFF) == 0 || w <= 0 || h <= 0) return;
         int r = fontScale() < 0.7f ? 1 : 2;
-        g.fill(x + r, y, x + w - r, y + h, color);
-        if (r == 2) g.fill(x + 1, y + 1, x + w - 1, y + h - 1, color);
-        g.fill(x, y + r, x + w, y + h - r, color);
+        if (w <= r * 2 || h <= r * 2) {
+            g.fill(x, y, x + w, y + h, color);
+            return;
+        }
+        if (r == 2) {
+            g.fill(x + 2, y, x + w - 2, y + 1, color);               // 1行目
+            g.fill(x + 1, y + 1, x + w - 1, y + 2, color);           // 2行目
+            g.fill(x, y + 2, x + w, y + h - 2, color);               // 中央
+            g.fill(x + 1, y + h - 2, x + w - 1, y + h - 1, color);   // 下から2行目
+            g.fill(x + 2, y + h - 1, x + w - 2, y + h, color);       // 最終行
+        } else {
+            g.fill(x + 1, y, x + w - 1, y + 1, color);
+            g.fill(x, y + 1, x + w, y + h - 1, color);
+            g.fill(x + 1, y + h - 1, x + w - 1, y + h, color);
+        }
     }
 
     /** 枠つきパネル */
@@ -108,7 +122,7 @@ public final class Theme {
         pose.pushMatrix();
         pose.translate((float) x, (float) y);
         pose.scale(scale, scale);
-        g.text(font, s, 0, 0, color, false);
+        g.text(font, s, 0, 0, color, TEXT_SHADOW);   // 標準の影(元の色を暗くして、右下に1ずらす)
         pose.popMatrix();
     }
 
@@ -173,7 +187,7 @@ public final class Theme {
         pose.pushMatrix();
         pose.translate(ix, iy);
         pose.scale(scale, scale);
-        g.text(font, l.icon(), 0, 0, color, false);
+        g.text(font, l.icon(), 0, 0, color, TEXT_SHADOW);
         pose.popMatrix();
 
         int slot = iconSlot();

@@ -77,7 +77,7 @@ public final class UiSounds {
 
     public static void equip() {play(SoundEvents.ARMOR_EQUIP_DIAMOND, 1.0f, 0.6f);}
 
-    public static void slideOpen() {play(SoundEvents.UI_TOAST_IN, 1.2f, 0.7f);}
+    public static void slideOpen() {play(SoundEvents.UI_TOAST_IN, 1.2f, 1f);}
 
-    public static void slideClose() {play(SoundEvents.UI_TOAST_OUT, 1.2f, 0.7f);}
+    public static void slideClose() {play(SoundEvents.UI_TOAST_OUT, 1.2f, 1f);}
 }
