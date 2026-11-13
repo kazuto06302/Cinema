@@ -3,6 +3,7 @@ package net.kztmc.mc.cinema.ui.widget;
 import java.util.Locale;
 import java.util.function.DoubleConsumer;
 
+import net.kztmc.mc.cinema.ui.core.Modifiers;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.minecraft.client.Minecraft;
@@ -26,7 +27,9 @@ public class ModernSlider extends AbstractWidget {
     private double value;
     private boolean dragging;
     private java.util.function.DoubleFunction<String> formatter;
-    /** 整数刻み */
+    private Double defaultValue;
+
+    // 整数
     public ModernSlider(int x, int y, int w, int h, String label, String unit,
                         double min, double max, double value, DoubleConsumer onChange) {
         this(x, y, w, h, label, unit, min, max, 1.0, value, onChange);
@@ -76,8 +79,10 @@ public class ModernSlider extends AbstractWidget {
         int side = Theme.u(7);
 
         Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(), hov || dragging ? Theme.SURFACE_HOVER : Theme.SURFACE);
-        Theme.text(g, font, label, getX() + side, getY() + Theme.u(3), Theme.TEXT_DIM);
-        Theme.textRight(g, font, valueText(), getX() + getWidth() - side, getY() + Theme.u(3), Theme.TEXT);
+        boolean changed = isChanged();
+        Theme.text(g, font, label, getX() + side, getY() + Theme.u(3), changed ? Theme.CHANGED : Theme.TEXT_DIM);
+        Theme.textRight(g, font, valueText(), getX() + getWidth() - side, getY() + Theme.u(3),
+                changed ? Theme.CHANGED : Theme.TEXT);
 
         int tt = Math.max(1, Theme.u(2));       // トラックの太さ
         int tw = Math.max(1, Theme.u(2));       // つまみの半幅
@@ -96,8 +101,11 @@ public class ModernSlider extends AbstractWidget {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
+        if (Modifiers.shift() && defaultValue != null) {   // Shift+クリック: 既定値に戻す(つまみは、動かさない)
+            resetToDefault();
+            return true;
+        }
         dragging = true;
-
         UiSounds.click();
         setFromMouse(event.x());
 
@@ -138,5 +146,23 @@ public class ModernSlider extends AbstractWidget {
     public ModernSlider setValueFormatter(java.util.function.DoubleFunction<String> formatter) {
         this.formatter = formatter;
         return this;
+    }
+
+    public ModernSlider setDefault(double v) {
+        this.defaultValue = v;
+        return this;
+    }
+
+    private boolean isChanged() {
+        return defaultValue != null && Math.abs(value - snap(defaultValue)) > step / 2;
+    }
+
+    private void resetToDefault() {
+        double d = snap(defaultValue);
+        if (d != value) {
+            value = d;
+            onChange.accept(value);
+        }
+        UiSounds.click();
     }
 }

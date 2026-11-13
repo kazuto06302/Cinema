@@ -9,7 +9,7 @@ import net.minecraft.util.Mth;
 public final class Theme {
     private Theme() {}
 
-    public static final float FONT_PX = 18f;
+    public static final float FONT_PX = 17f;
 
     public static final int PANEL = 0xCC0F1218;
     public static final int PANEL_BORDER = 0xFF262C38;
@@ -24,6 +24,11 @@ public final class Theme {
     public static final int DANGER_DIM = 0xE63A1D23;
     public static final int GHOST_HOVER = 0x00232938; // alpha 0 から補間して出す
     public static final int SECTION = 0xFF7FA8E0;
+
+    public static final int CHANGED = 0xFFFFD34D;        // 既定値から変えた項目の文字(黄)
+    public static final int SECTION_LINE = 0x557FA8E0;   // 見出しの横の線
+    public static final int SECTION_CARD = 0x14FFFFFF;   // セクションの背景(白の8%)
+    public static final float HEADING_SCALE = 1f;     // 見出しの文字の倍率
 
     // ---- 絵文字つきのラベル ----
     private static final float ICON_BOX = 9f;    // 絵文字を入れる箱の幅(8pxフォント基準)
@@ -192,5 +197,13 @@ public final class Theme {
 
         int slot = iconSlot();
         text(g, font, fit(font, l.text(), Math.max(0, maxWidth - slot)), x + slot, y, color);
+    }
+
+    public static void heading(GuiGraphicsExtractor g, Font font, String s, int x, int y, int color) {
+        text(g, font, s, x, y, color, fontScale() * HEADING_SCALE);
+    }
+
+    public static int headingWidth(Font font, String s) {
+        return Math.round(textWidth(font, s) * HEADING_SCALE);
     }
 }

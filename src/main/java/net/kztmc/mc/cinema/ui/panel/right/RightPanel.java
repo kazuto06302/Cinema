@@ -1,9 +1,14 @@
 package net.kztmc.mc.cinema.ui.panel.right;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
+import java.util.Objects;
 import java.util.Optional;
+import java.util.Set;
 import java.util.UUID;
+import java.util.function.IntUnaryOperator;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.*;
@@ -16,9 +21,11 @@ import net.kztmc.mc.cinema.ui.panel.inventory.CinemaCreativeScreen;
 import net.kztmc.mc.cinema.ui.panel.left.NpcFaces;
 import net.kztmc.mc.cinema.ui.widget.*;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
+import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
@@ -29,14 +36,13 @@ import net.minecraft.world.entity.Mob;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 
-/**
- * 右パネル: 選択中のNPCの編集。
- *   最上段: 名前と削除
- *   タブ  : [基本(2) | ポーズ(1)]
- *   基本  : 位置・向き・状態(燃える/光る/子ども/ダメージ)・姿勢・モデル・アニメーション・動き・固有オプション・装備・手の動作
- *   ポーズ: パーツごとのポーズ(翼・頭など)。これから追加していく
- * 基本の中身は長いので、マウスホイールと右端のスクロールバーで、上下にスクロールできる。
- */
+// 右パネル: 選択中のNPCの編集
+//   最上段: 名前と削除
+//   タブ  : [基本(2) | 調整(1)]
+//   基本  : 位置・サイズ・向き・状態・姿勢・アニメーション・動き・固有オプション・装備・手の動作
+//   調整  : パーツごとのポーズ(準備中)
+// 基本の中身は長いので、ホイールと右端のスクロールバーで、上下にスクロールできる
+// 各セクションは、見出しをクリックで、畳める
 public final class RightPanel {
     private enum RightTab {
         MAIN("cinema.ui.right.basic"), POSE("cinema.ui.right.adjustment");
@@ -46,9 +52,27 @@ public final class RightPanel {
         }
     }
 
-    private record Label(String text, int x, int y, int color) {}
+    // ラベル。heading が true なら、見出し(右に線を引く)
+    private record Label(String text, int x, int y, int color, boolean heading) {
+        Label(String text, int x, int y, int color) {
+            this(text, x, y, color, false);
+        }
+    }
 
-    private record Item(AbstractWidget widget, int baseY) {}
+    // スクロールする部品。hidden は、畳んだセクションの中身
+    private static final class Item {
+        final AbstractWidget widget;
+        final int baseY;
+        boolean hidden;
+
+        Item(AbstractWidget widget, int baseY) {
+            this.widget = widget;
+            this.baseY = baseY;
+        }
+    }
+
+    // 畳んだセクション(画面を開き直しても保持する)
+    private static final Set<String> collapsed = new HashSet<>();
 
     private static RightTab tab = RightTab.MAIN;
     private static int scroll;   // 作り直しても保持する
@@ -56,11 +80,15 @@ public final class RightPanel {
     private final List<Label> fixedLabels = new ArrayList<>();    // スクロールしない(名前)
     private final List<Label> scrollLabels = new ArrayList<>();   // スクロールする
     private final List<Item> items = new ArrayList<>();           // スクロールするウィジェット
+    private final List<int[]> sectionSpans = new ArrayList<>();   // 各セクションの上と下(スクロール前の座標)
 
     private Layout lay;
     private PanelHost host;
     private UUID id;
     private int x, w, contentTop, contentBottom, maxScroll;
+    private int baseX, baseW;          // 見出しとカードの位置(インデントなし)
+    private String currentKey = "";    // 組み立て中のセクション
+    private boolean headerMade;        // そのセクションの、最初の見出しを作ったか
     private final double[] pos = new double[3];
 
     private String status = "";
@@ -80,35 +108,33 @@ public final class RightPanel {
         this.id = d.id();
         fixedLabels.clear();
         scrollLabels.clear();
+        sectionSpans.clear();
         items.clear();
 
         x = lay.rightX() + lay.pad();
         w = lay.panelW() - lay.pad() * 2;
         int y = lay.panelY() + Theme.u(8);
 
-        // --- 最上段: 名前(左)と、削除(右) ---
+        // 最上段: 顔の画像と名前(左)、削除(右)
         String name = NpcNames.of(d);
         int delW = Theme.u(44);
         iconSize = lay.btnH();
         iconX = x;
         iconY = y;
         int nameX = x + iconSize + lay.gap();
-        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - iconSize - lay.gap() * 2), nameX,
-                y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
+        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - iconSize - lay.gap() * 2), nameX, y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
         UUID npcId = id;
-        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), Tr.get("cinema.ui.right.delete"), ModernButton.Style.DANGER,
-                () -> host.confirmDelete(npcId)));
+        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), Tr.get("cinema.ui.right.delete"), ModernButton.Style.DANGER, () -> host.confirmDelete(npcId)));
 
-        // ← (戻る): 右パネルの左の外に、独立したボタンとして出す。選択を外して、ワールド設定へ戻る
+        // ← (戻る): 右パネルの左の外に、独立したボタンとして出す(選択を外して、ワールド設定へ戻る)
         int backW = Theme.u(26);
-        host.add(new ModernButton(lay.rightX() - backW - lay.gap(), lay.panelY(), backW, lay.btnH() + Theme.u(4), "←",
-                ModernButton.Style.DEFAULT, () -> {
+        host.add(new ModernButton(lay.rightX() - backW - lay.gap(), lay.panelY(), backW, lay.btnH() + Theme.u(4), "←", ModernButton.Style.DEFAULT, () -> {
             NpcManager.select(null);
             host.refresh();
         }));
         y += lay.btnH() + Theme.u(5);
 
-        // --- タブ行(2:1、角丸なし) ---
+        // タブ行(2:1、角丸なし)
         int mainW = w * 2 / 3;
         host.add(new TabButton(x, y, mainW, lay.btnH(), Tr.get(RightTab.MAIN.label), () -> selectTab(RightTab.MAIN)).setSelected(tab == RightTab.MAIN));
         host.add(new TabButton(x + mainW, y, w - mainW, lay.btnH(), Tr.get(RightTab.POSE.label), () -> selectTab(RightTab.POSE)).setSelected(tab == RightTab.POSE));
@@ -121,12 +147,13 @@ public final class RightPanel {
         int barW = Theme.u(5);
         int fullW = w;
         w = fullW - barW - Theme.u(2);
-
+        baseX = x;
+        baseW = w;
         int end;
         if (tab == RightTab.MAIN) {
             end = buildMain(d, y);
         } else {
-            end = buildPose(y);
+            end = buildAdjust(y);
         }
 
         maxScroll = Math.max(0, end - contentBottom);
@@ -144,27 +171,64 @@ public final class RightPanel {
         host.refresh();
     }
 
+    // セクション同士の余白
     private static int sectionGap() {
         return Theme.u(9);
     }
 
-    /** セクションを組み立てて、何か出したときだけ、余白を足す */
-    private int run(java.util.function.IntUnaryOperator section, int y) {
-        int next = section.applyAsInt(y);
-        return next > y ? next + sectionGap() : next;
+    // セクションの中身の、左へのインデント
+    private static int sectionIndent() {
+        return Theme.u(4);
     }
 
-    /** スクロールする部品として登録して、追加する */
+    // セクションを組み立てる
+    //   中身は、インデントして組み立てる
+    //   畳んでいるときは、見出し以外を隠して、そのぶん詰める
+    private int run(String key, IntUnaryOperator section, int y) {
+        int itemsBefore = items.size();
+        int labelsBefore = scrollLabels.size();
+
+        currentKey = key;
+        headerMade = false;
+        x = baseX + sectionIndent();
+        w = baseW - sectionIndent();
+        int next = section.applyAsInt(y);
+        x = baseX;
+        w = baseW;
+        currentKey = "";
+
+        // 何も出さなかったセクションは、余白も足さない
+        if (next <= y) return next;
+
+        boolean hasHeader = items.size() > itemsBefore && items.get(itemsBefore).widget instanceof SectionHeader;
+        if (hasHeader && collapsed.contains(key)) {
+            for (int i = itemsBefore + 1; i < items.size(); i++) items.get(i).hidden = true;
+            scrollLabels.subList(labelsBefore, scrollLabels.size()).clear();
+            next = y + lay.th() + Theme.u(3);   // 見出しの高さだけ残す
+        }
+        sectionSpans.add(new int[] {y, next});
+        return next + sectionGap();
+    }
+
+    // スクロールする部品として登録して、追加する
     private <T extends AbstractWidget> T add(T widget) {
         host.add(widget);
         items.add(new Item(widget, widget.getY()));
         return widget;
     }
 
+    // 見出し
     private void label(String text, int lx, int ly, int color) {
-        scrollLabels.add(new Label(text, lx, ly, color));
+        boolean heading = color == Theme.TEXT_DIM || color == Theme.SECTION;
+        if (heading && !headerMade && !currentKey.isEmpty()) {
+            headerMade = true;
+            add(new SectionHeader(baseX, ly, baseW, currentKey, text));
+            return;
+        }
+        scrollLabels.add(new Label(text, lx, ly, heading ? Theme.SECTION : color, heading));
     }
 
+    // 説明文(小さな補足)。色は、灰色のまま
     private void note(String text, int lx, int ly) {
         scrollLabels.add(new Label(text, lx, ly, Theme.TEXT_DIM));
     }
@@ -174,24 +238,22 @@ public final class RightPanel {
     }
 
     // ================= タブ「基本」 =================
-
     private int buildMain(NpcData d, int y) {
-        y = run(yy -> sectionPosition(d, yy), y);
-        y = run(yy -> sectionSize(d, yy), y);
-        y = run(yy -> sectionPlayerTexts(d, yy), y);
-        y = run(yy -> sectionOrientation(d, yy), y);
-        y = run(yy -> sectionStates(yy), y);
-        y = run(yy -> sectionPose(d, yy), y);
-        y = run(yy -> sectionAnimation(d, yy), y);
-        y = run(yy -> sectionMotion(d, yy), y);
-        y = run(yy -> sectionOptions(d, yy), y);
-        y = run(yy -> sectionEquipment(d, yy), y);
-        y = run(yy -> sectionDev(d, yy), y);
+        y = run("position", yy -> sectionPosition(d, yy), y);
+        y = run("size", yy -> sectionSize(d, yy), y);
+        y = run("playerTexts", yy -> sectionPlayerTexts(d, yy), y);
+        y = run("orientation", yy -> sectionOrientation(d, yy), y);
+        y = run("states", yy -> sectionStates(yy), y);
+        y = run("pose", yy -> sectionPose(d, yy), y);
+        y = run("animation", yy -> sectionAnimation(d, yy), y);
+        y = run("motion", yy -> sectionMotion(d, yy), y);
+        y = run("options", yy -> sectionOptions(d, yy), y);
+        y = run("equipment", yy -> sectionEquipment(d, yy), y);
+        y = run("dev", yy -> sectionDev(d, yy), y);
         return y;
     }
 
     // ---- 位置 ----
-
     private int sectionPosition(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         label(Tr.get("cinema.ui.right.position"), x, y, Theme.SECTION);
@@ -204,6 +266,7 @@ public final class RightPanel {
         int[] axisColors = {0xFFE5534B, 0xFF57AB5A, 0xFF539BF5};
         for (int i = 0; i < 3; i++) {
             final int axis = i;
+            // 位置の欄は、既定値を持たない(黄色にならない・リセットしない)
             add(new ModernNumberField(x, y, w, lay.sliderH(), axisNames[i], axisColors[i], pos[i], v -> {
                 pos[axis] = v;
                 edit(id, cur -> cur.withTransform(pos[0], pos[1], pos[2],
@@ -217,13 +280,12 @@ public final class RightPanel {
             float faceYaw = mc.player.getYRot() + 180f;
             edit(id, cur -> cur.withTransform(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
                     faceYaw, cur.xRot(), faceYaw, faceYaw));
-            host.refresh();
+            host.refresh();   // 位置欄の表示も、新しい値にする
         }));
         return y + lay.btnH() + lay.gap();
     }
 
     // ---- サイズ(生き物だけ) ----
-
     private int sectionSize(NpcData d, int y) {
         Entity live = NpcManager.entityOf(id);
         boolean living = live == null || live instanceof LivingEntity;
@@ -233,12 +295,12 @@ public final class RightPanel {
         label(Tr.get("cinema.ui.right.size"), x, y, Theme.SECTION);
         y += lh;
         add(new ModernSlider(x, y, w, lay.sliderH(), Tr.get("cinema.ui.right.size"), "%", 10, 400, 5,
-                d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v))));
+                d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v)))
+                .setDefault(100));
         return y + lay.sliderH() + lay.gap();
     }
 
     // ---- 向き ----
-
     private int sectionOrientation(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         int sh = lay.sliderH();
@@ -248,6 +310,7 @@ public final class RightPanel {
         float body = Mth.wrapDegrees(d.bodyYRot());
         float headOffset = Mth.clamp(Mth.wrapDegrees(d.headYRot() - d.bodyYRot()), -75f, 75f);
 
+        // 体の向きは、既定値がない(生成時の向きは、場所によって違う)
         add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.orientation.body"), "°", -180, 180, body, v ->
                 edit(id, cur -> {
                     float bo = (float) v;
@@ -260,16 +323,15 @@ public final class RightPanel {
                 edit(id, cur -> {
                     float head = cur.bodyYRot() + (float) v;
                     return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, cur.bodyYRot());
-                })));
+                })).setDefault(0));
         y += sh;
         add(new ModernSlider(x, y, w, sh, "頭の上下", "°", -90, 90, d.xRot(), v ->
                 edit(id, cur -> cur.withTransform(cur.x(), cur.y(), cur.z(), cur.yRot(), (float) v,
-                        cur.headYRot(), cur.bodyYRot()))));
+                        cur.headYRot(), cur.bodyYRot()))).setDefault(0));
         return y + sh + lay.gap();
     }
 
     // ---- 状態(燃えている・光っている・子ども・ダメージ) ----
-
     private int sectionStates(int y) {
         NpcData d = NpcManager.get(id).orElse(null);
         if (d == null) return y;
@@ -287,17 +349,18 @@ public final class RightPanel {
 
         label(Tr.get("cinema.ui.right.modifier"), x, y, Theme.SECTION);
         y += lay.th() + Theme.u(3);
+
+        // 縦に並べる
         for (String[] flag : flags) {
             String key = flag[0];
             add(new ModernCheckbox(x, y, w, lay.sliderH(), flag[1], d.option(key, 0) == 1,
-                    on -> edit(id, cur -> cur.withOption(key, on ? 1 : 0))));
+                    on -> edit(id, cur -> cur.withOption(key, on ? 1 : 0))));//.setDefault(false));
             y += lay.sliderH();
         }
         return y + lay.gap();
     }
 
     // ---- 姿勢・モデル ----
-
     private int sectionPose(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         int pgap = Math.max(1, Theme.u(3));
@@ -323,7 +386,8 @@ public final class RightPanel {
         if (NpcData.PLAYER.equals(d.kind())) {
             label(Tr.get("cinema.ui.right.model"), x, y, Theme.SECTION);
             y += lh;
-            String[] modelLabels = {Tr.get("cinema.ui.right.model.auto"), Tr.get("cinema.ui.right.model.normal"), Tr.get("cinema.ui.right.model.slim")};
+            String[] modelLabels = {Tr.get("cinema.ui.right.model.auto"), Tr.get("cinema.ui.right.model.normal"),
+                    Tr.get("cinema.ui.right.model.slim")};
             String[] modelValues = {null, "wide", "slim"};
             int mw = (w - pgap * 2) / 3;
             for (int i = 0; i < 3; i++) {
@@ -332,7 +396,7 @@ public final class RightPanel {
                         ModernButton.Style.DEFAULT, () -> {
                     edit(id, cur -> cur.withModel(Optional.ofNullable(value)));
                     host.refresh();
-                }).setSelected(java.util.Objects.equals(d.model().orElse(null), value)));
+                }).setSelected(Objects.equals(d.model().orElse(null), value)));
             }
             y += lay.btnH() + lay.gap();
         }
@@ -340,19 +404,18 @@ public final class RightPanel {
     }
 
     // ---- アニメーション ----
-
     private int sectionAnimation(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         label(Tr.get("cinema.ui.right.animation"), x, y, Theme.SECTION);
         y += lh;
         add(new ModernSlider(x, y, w, lay.sliderH(), Tr.get("cinema.ui.right.animation.frame"), "tick", 0,
                 EntityTweaks.animTickMax(d.entityType()), 0.1, d.animTickOrDefault(),
-                v -> edit(id, cur -> cur.withAnimTick((float) v))));
+                v -> edit(id, cur -> cur.withAnimTick((float) v)))
+                .setDefault(EntityTweaks.defaultAnimTick(d.entityType())));
         return y + lay.sliderH() + lay.gap();
     }
 
     // ---- 動き(歩行・腕) ----
-
     private int sectionMotion(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         int sh = lay.sliderH();
@@ -368,17 +431,21 @@ public final class RightPanel {
             y += lh;
         }
         if (showWalk) {
-            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.walk"), "%", -100, 100, d.option(EntityMotion.WALK, 0),
-                    v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v))));
+            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.walk"), "%", -100, 100,
+                    d.option(EntityMotion.WALK, 0), v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v)))
+                    .setDefault(0));
             y += sh;
         }
         if (showArms) {
-            add(new ModernCheckbox(x, y, w, sh, Tr.get("cinema.ui.right.movement.ready"), d.option(EntityMotion.ARMS, 0) == 1,
-                    on -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, on ? 1 : 0))));
+            add(new ModernCheckbox(x, y, w, sh, Tr.get("cinema.ui.right.movement.ready"),
+                    d.option(EntityMotion.ARMS, 0) == 1,
+                    on -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, on ? 1 : 0))));//.setDefault(false));
             y += sh;
+            // 古い保存データ(ARMS が 2〜4)は、昔の固定値で読み替える
             int legacy = Math.round(EntityMotion.legacySwing(d.option(EntityMotion.ARMS, 0)) * 100f);
-            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.swing"), "%", 0, 100, 1, d.option(EntityMotion.SWING, legacy),
-                    v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))));
+            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.swing"), "%", 0, 100, 1,
+                    d.option(EntityMotion.SWING, legacy),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))).setDefault(0));
             y += sh;
         }
 
@@ -399,7 +466,7 @@ public final class RightPanel {
                 }));
                 y += sh;
                 add(new ModernButton(x, y, w, lay.btnH(), "周期をコピー", ModernButton.Style.DEFAULT, () -> {
-                    String line = String.format(java.util.Locale.ROOT, "walkKeyframe(%.2ff, %.1ff, %.2ff);",
+                    String line = String.format(Locale.ROOT, "walkKeyframe(%.2ff, %.1ff, %.2ff);",
                             walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed(), walker.walkKeyframeIntensity());
                     Minecraft.getInstance().keyboardHandler.setClipboard(line);
                     Cinema.LOGGER.info("[Cinema] {} -> {}", d.entityType(), line);
@@ -413,7 +480,6 @@ public final class RightPanel {
     }
 
     // ---- エンティティ固有のオプション(プロフィールが宣言したものだけ) ----
-
     private int sectionOptions(NpcData d, int y) {
         List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
         if (specs.isEmpty()) return y;
@@ -423,13 +489,16 @@ public final class RightPanel {
             if (spec.kind() == EntityOption.Kind.CHECKBOX) {
                 add(new ModernCheckbox(x, y, w, sh, spec.label(), d.option(spec.key(), spec.def()) == 1,
                         on -> edit(id, cur -> cur.withOption(spec.key(), on ? 1 : 0))));
+                        //.setDefault(spec.def() == 1));
             } else if (spec.kind() == EntityOption.Kind.DROPDOWN) {
                 add(new ModernDropdown(x, y, w, sh, spec.label(), spec.names(), d.option(spec.key(), spec.def()),
                         i -> edit(id, cur -> cur.withOption(spec.key(), i)), host::onDropdownOpen));
+                        //.setDefault(spec.def()));
             } else {
                 ModernSlider slider = new ModernSlider(x, y, w, sh, spec.label(), "",
                         spec.min(), spec.max(), d.option(spec.key(), spec.def()),
                         v -> edit(id, cur -> cur.withOption(spec.key(), (int) v)));
+                slider.setDefault(spec.def());
                 if (!spec.names().isEmpty()) {
                     slider.setValueFormatter(v -> {
                         int i = Math.max(0, Math.min(spec.names().size() - 1, (int) Math.round(v)));
@@ -444,7 +513,6 @@ public final class RightPanel {
     }
 
     // ---- 装備 ----
-
     private int sectionEquipment(NpcData d, int y) {
         EntityProfile profile = EntityProfiles.of(d.entityType());
         if (profile.equipmentMode() == EquipmentMode.NONE) return y;   // 装備欄なし(手の動作も出さない)
@@ -456,15 +524,13 @@ public final class RightPanel {
         label(Theme.fit(host.font(), Tr.get("cinema.ui.right.equipment"), w), x, y, Theme.SECTION);
         y += lh;
 
-        boolean animalGear = EntityProfiles.of(d.entityType()).hasAnimalGear();
+        // メインハンドだけの装備欄(落下ブロック・額縁など)
+        if (profile.isMainHandOnly()) return sectionHeldItem(d, y, profile.heldItemLabelOrDefault());
+
+        boolean animalGear = profile.hasAnimalGear();
         int cgap = Math.max(1, Theme.u(3));
         int cw = (w - cgap * 3) / 4;
         int ch = Math.max(Theme.u(26), 26);
-
-        String heldLabel = EntityProfiles.of(d.entityType()).heldItemLabel();
-        if (heldLabel != null) return sectionHeldItem(d, y, heldLabel);
-
-        if (profile.isMainHandOnly()) return sectionHeldItem(d, y, profile.heldItemLabelOrDefault());
 
         // 上段: メイン/オフ
         addSlotButton(d, EquipmentSlot.MAINHAND, x + (cw + cgap), y, cw, ch, animalGear);
@@ -484,6 +550,7 @@ public final class RightPanel {
         boolean anyMotion = EntityMotion.isSpear(mainItem) || hasUseMotion(mainItem) || hasUseMotion(offItem)
                 || mainItem.is(Items.CROSSBOW) || offItem.is(Items.CROSSBOW);
         if (anyMotion) {
+            // 同じセクションの中の2つ目の見出し(畳める部品にはならない)
             label("手の動作", x, y, Theme.SECTION);
             y += lh;
         }
@@ -493,25 +560,28 @@ public final class RightPanel {
             add(new ModernDropdown(x, y, w, sh, "槍の攻撃", List.of(EntityMotion.SPEAR_NAMES),
                     d.option(EntityMotion.SPEAR, 0),
                     i -> edit(id, cur -> cur.withOption(EntityMotion.SPEAR, i)), host::onDropdownOpen));
+                    //.setDefault(0));
             y += sh;
             add(new ModernSlider(x, y, w, sh, "槍の進み具合", "%", 0, 100, d.option(EntityMotion.SPEAR_AMOUNT, 50),
-                    v -> edit(id, cur -> cur.withOption(EntityMotion.SPEAR_AMOUNT, (int) v))));
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.SPEAR_AMOUNT, (int) v))).setDefault(50));
             y += sh;
         } else if (hasUseMotion(mainItem)) {
             add(new ModernSlider(x, y, w, sh, "メイン 使用モーション", "%", 0, 100,
                     d.option(EntityMotion.USE_MAIN, EntityMotion.defaultUse(mainItem)),
-                    v -> edit(id, cur -> cur.withOption(EntityMotion.USE_MAIN, (int) v))));
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.USE_MAIN, (int) v)))
+                    .setDefault(EntityMotion.defaultUse(mainItem)));
             y += sh;
         }
         if (hasUseMotion(offItem)) {
             add(new ModernSlider(x, y, w, sh, "オフ 使用モーション", "%", 0, 100,
                     d.option(EntityMotion.USE_OFF, EntityMotion.defaultUse(offItem)),
-                    v -> edit(id, cur -> cur.withOption(EntityMotion.USE_OFF, (int) v))));
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.USE_OFF, (int) v)))
+                    .setDefault(EntityMotion.defaultUse(offItem)));
             y += sh;
         }
         if (mainItem.is(Items.CROSSBOW) || offItem.is(Items.CROSSBOW)) {
             add(new ModernCheckbox(x, y, w, sh, "装填済み(矢をつがえて構える)", d.option(EntityMotion.LOADED, 0) == 1,
-                    on -> edit(id, cur -> cur.withOption(EntityMotion.LOADED, on ? 1 : 0))));
+                    on -> edit(id, cur -> cur.withOption(EntityMotion.LOADED, on ? 1 : 0))));//.setDefault(false));
             y += sh;
         }
 
@@ -519,12 +589,44 @@ public final class RightPanel {
         return y + lay.th() + Theme.u(6);
     }
 
-    /** 使用モーション(弓・クロスボウ・トライデント・盾・食べ物など)があるアイテムか */
+    // 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): メインハンドのスロットだけ(中央に置く)
+    private int sectionHeldItem(NpcData d, int y, String heldLabel) {
+        // 見出しは、すでに上にあるので、ここは説明文にする
+        note(Theme.fit(host.font(), heldLabel + "(左:開く Shift:外す)", w), x, y);
+        y += lay.th() + Theme.u(3);
+
+        int cgap = Math.max(1, Theme.u(3));
+        int cw = (w - cgap * 3) / 4;   // 通常の装備の1マスと同じ大きさ
+        int ch = Math.max(Theme.u(26), 26);
+        ItemStack stack = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
+
+        ItemButton slot = new ItemButton(x + (w - cw) / 2, y, cw, ch, stack,
+                EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
+            if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
+                if (!stack.isEmpty()) {
+                    EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+                    host.refresh();
+                }
+                return;
+            }
+            if (b == 0) openInventory();
+            else say("このエンティティに装飾はありません");
+        });
+        slot.tip(stack.isEmpty() ? heldLabel + "(左クリック: インベントリ)"
+                : heldLabel + ": " + stack.getHoverName().getString() + "(Shift: 外す)");
+        add(slot);
+        y += ch + lay.gap();
+
+        statusY = y + Theme.u(2);
+        return y + lay.th() + Theme.u(6);
+    }
+
+    // 使用モーション(弓・クロスボウ・トライデント・盾・食べ物など)があるアイテムか
     private static boolean hasUseMotion(ItemStack stack) {
         return !stack.isEmpty() && !"NONE".equals(stack.getUseAnimation().name());
     }
 
-    /** クリエ画面を、ゲームモード・OP に関係なく開く。サーバーへは何も送らない */
+    // クリエ画面を、ゲームモード・OP に関係なく開く(サーバーへは何も送らない)
     private static void openInventory() {
         Minecraft mc = Minecraft.getInstance();
         LocalPlayer player = mc.player;
@@ -585,185 +687,12 @@ public final class RightPanel {
         return y + lay.btnH() + lay.gap();
     }
 
-    // ================= タブ「ポーズ」 =================
-
-    /** パーツごとのポーズ(翼・頭・腕など)を、これから足していく場所。いまは枠だけ */
-    private int buildPose(int y) {
-        label("パーツごとのポーズ", x, y, Theme.TEXT);
-        y += lay.th() + Theme.u(5);
-        note(Theme.fit(host.font(), "翼・頭・腕などの角度を、ここで調整できる", w), x, y);
-        y += lay.th() + Theme.u(3);
-        note(Theme.fit(host.font(), "ようにします(準備中)", w), x, y);
-        return y + lay.th();
-    }
-
-    // ================= スクロール =================
-
-    private void applyScroll() {
-        for (Item it : items) {
-            AbstractWidget widget = it.widget();
-            widget.setY(it.baseY() - scroll);
-            // 中身の領域に、完全に収まっているものだけを、表示して、操作できるようにする
-            boolean inside = widget.getY() >= contentTop && widget.getY() + widget.getHeight() <= contentBottom;
-            widget.visible = inside;
-            widget.active = inside;
-        }
-    }
-
-    private void setScroll(int value) {
-        scroll = Mth.clamp(value, 0, maxScroll);
-        applyScroll();
-    }
-
-    public boolean contains(double mx, double my) {
-        return mx >= lay.rightX() && mx < lay.rightX() + lay.panelW()
-                && my >= lay.panelY() && my < lay.panelY() + lay.panelH();
-    }
-
-    /** ホイール。スクロールしたら、短い間は、項目(スライダー・数値欄)より先に受けて、途中で止まらないようにする */
-    public boolean mouseScrolled(double mx, double my, double scrollY) {
-        if (!contains(mx, my) || maxScroll <= 0) return false;
-        setScroll(scroll - (int) Math.round(scrollY * Theme.u(24)));
-        wheelLockUntil = System.currentTimeMillis() + 400;
-        return true;
-    }
-
-    /** ホイールの「ロック」中か。ロック中は、画面が、項目より先に、パネルへホイールを渡す */
-    public boolean wheelLocked(double mx, double my) {
-        return System.currentTimeMillis() < wheelLockUntil && contains(mx, my);
-    }
-
-    // ---- 項目のない所からのドラッグでスクロール ----
-
-    /** 項目のない所を押したときに、画面が呼ぶ。スクロールできる中身の上なら、ドラッグでスクロールを始める */
-    public boolean beginDragScroll(double mx, double my) {
-        if (maxScroll <= 0 || mx < lay.rightX() || mx >= lay.rightX() + lay.panelW()
-                || my < contentTop || my >= contentBottom) {
-            return false;
-        }
-        dragScrolling = true;
-        return true;
-    }
-
-    public boolean isDragScrolling() {
-        return dragScrolling;
-    }
-
-    /** つかんで引く向き: 下へドラッグすると、中身が下へ動く(スクロール位置は減る) */
-    public void dragScrollBy(double dy) {
-        setScroll(scroll - (int) Math.round(dy));
-        wheelLockUntil = System.currentTimeMillis() + 400;
-    }
-
-    public void endDragScroll() {
-        dragScrolling = false;
-    }
-
-    /** 右端のスクロールバー。つまみをドラッグできる */
-    private final class ScrollBar extends AbstractWidget implements Draggable {
-        ScrollBar(int bx, int by, int bw, int bh) {
-            super(bx, by, bw, bh, Component.empty());
-        }
-
-        private int thumbH() {
-            int view = contentBottom - contentTop;
-            int total = view + maxScroll;
-            return Math.max(Theme.u(16), getHeight() * view / Math.max(1, total));
-        }
-
-        private int thumbY() {
-            int free = getHeight() - thumbH();
-            return getY() + (maxScroll == 0 ? 0 : free * scroll / maxScroll);
-        }
-
-        @Override
-        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-            if (maxScroll <= 0) return;
-            g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x22FFFFFF);
-            g.fill(getX(), thumbY(), getX() + getWidth(), thumbY() + thumbH(), 0x88FFFFFF);
-        }
-
-        @Override
-        public boolean mouseClicked(net.minecraft.client.input.MouseButtonEvent event, boolean doubleClick) {
-            return maxScroll > 0 && Theme.isClick(event.button()) && isMouseOver(event.x(), event.y());
-        }
-
-        @Override
-        public void dragBy(double dx, double dy) {
-            int free = getHeight() - thumbH();
-            if (free > 0) setScroll(scroll + (int) Math.round(dy * maxScroll / free));
-        }
-
-        @Override
-        public void dragEnd(double mouseX, double mouseY) {}
-
-        @Override
-        protected void updateWidgetNarration(NarrationElementOutput output) {}
-    }
-
-    // ================= 描画 =================
-
-    /** パネルの背景と、文字。ウィジェットの前に呼ぶ */
-    public void extractBackground(GuiGraphicsExtractor g) {
-        Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
-        NpcManager.get(id).ifPresent(d -> NpcFaces.paint(g, d, iconX, iconY, iconSize));
-        for (Label l : fixedLabels) {
-            Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
-        }
-        for (Label l : scrollLabels) {
-            int ly = l.y() - scroll;
-            if (ly >= contentTop && ly + lay.th() <= contentBottom) {
-                Theme.text(g, host.font(), l.text(), l.x(), ly, l.color());
-            }
-        }
-        if (tab == RightTab.MAIN && System.currentTimeMillis() < statusUntil) {
-            int sy = statusY - scroll;
-            if (sy >= contentTop && sy + lay.th() <= contentBottom) {
-                Theme.text(g, host.font(), Theme.fit(host.font(), status, w), x, sy, 0xFFE5A04B);
-            }
-        }
-    }
-
-    /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): メインハンドのスロットだけ */
-    /** 持ち物がそのまま内容物のエンティティ(落下ブロック・額縁): メインハンドのスロットだけ(中央に置く) */
-    private int sectionHeldItem(NpcData d, int y, String heldLabel) {
-        int lh = lay.th() + Theme.u(3);
-        label(Theme.fit(host.font(), heldLabel + "(左:開く Shift:外す)", w), x, y, Theme.TEXT_DIM);
-        y += lh;
-
-        int cgap = Math.max(1, Theme.u(3));
-        int cw = (w - cgap * 3) / 4;   // 通常の装備の1マスと同じ大きさ
-        int ch = Math.max(Theme.u(26), 26);
-        ItemStack stack = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
-
-        ItemButton slot = new ItemButton(x + (w - cw) / 2, y, cw, ch, stack,
-                EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
-            if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
-                if (!stack.isEmpty()) {
-                    EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);
-                    host.refresh();
-                }
-                return;
-            }
-            if (b == 0) openInventory();
-            else say("このエンティティに装飾はありません");
-        });
-        slot.tip(stack.isEmpty() ? heldLabel + "(左クリック: インベントリ)"
-                : heldLabel + ": " + stack.getHoverName().getString() + "(Shift: 外す)");
-        add(slot);
-        y += ch + lay.gap();
-
-        statusY = y + Theme.u(2);
-        return y + lay.th() + Theme.u(6);
-    }
-
     // ---- プレイヤーのネームタグ・ケープの文字(プレイヤーだけ) ----
-
     private int sectionPlayerTexts(NpcData d, int y) {
         if (!NpcData.PLAYER.equals(d.kind())) return y;
         int lh = lay.th() + Theme.u(3);
 
-        label("ネームタグ・ケープ", x, y, Theme.TEXT_DIM);
+        label("ネームタグ・ケープ", x, y, Theme.SECTION);
         y += lh;
 
         // 表示名(空欄: ユーザー名)
@@ -790,7 +719,6 @@ public final class RightPanel {
         add(belowField);
         y += lay.btnH() + lay.gap();
 
-
         // ケープの画像(config/cinema/capes/*.png)。先頭は「なし」(スキンのケープ)
         List<String> capeFiles = new ArrayList<>();
         capeFiles.add("なし(スキンのケープ)");
@@ -799,7 +727,7 @@ public final class RightPanel {
         add(new ModernDropdown(x, y, w, lay.sliderH(), "ケープ画像", capeFiles, capeIndex, i -> {
             NpcTexts.set(id, NpcTexts.CAPE_FILE, i == 0 ? "" : capeFiles.get(i));
             edit(id, cur -> cur);
-        }, host::onDropdownOpen));
+        }, host::onDropdownOpen));//.setDefault(0));
         y += lay.sliderH();
         note(Theme.fit(host.font(), "画像は config/cinema/capes/ に PNG(64×32)", w), x, y + Theme.u(2));
         y += lay.th() + Theme.u(6);
@@ -817,5 +745,215 @@ public final class RightPanel {
         add(capeField);
         y += lay.btnH() + lay.gap();
         return y;
+    }
+
+    // ================= タブ「調整」 =================
+
+    // パーツごとのポーズ(翼・頭・腕など)を、これから足していく場所。いまは枠だけ
+    private int buildAdjust(int y) {
+        label("パーツごとのポーズ", x, y, Theme.SECTION);
+        y += lay.th() + Theme.u(5);
+        note(Theme.fit(host.font(), "翼・頭・腕などの角度を、ここで調整できる", w), x, y);
+        y += lay.th() + Theme.u(3);
+        note(Theme.fit(host.font(), "ようにします(準備中)", w), x, y);
+        return y + lay.th();
+    }
+
+    // スクロール
+    private void applyScroll() {
+        for (Item it : items) {
+            AbstractWidget widget = it.widget;
+            widget.setY(it.baseY - scroll);
+            // 中身の領域に、完全に収まっているものだけを、表示して操作できるようにする(畳んだ中身は、常に隠す)
+            boolean inside = !it.hidden
+                    && widget.getY() >= contentTop && widget.getY() + widget.getHeight() <= contentBottom;
+            widget.visible = inside;
+            widget.active = inside;
+        }
+    }
+    private void setScroll(int value) {
+        scroll = Mth.clamp(value, 0, maxScroll);
+        applyScroll();
+    }
+    public boolean contains(double mx, double my) {
+        return mx >= lay.rightX() && mx < lay.rightX() + lay.panelW()
+                && my >= lay.panelY() && my < lay.panelY() + lay.panelH();
+    }
+
+    // ホイール
+    public boolean mouseScrolled(double mx, double my, double scrollY) {
+        if (!contains(mx, my) || maxScroll <= 0) return false;
+        setScroll(scroll - (int) Math.round(scrollY * Theme.u(24)));
+        wheelLockUntil = System.currentTimeMillis() + 400;
+        return true;
+    }
+    public boolean wheelLocked(double mx, double my) {
+        return System.currentTimeMillis() < wheelLockUntil && contains(mx, my);
+    }
+    public boolean beginDragScroll(double mx, double my) {
+        if (maxScroll <= 0 || mx < lay.rightX() || mx >= lay.rightX() + lay.panelW()
+                || my < contentTop || my >= contentBottom) {
+            return false;
+        }
+        dragScrolling = true;
+        return true;
+    }
+    public boolean isDragScrolling() {
+        return dragScrolling;
+    }
+    public void dragScrollBy(double dy) {
+        setScroll(scroll - (int) Math.round(dy));
+        wheelLockUntil = System.currentTimeMillis() + 400;
+    }
+    public void endDragScroll() {
+        dragScrolling = false;
+    }
+
+    // 右端のスクロールバー(つまみをドラッグできる)
+    private final class ScrollBar extends AbstractWidget implements Draggable {
+        ScrollBar(int bx, int by, int bw, int bh) {
+            super(bx, by, bw, bh, Component.empty());
+        }
+
+        private int thumbH() {
+            int view = contentBottom - contentTop;
+            int total = view + maxScroll;
+            return Math.max(Theme.u(16), getHeight() * view / Math.max(1, total));
+        }
+
+        private int thumbY() {
+            int free = getHeight() - thumbH();
+            return getY() + (maxScroll == 0 ? 0 : free * scroll / maxScroll);
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+            if (maxScroll <= 0) return;
+            g.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), 0x22FFFFFF);
+            g.fill(getX(), thumbY(), getX() + getWidth(), thumbY() + thumbH(), 0x88FFFFFF);
+        }
+
+        @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            return maxScroll > 0 && Theme.isClick(event.button()) && isMouseOver(event.x(), event.y());
+        }
+
+        @Override
+        public void dragBy(double dx, double dy) {
+            int free = getHeight() - thumbH();
+            if (free > 0) setScroll(scroll + (int) Math.round(dy * maxScroll / free));
+        }
+
+        @Override
+        public void dragEnd(double mouseX, double mouseY) {}
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {}
+    }
+
+    // ================= 見出し =================
+    private final class SectionHeader extends AbstractWidget {
+        private final String key;
+        private final String text;
+        private float hover;
+
+        SectionHeader(int hx, int hy, int hw, String key, String text) {
+            super(hx, hy, hw, lay.th() + Theme.u(3), Component.literal(text));
+            this.key = key;
+            this.text = text;
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+            Font font = host.font();
+            boolean hov = active && isMouseOver(mx, my);
+            hover += ((hov ? 1f : 0f) - hover) * 0.35f;
+            int color = Theme.lerp(Theme.SECTION, 0xFFFFFFFF, hover * 0.5f);
+
+            int headH = Math.round(lay.th() * Theme.HEADING_SCALE);
+            int s = Math.max(3, Theme.u(4));
+            triangle(g, getX() + s, getY() + headH / 2, s, !collapsed.contains(key), color);
+
+            int tx = getX() + s * 2 + Theme.u(4);
+            String shown = Theme.fit(font, text, Math.round((getWidth() - (tx - getX())) / Theme.HEADING_SCALE));
+            Theme.heading(g, font, shown, tx, getY(), color);
+
+            // 文字の右に、線(余白が狭いときは引かない)
+            int lineX = tx + Theme.headingWidth(font, shown) + Theme.u(6);
+            int lineEnd = getX() + getWidth();
+            if (lineEnd - lineX > Theme.u(12)) {
+                int lineY = getY() + headH / 2;
+                g.fill(lineX, lineY, lineEnd, lineY + 1, Theme.SECTION_LINE);
+            }
+        }
+
+        @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
+            if (!collapsed.remove(key)) collapsed.add(key);
+            UiSounds.tab();
+            host.refresh();
+            return true;
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {}
+    }
+
+    // 小さな三角(down が true なら▼、false なら▶)
+    private static void triangle(GuiGraphicsExtractor g, int cx, int cy, int s, boolean down, int color) {
+        for (int i = 0; i < s; i++) {
+            int half = s - i;
+            if (down) {
+                g.fill(cx - half + 1, cy - s / 2 + i, cx + half, cy - s / 2 + i + 1, color);
+            } else {
+                g.fill(cx - s / 2 + i, cy - half + 1, cx - s / 2 + i + 1, cy + half, color);
+            }
+        }
+    }
+
+    // ================= 描画 =================
+
+    // パネルの背景と、文字(ウィジェットの前に呼ぶ)
+    public void extractBackground(GuiGraphicsExtractor g) {
+        Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
+        NpcManager.get(id).ifPresent(d -> NpcFaces.paint(g, d, iconX, iconY, iconSize));
+        for (Label l : fixedLabels) {
+            Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
+        }
+
+        if (tab == RightTab.MAIN) {
+            // セクションごとの、薄い背景(スクロールの範囲の外には、はみ出さない)
+            g.enableScissor(lay.rightX(), contentTop, lay.rightX() + lay.panelW(), contentBottom);
+            for (int[] span : sectionSpans) {
+                int top = span[0] - scroll - Theme.u(2);
+                int bottom = span[1] - scroll;
+                Theme.roundRect(g, baseX - Theme.u(3), top, baseW + Theme.u(6), bottom - top, Theme.SECTION_CARD);
+            }
+            g.disableScissor();
+        }
+
+        for (Label l : scrollLabels) {
+            int ly = l.y() - scroll;
+            if (ly < contentTop || ly + lay.th() > contentBottom) continue;
+            if (l.heading()) {
+                // 畳めない見出し(同じセクションの2つ目以降): 大きめの文字と、右の線
+                Theme.heading(g, host.font(), l.text(), l.x(), ly, l.color());
+                int lineX = l.x() + Theme.headingWidth(host.font(), l.text()) + Theme.u(6);
+                int lineEnd = baseX + baseW;
+                if (lineEnd - lineX > Theme.u(12)) {
+                    int lineY = ly + Math.round(lay.th() * Theme.HEADING_SCALE) / 2;
+                    g.fill(lineX, lineY, lineEnd, lineY + 1, Theme.SECTION_LINE);
+                }
+            } else {
+                Theme.text(g, host.font(), l.text(), l.x(), ly, l.color());
+            }
+        }
+        if (tab == RightTab.MAIN && System.currentTimeMillis() < statusUntil) {
+            int sy = statusY - scroll;
+            if (sy >= contentTop && sy + lay.th() <= contentBottom) {
+                Theme.text(g, host.font(), Theme.fit(host.font(), status, w), x, sy, 0xFFE5A04B);
+            }
+        }
     }
 }

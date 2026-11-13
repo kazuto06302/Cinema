@@ -14,7 +14,7 @@ public record Layout(int m, int pad, int gap, int btnH, int sliderH, int th,
         int m = Theme.u(6);
         int pad = Theme.u(6);
         int gap = Theme.u(4);
-        int panelW = Math.min(Theme.u(260), screenW / 2 - m);
+        int panelW = Math.min(Theme.u(280), screenW / 2 - m);
         int leftW = Theme.u(210);
         int btnH = Math.max(th + 3, Theme.u(14));
         int sliderH = th + Theme.u(11);
