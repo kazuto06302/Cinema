@@ -71,6 +71,9 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     private boolean pressing;
     private double moved;
     private float hover;
+    private boolean framed;
+    private double dragPerPixel = DRAG_PER_PIXEL;
+    private double wheelStep = STEP;
 
     public ModernNumberField(int x, int y, int w, int h, String label, int labelColor, double value, DoubleConsumer onChange) {
         super(x, y, w, h, Component.literal(label));
@@ -149,6 +152,17 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
     }
 
     // ================= 描画 =================
+    public ModernNumberField framed() {
+        this.framed = true;
+        return this;
+    }
+
+    // ドラッグ(1ドットあたり)とホイール(1回あたり)で動く量を変える(回転の欄など)
+    public ModernNumberField dragSpeed(double perPixel, double wheel) {
+        this.dragPerPixel = perPixel;
+        this.wheelStep = wheel;
+        return this;
+    }
 
     private int tx(Font font, String shown) {
         return getX() + getWidth() - Theme.u(7) - Theme.textWidth(font, shown);
@@ -163,10 +177,12 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(), Theme.lerp(Theme.SURFACE, Theme.SURFACE_HOVER, hover));
         if (editing) {
             g.outline(getX(), getY(), getWidth(), getHeight(), Theme.ACCENT);
+        } else if (framed) {
+            g.outline(getX(), getY(), getWidth(), getHeight(), Theme.lerp(Theme.BORDER, Theme.TEXT_DIM, hover));
         }
 
         int ty = getY() + (getHeight() - Theme.textH()) / 2;
-        Theme.text(g, font, label, getX() + Theme.u(7), ty, labelColor);
+        if (!label.isEmpty()) Theme.text(g, font, label, getX() + Theme.u(7), ty, labelColor);
 
         String shown = editing ? text : format(value);
         int textX = tx(font, shown);
@@ -203,7 +219,7 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         if (moved <= CLICK_SLOP) return;
         editing = false;   // ドラッグを始めたら、入力は取り消す
         double oldValue = value;
-        change(value + dx * DRAG_PER_PIXEL * Modifiers.factor());
+        change(value + dx * dragPerPixel * Modifiers.factor());
 
         if (value != oldValue) {
             UiSounds.drag();
@@ -250,7 +266,7 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         if (!active || !visible || !isMouseOver(mouseX, mouseY) || scrollY == 0) return false;
         editing = false;
         double oldValue = value;
-        change(value + Math.signum(scrollY) * STEP * Modifiers.factor());
+        change(value + Math.signum(scrollY) * wheelStep * Modifiers.factor());
 
         if (value != oldValue) {
             UiSounds.drag();
@@ -381,7 +397,7 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
             case K_UP, K_DOWN -> {
                 // ↑↓: 値を増減する(Shift で×10、Ctrl で×100)
                 double factor = event.hasControlDown() ? 100.0 : shift ? 10.0 : 1.0;
-                double next = currentValue() + (key == K_UP ? 1 : -1) * STEP * factor;
+                double next = currentValue() + (key == K_UP ? 1 : -1) * wheelStep * factor;
                 change(next);
                 text = format(value);
                 cursor = text.length();

@@ -12,6 +12,7 @@
   ],
   "client": [
     "bugfix.MinimizedSurfaceMixin",
+    "entity.EntityRenderDispatcherRotationMixin",
     "entity.EntityRendererMixin",
     "entity.LevelRendererSelectionMixin",
     "entity.MultiPlayerGameModeMixin",

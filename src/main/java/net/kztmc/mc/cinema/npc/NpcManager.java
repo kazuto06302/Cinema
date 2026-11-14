@@ -9,6 +9,7 @@ import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.EntityFlags;
 import net.kztmc.mc.cinema.entity.EntityMotion;
 import net.kztmc.mc.cinema.entity.EntityProfiles;
+import net.kztmc.mc.cinema.entity.EntityRotation;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -273,6 +274,7 @@ public final class NpcManager {
         EntityTweaks.applyAnim(e, d.animTickOrDefault(), d.options());
         EntityMotion.apply(e, d.options(), SceneFreeze.partialTickOf(e));
         EntityProfiles.of(e).applyData(e, d);
+        EntityRotation.set(e, d.option(EntityRotation.X, 0), d.option(EntityRotation.Z, 0));
     }
 
     public static Entity entityOf(UUID id) {

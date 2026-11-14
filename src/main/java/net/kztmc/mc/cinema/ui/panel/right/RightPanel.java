@@ -239,10 +239,9 @@ public final class RightPanel {
 
     // ================= タブ「基本」 =================
     private int buildMain(NpcData d, int y) {
-        y = run("position", yy -> sectionPosition(d, yy), y);
+        y = run("transform", yy -> sectionTransform(d, yy), y);
         y = run("size", yy -> sectionSize(d, yy), y);
         y = run("playerTexts", yy -> sectionPlayerTexts(d, yy), y);
-        y = run("orientation", yy -> sectionOrientation(d, yy), y);
         y = run("states", yy -> sectionStates(yy), y);
         y = run("pose", yy -> sectionPose(d, yy), y);
         y = run("animation", yy -> sectionAnimation(d, yy), y);
@@ -253,27 +252,63 @@ public final class RightPanel {
         return y;
     }
 
-    // ---- 位置 ----
-    private int sectionPosition(NpcData d, int y) {
+    // ---- トランスフォーム(位置・回転) ----
+    private static final String[] AXES = {"X", "Y", "Z"};
+    private static final int[] AXIS_COLORS = {0xFFE5534B, 0xFF57AB5A, 0xFF539BF5};
+
+    @FunctionalInterface
+    private interface AxisConsumer {
+        void accept(int axis, double value);
+    }
+
+    private int sectionTransform(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
-        label(Tr.get("cinema.ui.right.position"), x, y, Theme.SECTION);
+        int sh = lay.sliderH();
+        label(Tr.get("cinema.ui.right.transform"), x, y, Theme.SECTION);
         y += lh;
 
+        // 位置(X・Y・Z)
+        note(Tr.get("cinema.ui.right.transform.position"), x, y);
+        y += lay.th() + Theme.u(2);
         pos[0] = d.x();
         pos[1] = d.y();
         pos[2] = d.z();
-        String[] axisNames = {"X", "Y", "Z"};
-        int[] axisColors = {0xFFE5534B, 0xFF57AB5A, 0xFF539BF5};
-        for (int i = 0; i < 3; i++) {
-            final int axis = i;
-            // 位置の欄は、既定値を持たない(黄色にならない・リセットしない)
-            add(new ModernNumberField(x, y, w, lay.sliderH(), axisNames[i], axisColors[i], pos[i], v -> {
-                pos[axis] = v;
-                edit(id, cur -> cur.withTransform(pos[0], pos[1], pos[2],
-                        cur.yRot(), cur.xRot(), cur.headYRot(), cur.bodyYRot()));
-            }));
-            y += lay.sliderH();
-        }
+        y = numberRow(y, pos, 0.05, 0.1, (axis, v) -> {
+            pos[axis] = v;
+            edit(id, cur -> cur.withTransform(pos[0], pos[1], pos[2],
+                    cur.yRot(), cur.xRot(), cur.headYRot(), cur.bodyYRot()));
+        });
+        y += lay.gap();
+
+        // 回転(X: 前後に倒す / Y: 体の向き / Z: 左右に倒す)。モデル全体が回る
+        note(Tr.get("cinema.ui.right.transform.rotation"), x, y);
+        y += lay.th() + Theme.u(2);
+        double[] rotation = {d.option(EntityRotation.X, 0) / 100.0, Mth.wrapDegrees(d.bodyYRot()),
+                d.option(EntityRotation.Z, 0) / 100.0};
+        y = numberRow(y, rotation, 1.0, 1.0, (axis, v) -> {
+            switch (axis) {
+                case 0 -> edit(id, cur -> cur.withOption(EntityRotation.X, Math.round((float) (v * 100))));
+                case 1 -> edit(id, cur -> {
+                    // 体の向きを変えても、頭の左右のずれは、保つ
+                    float body = (float) v;
+                    float offset = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
+                    float head = body + offset;
+                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, body);
+                });
+                default -> edit(id, cur -> cur.withOption(EntityRotation.Z, Math.round((float) (v * 100))));
+            }
+        });
+        y += lay.gap();
+
+        // 頭の左右
+        float headOffset = Mth.clamp(Mth.wrapDegrees(d.headYRot() - d.bodyYRot()), -75f, 75f);
+        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.transform.head"), "°", -75, 75, headOffset, v ->
+                edit(id, cur -> {
+                    float head = cur.bodyYRot() + (float) v;
+                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, cur.bodyYRot());
+                })).setDefault(0));
+        y += sh + lay.gap();
+
         add(new ModernButton(x, y, w, lay.btnH(), Tr.get("cinema.ui.right.movetomyself"), ModernButton.Style.DEFAULT, () -> {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
@@ -283,6 +318,21 @@ public final class RightPanel {
             host.refresh();   // 位置欄の表示も、新しい値にする
         }));
         return y + lay.btnH() + lay.gap();
+    }
+
+    // X・Y・Z の3列の数値欄(枠の外の左上に、軸のラベル)。戻り値は、次の y
+    private int numberRow(int y, double[] values, double dragPerPixel, double wheelStep, AxisConsumer onChange) {
+        int labelH = lay.th() + Theme.u(2);
+        int colGap = Math.max(2, Theme.u(4));
+        int colW = (w - colGap * 2) / 3;
+        for (int i = 0; i < 3; i++) {
+            final int axis = i;
+            int cx = x + i * (colW + colGap);
+            scrollLabels.add(new Label(AXES[i], cx, y, AXIS_COLORS[i]));
+            add(new ModernNumberField(cx, y + labelH, colW, lay.sliderH(), "", AXIS_COLORS[i], values[i],
+                    v -> onChange.accept(axis, v)).framed().dragSpeed(dragPerPixel, wheelStep));
+        }
+        return y + labelH + lay.sliderH();
     }
 
     // ---- サイズ(生き物だけ) ----
@@ -298,37 +348,6 @@ public final class RightPanel {
                 d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v)))
                 .setDefault(100));
         return y + lay.sliderH() + lay.gap();
-    }
-
-    // ---- 向き ----
-    private int sectionOrientation(NpcData d, int y) {
-        int lh = lay.th() + Theme.u(3);
-        int sh = lay.sliderH();
-        label(Tr.get("cinema.ui.right.orientation"), x, y, Theme.SECTION);
-        y += lh;
-
-        float body = Mth.wrapDegrees(d.bodyYRot());
-        float headOffset = Mth.clamp(Mth.wrapDegrees(d.headYRot() - d.bodyYRot()), -75f, 75f);
-
-        // 体の向きは、既定値がない(生成時の向きは、場所によって違う)
-        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.orientation.body"), "°", -180, 180, body, v ->
-                edit(id, cur -> {
-                    float bo = (float) v;
-                    float off = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
-                    float head = bo + off;
-                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, bo);
-                })));
-        y += sh;
-        add(new ModernSlider(x, y, w, sh, "頭の左右", "°", -75, 75, headOffset, v ->
-                edit(id, cur -> {
-                    float head = cur.bodyYRot() + (float) v;
-                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, cur.bodyYRot());
-                })).setDefault(0));
-        y += sh;
-        add(new ModernSlider(x, y, w, sh, "頭の上下", "°", -90, 90, d.xRot(), v ->
-                edit(id, cur -> cur.withTransform(cur.x(), cur.y(), cur.z(), cur.yRot(), (float) v,
-                        cur.headYRot(), cur.bodyYRot()))).setDefault(0));
-        return y + sh + lay.gap();
     }
 
     // ---- 状態(燃えている・光っている・子ども・ダメージ) ----

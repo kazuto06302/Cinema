@@ -58,7 +58,7 @@ public class ModernDropdown extends AbstractWidget {
         hover += ((hov || open ? 1f : 0f) - hover) * 0.35f;
 
         Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(),
-                Theme.lerp(Theme.SURFACE, Theme.SURFACE_HOVER, hover));
+                Theme.lerp(Theme.POPUP, Theme.POPUP_HOVER, hover));
 
         int pad = Theme.u(7);
         int arrow = Theme.u(8);

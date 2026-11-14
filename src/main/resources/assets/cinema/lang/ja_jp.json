@@ -6,11 +6,12 @@
   "cinema.ui.right.basic": "基本",
   "cinema.ui.right.adjustment": "調整",
   "cinema.ui.right.delete": "削除",
-  "cinema.ui.right.position": "位置",
+
+  "cinema.ui.right.transform": "外観",
+  "cinema.ui.right.transform.position": "位置",
+  "cinema.ui.right.transform.rotation": "回転",
   "cinema.ui.right.movetomyself": "自分の位置に移動させる",
   "cinema.ui.right.size": "大きさ",
-  "cinema.ui.right.orientation": "向き",
-  "cinema.ui.right.orientation.body": "体の向き",
 
   "cinema.ui.right.fire": "🔥 発火",
   "cinema.ui.right.glow": "☀ 発光",

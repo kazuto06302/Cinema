@@ -21,3 +21,15 @@
 ・色彩
 ・fill
 ・glow/fogの色
+
+戻るボタン、装備の背景を修正
+装備の欄を6列全部横並びで収めよう
+頭の回転を削除/サイズのスライダーを変わりに挿入
+Modifierとエンティティの独自設定（色など）をまとめる
+AnimationとMovementをAnimationにまとめる
+
+transform
+appearance
+animation
+equipment
+entity options
