@@ -4,7 +4,7 @@
   "cinema.item.wand": "Cinema Wand",
 
   "cinema.ui.right.basic": "Basic",
-  "cinema.ui.right.adjustment": "Adjustment",
+  "cinema.ui.right.parts": "Parts",
   "cinema.ui.right.delete": "Delete",
   "cinema.ui.right.transform": "Transform",
   "cinema.ui.right.transform.position": "Position",
@@ -30,5 +30,32 @@
   "cinema.ui.right.movement.ready": "Ready",
   "cinema.ui.right.movement.swing": "Swing arms",
 
-  "cinema.ui.right.equipment": "Equipment"
+  "cinema.ui.right.equipment": "Equipment",
+
+  "cinema.ui.parts.rotation": "Whole-body rotation",
+  "cinema.ui.parts.list": "Parts",
+  "cinema.ui.parts.back": "Back to parts",
+  "cinema.ui.parts.visible": "Visible",
+  "cinema.ui.parts.position": "Position offset",
+  "cinema.ui.parts.rotation.add": "Rotation (added)",
+  "cinema.ui.parts.scale": "Scale (%)",
+  "cinema.ui.parts.uniform": "Uniform scale",
+  "cinema.ui.parts.reset": "Reset this part",
+  "cinema.ui.parts.reset_all": "Reset all parts",
+  "cinema.ui.parts.empty": "This entity has no editable parts",
+  "cinema.part.head": "Head",
+  "cinema.part.hat": "Hat (outer head)",
+  "cinema.part.body": "Body",
+  "cinema.part.jacket": "Jacket",
+  "cinema.part.right_arm": "Right arm",
+  "cinema.part.left_arm": "Left arm",
+  "cinema.part.right_sleeve": "Right sleeve",
+  "cinema.part.left_sleeve": "Left sleeve",
+  "cinema.part.right_leg": "Right leg",
+  "cinema.part.left_leg": "Left leg",
+  "cinema.part.right_pants": "Right pants",
+  "cinema.part.left_pants": "Left pants",
+  "cinema.part.cloak": "Cape",
+  "cinema.part.@item_main": "Held item (main hand)",
+  "cinema.part.@item_off": "Held item (off hand)"
 }

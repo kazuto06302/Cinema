@@ -45,7 +45,7 @@ import net.minecraft.world.item.Items;
 // 各セクションは、見出しをクリックで、畳める
 public final class RightPanel {
     private enum RightTab {
-        MAIN("cinema.ui.right.basic"), POSE("cinema.ui.right.adjustment");
+        MAIN("cinema.ui.right.basic"), POSE("cinema.ui.right.parts");
         final String label;
         RightTab(String label) {
             this.label = label;
@@ -100,6 +100,9 @@ public final class RightPanel {
     private long wheelLockUntil;
 
     private int iconX, iconY, iconSize;
+
+    private static String selectedPart;   // 編集中のパーツ(null なら、一覧)
+    private UUID partsNpc;                // 編集中のパーツが、どの NPC のものか(NPC が変わったら、一覧に戻す)
 
     // ================= 組み立て =================
 
@@ -158,7 +161,7 @@ public final class RightPanel {
         if (tab == RightTab.MAIN) {
             end = buildMain(d, y);
         } else {
-            end = buildAdjust(y);
+            end = buildParts(d, y);
         }
 
         maxScroll = Math.max(0, end - contentBottom);
@@ -282,25 +285,26 @@ public final class RightPanel {
         });
         y += lay.gap();
 
-        // 回転(X: 前後に倒す / Y: 体の向き / Z: 左右に倒す)。モデル全体が回る
-        note(Tr.get("cinema.ui.right.transform.rotation"), x, y);
-        y += lay.th() + Theme.u(2);
-        double[] rotation = {d.option(EntityRotation.X, 0) / 100.0, Mth.wrapDegrees(d.bodyYRot()),
-                d.option(EntityRotation.Z, 0) / 100.0};
-        y = numberRow(y, rotation, 1.0, 1.0, (axis, v) -> {
-            switch (axis) {
-                case 0 -> edit(id, cur -> cur.withOption(EntityRotation.X, Math.round((float) (v * 100))));
-                case 1 -> edit(id, cur -> {
-                    // 体の向きを変えても、頭の左右のずれは、保つ
-                    float body = (float) v;
-                    float offset = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
-                    float head = body + offset;
-                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, body);
-                });
-                default -> edit(id, cur -> cur.withOption(EntityRotation.Z, Math.round((float) (v * 100))));
-            }
-        });
-        y += lay.gap();
+//        // 回転(X: 前後に倒す / Y: 体の向き / Z: 左右に倒す)。モデル全体が回る
+//        note(Tr.get("cinema.ui.right.transform.rotation"), x, y);
+//        y += lay.th() + Theme.u(2);
+//        double[] rotation = {d.option(EntityRotation.X, 0) / 100.0, Mth.wrapDegrees(d.bodyYRot()),
+//                d.option(EntityRotation.Z, 0) / 100.0};
+//        y = numberRow(y, rotation, 1.0, 1.0, (axis, v) -> {
+//            switch (axis) {
+//                case 0 -> edit(id, cur -> cur.withOption(EntityRotation.X, Math.round((float) (v * 100))));
+//                case 1 -> edit(id, cur -> {
+//                    // 体の向きを変えても、頭の左右のずれは、保つ
+//                    float body = (float) v;
+//                    float offset = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
+//                    float head = body + offset;
+//                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, body);
+//                });
+//                default -> edit(id, cur -> cur.withOption(EntityRotation.Z, Math.round((float) (v * 100))));
+//            }
+//        });
+//        y += lay.gap();
+        y = rotationRows(d, y);
 
         // サイズ(生き物だけ)
         Entity live = NpcManager.entityOf(id);
@@ -321,6 +325,28 @@ public final class RightPanel {
             host.refresh();   // 位置欄の表示も、新しい値にする
         }));
         return y + lay.btnH() + lay.gap();
+    }
+
+    // 全体の回転(X: 前後に倒す / Y: 体の向き / Z: 左右に倒す)。モデル全体が回る
+    private int rotationRows(NpcData d, int y) {
+        note(Tr.get("cinema.ui.right.transform.rotation"), x, y);
+        y += lay.th() + Theme.u(2);
+        double[] rotation = {d.option(EntityRotation.X, 0) / 100.0, Mth.wrapDegrees(d.bodyYRot()),
+                d.option(EntityRotation.Z, 0) / 100.0};
+        y = numberRow(y, rotation, 1.0, 1.0, (axis, v) -> {
+            switch (axis) {
+                case 0 -> edit(id, cur -> cur.withOption(EntityRotation.X, Math.round((float) (v * 100))));
+                case 1 -> edit(id, cur -> {
+                    // 体の向きを変えても、頭の左右のずれは、保つ
+                    float body = (float) v;
+                    float offset = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
+                    float head = body + offset;
+                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, body);
+                });
+                default -> edit(id, cur -> cur.withOption(EntityRotation.Z, Math.round((float) (v * 100))));
+            }
+        });
+        return y + lay.gap();
     }
 
     // X・Y・Z の3列の数値欄(枠の外の左上に、軸のラベル)。戻り値は、次の y
@@ -390,51 +416,6 @@ public final class RightPanel {
                 add(slider);
             }
             y += sh;
-        }
-        return y + lay.gap();
-    }
-
-
-    // ---- サイズ(生き物だけ) ----
-    private int sectionSize(NpcData d, int y) {
-        Entity live = NpcManager.entityOf(id);
-        boolean living = live == null || live instanceof LivingEntity;
-        if (!living || EntityProfiles.of(d.entityType()).hasNoScale()) return y;
-
-        int lh = lay.th() + Theme.u(3);
-        label(Tr.get("cinema.ui.right.size"), x, y, Theme.SECTION);
-        y += lh;
-        add(new ModernSlider(x, y, w, lay.sliderH(), Tr.get("cinema.ui.right.size"), "%", 10, 400, 5,
-                d.option(EntityFlags.SCALE, 100), v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v)))
-                .setDefault(100));
-        return y + lay.sliderH() + lay.gap();
-    }
-
-    // ---- 状態(燃えている・光っている・子ども・ダメージ) ----
-    private int sectionStates(int y) {
-        NpcData d = NpcManager.get(id).orElse(null);
-        if (d == null) return y;
-        Entity live = NpcManager.entityOf(id);
-        boolean living = live == null || live instanceof LivingEntity;
-        boolean canBaby = live != null && EntityReflect.hasMethodBefore(live, "setBaby", Mob.class);
-
-        EntityProfile profile = EntityProfiles.of(d.entityType());
-        List<String[]> flags = new ArrayList<>();
-        if (!profile.isStateHidden(EntityFlags.FIRE)) flags.add(new String[] {EntityFlags.FIRE, Tr.get("cinema.ui.right.fire")});
-        if (!profile.isStateHidden(EntityFlags.GLOW)) flags.add(new String[] {EntityFlags.GLOW, Tr.get("cinema.ui.right.glow")});
-        if (canBaby) flags.add(new String[] {EntityFlags.BABY, Tr.get("cinema.ui.right.child")});
-        if (living) flags.add(new String[] {EntityFlags.DAMAGE, Tr.get("cinema.ui.right.damage")});
-        if (flags.isEmpty()) return y;
-
-        label(Tr.get("cinema.ui.right.modifier"), x, y, Theme.SECTION);
-        y += lay.th() + Theme.u(3);
-
-        // 縦に並べる
-        for (String[] flag : flags) {
-            String key = flag[0];
-            add(new ModernCheckbox(x, y, w, lay.sliderH(), flag[1], d.option(key, 0) == 1,
-                    on -> edit(id, cur -> cur.withOption(key, on ? 1 : 0))));//.setDefault(false));
-            y += lay.sliderH();
         }
         return y + lay.gap();
     }
@@ -550,103 +531,6 @@ public final class RightPanel {
                 }));
                 y += lay.btnH() + lay.gap();
             }
-        }
-        return y + lay.gap();
-    }
-
-    // ---- 動き(歩行・腕) ----
-    private int sectionMotion(NpcData d, int y) {
-        int lh = lay.th() + Theme.u(3);
-        int sh = lay.sliderH();
-
-        Entity live = NpcManager.entityOf(id);
-        boolean living = live == null || live instanceof LivingEntity;   // エンドクリスタルやボートは、生き物ではない
-        boolean isPlayer = NpcData.PLAYER.equals(d.kind());
-        boolean showWalk = living && (isPlayer || EntityProfiles.of(d.entityType()).walks());
-        boolean showArms = living && (isPlayer || EntityProfiles.of(d.entityType()).isHumanoid());
-
-        if (showWalk || showArms) {
-            label(Tr.get("cinema.ui.right.movement"), x, y, Theme.SECTION);
-            y += lh;
-        }
-        if (showWalk) {
-            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.walk"), "%", -100, 100,
-                    d.option(EntityMotion.WALK, 0), v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v)))
-                    .setDefault(0));
-            y += sh;
-        }
-        if (showArms) {
-            add(new ModernCheckbox(x, y, w, sh, Tr.get("cinema.ui.right.movement.ready"),
-                    d.option(EntityMotion.ARMS, 0) == 1,
-                    on -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, on ? 1 : 0))));//.setDefault(false));
-            y += sh;
-            // 古い保存データ(ARMS が 2〜4)は、昔の固定値で読み替える
-            int legacy = Math.round(EntityMotion.legacySwing(d.option(EntityMotion.ARMS, 0)) * 100f);
-            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.swing"), "%", 0, 100, 1,
-                    d.option(EntityMotion.SWING, legacy),
-                    v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))).setDefault(0));
-            y += sh;
-        }
-
-        // [DEV] キーフレーム歩行の、周期と強さの調整
-        if (CinemaState.devMode && showWalk) {
-            EntityProfile walker = EntityProfiles.of(d.entityType());
-            if (walker.walkCyclePosition() > 0f) {
-                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行周期", "秒", 0.2, 6.0, 0.05,
-                        walker.walkCycleSeconds(), v -> {
-                    walker.setWalkCycleSeconds((float) v);
-                    edit(id, cur -> cur);   // 歩行を、新しい周期で反映し直す
-                }));
-                y += sh;
-                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行の強さ", "", 0.05, 1.0, 0.05,
-                        walker.walkKeyframeIntensity(), v -> {
-                    walker.setWalkKeyframeIntensity((float) v);
-                    edit(id, cur -> cur);
-                }));
-                y += sh;
-                add(new ModernButton(x, y, w, lay.btnH(), "周期をコピー", ModernButton.Style.DEFAULT, () -> {
-                    String line = String.format(Locale.ROOT, "walkKeyframe(%.2ff, %.1ff, %.2ff);",
-                            walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed(), walker.walkKeyframeIntensity());
-                    Minecraft.getInstance().keyboardHandler.setClipboard(line);
-                    Cinema.LOGGER.info("[Cinema] {} -> {}", d.entityType(), line);
-                }));
-                y += lay.btnH() + lay.gap();
-            }
-        }
-
-        if (showWalk || showArms) y += lay.gap();
-        return y;
-    }
-
-    // ---- エンティティ固有のオプション(プロフィールが宣言したものだけ) ----
-    private int sectionOptions(NpcData d, int y) {
-        List<EntityOption> specs = EntityProfiles.of(d.entityType()).options();
-        if (specs.isEmpty()) return y;
-        int sh = lay.sliderH();
-
-        for (EntityOption spec : specs) {
-            if (spec.kind() == EntityOption.Kind.CHECKBOX) {
-                add(new ModernCheckbox(x, y, w, sh, spec.label(), d.option(spec.key(), spec.def()) == 1,
-                        on -> edit(id, cur -> cur.withOption(spec.key(), on ? 1 : 0))));
-                        //.setDefault(spec.def() == 1));
-            } else if (spec.kind() == EntityOption.Kind.DROPDOWN) {
-                add(new ModernDropdown(x, y, w, sh, spec.label(), spec.names(), d.option(spec.key(), spec.def()),
-                        i -> edit(id, cur -> cur.withOption(spec.key(), i)), host::onDropdownOpen));
-                        //.setDefault(spec.def()));
-            } else {
-                ModernSlider slider = new ModernSlider(x, y, w, sh, spec.label(), "",
-                        spec.min(), spec.max(), d.option(spec.key(), spec.def()),
-                        v -> edit(id, cur -> cur.withOption(spec.key(), (int) v)));
-                slider.setDefault(spec.def());
-                if (!spec.names().isEmpty()) {
-                    slider.setValueFormatter(v -> {
-                        int i = Math.max(0, Math.min(spec.names().size() - 1, (int) Math.round(v)));
-                        return spec.names().get(i);
-                    });
-                }
-                add(slider);
-            }
-            y += sh;
         }
         return y + lay.gap();
     }
@@ -802,7 +686,6 @@ public final class RightPanel {
     }
 
     // ---- [DEV] 動作の長さの調整(AnimationState を使うモブ) ----
-
     private int sectionDev(NpcData d, int y) {
         if (!CinemaState.devMode || !(EntityProfiles.of(d.entityType()) instanceof AnimationModeProfile moded)) return y;
         int modeIdx = d.option(moded.optionKey(), 0);
@@ -881,16 +764,171 @@ public final class RightPanel {
         return y;
     }
 
-    // ================= タブ「調整」 =================
+    // ================= タブ「パーツ」 =================
 
-    // パーツごとのポーズ(翼・頭・腕など)を、これから足していく場所。いまは枠だけ
-    private int buildAdjust(int y) {
-        label("パーツごとのポーズ", x, y, Theme.SECTION);
-        y += lay.th() + Theme.u(5);
-        note(Theme.fit(host.font(), "翼・頭・腕などの角度を、ここで調整できる", w), x, y);
+    private int buildParts(NpcData d, int y) {
+        // NPC が変わったら、一覧に戻す
+        if (!id.equals(partsNpc)) {
+            partsNpc = id;
+            selectedPart = null;
+        }
+        y = run("rotation", yy -> sectionRotation(d, yy), y);
+        y = run("parts", yy -> selectedPart == null ? sectionPartList(d, yy) : sectionPartEditor(d, yy), y);
+        return y;
+    }
+
+    // 全体の回転(基本タブと同じ欄を、一覧の上に置く)
+    private int sectionRotation(NpcData d, int y) {
+        label(Tr.get("cinema.ui.parts.rotation"), x, y, Theme.SECTION);
         y += lay.th() + Theme.u(3);
-        note(Theme.fit(host.font(), "ようにします(準備中)", w), x, y);
-        return y + lay.th();
+        return rotationRows(d, y);
+    }
+
+    // パーツの一覧
+    private int sectionPartList(NpcData d, int y) {
+        label(Tr.get("cinema.ui.parts.list"), x, y, Theme.SECTION);
+        y += lay.th() + Theme.u(3);
+
+        Entity live = NpcManager.entityOf(id);
+        List<ModelPartTree.Node> nodes = live == null ? List.of() : ModelPartTree.of(live);
+        int rowH = lay.btnH();
+        for (ModelPartTree.Node n : nodes) {
+            add(new PartRow(x, y, w, rowH, n.path(), ModelPartTree.label(n.name()), n.depth(),
+                    PartEdits.isEdited(d, n.path())));
+            y += rowH;
+        }
+        // 持っているアイテム(メイン・オフ)
+        if (live instanceof LivingEntity) {
+            for (String itemPath : new String[] {PartEdits.ITEM_MAIN, PartEdits.ITEM_OFF}) {
+                add(new PartRow(x, y, w, rowH, itemPath, ModelPartTree.label(itemPath), 0,
+                        PartEdits.isEdited(d, itemPath)));
+                y += rowH;
+            }
+        }
+        if (nodes.isEmpty()) {
+            note(Theme.fit(host.font(), Tr.get("cinema.ui.parts.empty"), w), x, y);
+            y += lay.th() + Theme.u(3);
+        }
+        y += lay.gap();
+
+        add(new ModernButton(x, y, w, lay.btnH(), Tr.get("cinema.ui.parts.reset_all"), ModernButton.Style.DEFAULT, () -> {
+            edit(id, cur -> PartEdits.reset(cur, null));
+            host.refresh();
+        }));
+        return y + lay.btnH() + lay.gap();
+    }
+
+    private void setChannel(String path, PartEdits.Channel channel, double value) {
+        edit(id, cur -> cur.withOption(PartEdits.key(path, channel), PartEdits.encode(value)));
+    }
+
+    private static double[] channelValues(NpcData d, String path, PartEdits.Channel a, PartEdits.Channel b, PartEdits.Channel c) {
+        return new double[] {PartEdits.get(d, path, a), PartEdits.get(d, path, b), PartEdits.get(d, path, c)};
+    }
+
+    // 1つのパーツの編集(表示・位置・回転・大きさ)
+    private int sectionPartEditor(NpcData d, int y) {
+        String path = selectedPart;
+        int sh = lay.sliderH();
+
+        label(ModelPartTree.label(ModelPartTree.lastName(path)), x, y, Theme.SECTION);
+        y += lay.th() + Theme.u(3);
+
+        add(new ModernButton(x, y, w, lay.btnH(), "← " + Tr.get("cinema.ui.parts.back"), ModernButton.Style.DEFAULT, () -> {
+            selectedPart = null;
+            host.refresh();
+        }));
+        y += lay.btnH() + lay.gap();
+
+        // 表示(非表示にすると、そのパーツと、その子のパーツが消える)
+        add(new ModernCheckbox(x, y, w, sh, Tr.get("cinema.ui.parts.visible"),
+                PartEdits.get(d, path, PartEdits.Channel.VISIBLE) >= 0.5,
+                on -> setChannel(path, PartEdits.Channel.VISIBLE, on ? 1 : 0)));//.setDefault(true));
+        y += sh + lay.gap();
+
+        // 位置のずれ(ピクセル)
+        note(Tr.get("cinema.ui.parts.position"), x, y);
+        y += lay.th() + Theme.u(2);
+        y = numberRow(y, channelValues(d, path, PartEdits.Channel.PX, PartEdits.Channel.PY, PartEdits.Channel.PZ),
+                0.1, 0.5, (axis, v) -> setChannel(path, PartEdits.Channel.position(axis), v));
+        y += lay.gap();
+
+        // 回転(足し算。度)
+        note(Tr.get("cinema.ui.parts.rotation.add"), x, y);
+        y += lay.th() + Theme.u(2);
+        y = numberRow(y, channelValues(d, path, PartEdits.Channel.RX, PartEdits.Channel.RY, PartEdits.Channel.RZ),
+                1.0, 1.0, (axis, v) -> setChannel(path, PartEdits.Channel.rotation(axis), v));
+        y += lay.gap();
+
+        // 大きさ(%)
+        note(Tr.get("cinema.ui.parts.scale"), x, y);
+        y += lay.th() + Theme.u(2);
+        y = numberRow(y, channelValues(d, path, PartEdits.Channel.SX, PartEdits.Channel.SY, PartEdits.Channel.SZ),
+                1.0, 5.0, (axis, v) -> setChannel(path, PartEdits.Channel.scale(axis), v));
+        y += lay.gap();
+
+        // 均等に拡大縮小(3つの軸を、まとめて変える。軸ごとの欄は、開き直すと、そろう)
+        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.parts.uniform"), "%", 10, 400, 1,
+                PartEdits.get(d, path, PartEdits.Channel.SX), v -> {
+            for (int axis = 0; axis < 3; axis++) setChannel(path, PartEdits.Channel.scale(axis), v);
+        }).setDefault(100));
+        y += sh + lay.gap();
+
+        add(new ModernButton(x, y, w, lay.btnH(), Tr.get("cinema.ui.parts.reset"), ModernButton.Style.DEFAULT, () -> {
+            edit(id, cur -> PartEdits.reset(cur, path));
+            host.refresh();
+        }));
+        return y + lay.btnH() + lay.gap();
+    }
+
+    // パーツの一覧の1行。クリックで、そのパーツの編集に進む。編集済みのパーツは、黄色
+    private final class PartRow extends AbstractWidget {
+        private final String path;
+        private final String text;
+        private final int depth;
+        private final boolean edited;
+        private float hover;
+
+        PartRow(int rx, int ry, int rw, int rh, String path, String text, int depth, boolean edited) {
+            super(rx, ry, rw, rh, Component.literal(text));
+            this.path = path;
+            this.text = text;
+            this.depth = depth;
+            this.edited = edited;
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
+            Font font = host.font();
+            boolean hov = active && isMouseOver(mx, my);
+            hover += ((hov ? 1f : 0f) - hover) * 0.35f;
+            if (hover > 0.02f) {
+                Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(),
+                        Theme.lerp(Theme.GHOST_HOVER, Theme.SURFACE_HOVER, hover));
+            }
+            g.fill(getX() + 1, getY() + getHeight() - 1, getX() + getWidth() - 1, getY() + getHeight(), 0x22FFFFFF);   // 行の区切り
+
+            int pad = Theme.u(6);
+            int tx = getX() + pad + depth * Theme.u(8);   // 木の深さのぶん、右へ
+            int ty = getY() + (getHeight() - Theme.textH()) / 2;
+            int room = getWidth() - pad * 3 - (tx - getX()) - Theme.u(8);
+            int color = edited ? Theme.CHANGED : (hov ? Theme.TEXT : Theme.TEXT_DIM);
+            Theme.text(g, font, Theme.fit(font, text, room), tx, ty, color);
+            Theme.textRight(g, font, "›", getX() + getWidth() - pad, ty, Theme.TEXT_DIM);
+        }
+
+        @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
+            selectedPart = path;
+            scroll = 0;
+            UiSounds.click();
+            host.refresh();
+            return true;
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {}
     }
 
     // スクロール

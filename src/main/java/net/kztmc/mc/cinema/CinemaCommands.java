@@ -3,10 +3,7 @@ package net.kztmc.mc.cinema;
 import com.mojang.brigadier.arguments.StringArgumentType;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommandRegistrationCallback;
 import net.fabricmc.fabric.api.client.command.v2.ClientCommands;
-import net.kztmc.mc.cinema.entity.EntityExport;
-import net.kztmc.mc.cinema.entity.EntityMotion;
-import net.kztmc.mc.cinema.entity.EntityReflect;
-import net.kztmc.mc.cinema.entity.EntityTable;
+import net.kztmc.mc.cinema.entity.*;
 import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.*;
@@ -86,12 +83,26 @@ public final class CinemaCommands {
                             }
                             return 1;
                         }))
-                        .then(ClientCommands.literal("togglesig").executes(ctx -> {
-                            dumpClass("net.minecraft.client.gui.Hud", "score", "title", "overlay", "action", "subtitle", "extract");
-                            dumpClass("net.minecraft.client.renderer.blockentity.BeaconRenderer");
-                            dumpClass("net.minecraft.client.renderer.blockentity.state.BlockEntityRenderState");
-                            dumpClass("net.minecraft.client.renderer.entity.state.EntityRenderState", "name");
-                            dumpClass("net.minecraft.client.renderer.entity.EntityRenderer", "name", "extract");
+                        .then(ClientCommands.literal("parts").executes(ctx -> {
+                            UUID id = NpcManager.selectedId();
+                            Entity e = id == null ? null : NpcManager.entityOf(id);
+                            if (e == null) {
+                                Cinema.LOGGER.info("[Cinema] parts: NPC を選んでください");
+                                return 0;
+                            }
+                            for (ModelPartTree.Node n : ModelPartTree.of(e)) {
+                                Cinema.LOGGER.info("[Cinema] part {}{} ({})", "  ".repeat(n.depth()), n.name(), n.path());
+                            }
+                            Cinema.LOGGER.info("[Cinema] part edits applied so far: {}", PartEdits.applied);
+                            return 1;
+                        }))
+                        .then(ClientCommands.literal("modelsig").executes(ctx -> {
+                            dumpClass("net.minecraft.client.model.Model");
+                            dumpClass("net.minecraft.client.model.EntityModel");
+                            dumpClass("net.minecraft.client.model.geom.ModelPart");
+                            dumpClass("net.minecraft.client.renderer.feature.ModelFeatureRenderer");
+                            dumpClass("net.minecraft.client.renderer.entity.layers.ItemInHandLayer");
+                            dumpClass("net.minecraft.client.model.ArmedModel");
                             return 1;
                         }))
                         .then(ClientCommands.literal("clear")

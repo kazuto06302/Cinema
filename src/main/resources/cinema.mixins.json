@@ -15,6 +15,7 @@
     "entity.EntityRenderDispatcherRotationMixin",
     "entity.EntityRendererMixin",
     "entity.LevelRendererSelectionMixin",
+    "entity.ModelPartEditMixin",
     "entity.MultiPlayerGameModeMixin",
     "ui.inventory.CreativeScreenMixin",
     "ui.inventory.LocalPlayerInfiniteMixin",

@@ -6,10 +6,7 @@ import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayConnectionEvents;
 import net.fabricmc.fabric.api.event.player.UseEntityCallback;
 import net.kztmc.mc.cinema.Cinema;
-import net.kztmc.mc.cinema.entity.EntityFlags;
-import net.kztmc.mc.cinema.entity.EntityMotion;
-import net.kztmc.mc.cinema.entity.EntityProfiles;
-import net.kztmc.mc.cinema.entity.EntityRotation;
+import net.kztmc.mc.cinema.entity.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
@@ -275,6 +272,7 @@ public final class NpcManager {
         EntityMotion.apply(e, d.options(), SceneFreeze.partialTickOf(e));
         EntityProfiles.of(e).applyData(e, d);
         EntityRotation.set(e, d.option(EntityRotation.X, 0), d.option(EntityRotation.Z, 0));
+        PartEdits.set(e, d);
     }
 
     public static Entity entityOf(UUID id) {

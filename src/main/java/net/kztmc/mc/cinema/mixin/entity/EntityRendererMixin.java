@@ -1,6 +1,7 @@
 package net.kztmc.mc.cinema.mixin.entity;
 
 import net.kztmc.mc.cinema.entity.EntityRotation;
+import net.kztmc.mc.cinema.entity.PartEdits;
 import net.kztmc.mc.cinema.npc.EntityTweaks;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.npc.SceneFreeze;
@@ -41,6 +42,7 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
                 SelectionOutline.collect(state);
             }
             EntityRotation.attach(entity, state);
+            PartEdits.attach(entity, state);
             cir.setReturnValue(state);
         } finally {
             cinema$pinning = false;
@@ -57,6 +59,7 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
         if (state == null || !NpcManager.isNpc(entity)) return;
         NpcManager.registerState(state);
         EntityRotation.attach(entity, state);
+        PartEdits.attach(entity, state);
         if (SelectionOutline.isSelected(entity)) {
             state.outlineColor = 0;
             SelectionOutline.collect(state);
