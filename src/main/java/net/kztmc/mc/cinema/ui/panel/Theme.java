@@ -26,6 +26,7 @@ public final class Theme {
     public static final int SECTION = 0xFF7FA8E0;
     public static final int POPUP = 0xFF191D26;
     public static final int POPUP_HOVER = 0xFF232938;
+    public static final int SLOT = 0x66000000;    // 装備のスロットの背景
 
     public static final int CHANGED = 0xFFFFD34D;        // 既定値から変えた項目の文字(黄)
     public static final int SECTION_LINE = 0x557FA8E0;   // 見出しの横の線

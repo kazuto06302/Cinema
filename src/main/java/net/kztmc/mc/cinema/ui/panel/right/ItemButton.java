@@ -48,10 +48,9 @@ public class ItemButton extends AbstractWidget {
         boolean hov = active && mx >= getX() && mx < getX() + getWidth() && my >= getY() && my < getY() + getHeight();
         hover += ((hov ? 1f : 0f) - hover) * 0.35f;
 
-        Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(), Theme.lerp(Theme.SURFACE, Theme.SURFACE_HOVER, hover));
-        if (selected) {
-            g.outline(getX(), getY(), getWidth(), getHeight(), Theme.ACCENT);
-        }
+        // 背景と枠(選択中は、アクセント色の枠)
+        Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(), Theme.lerp(Theme.SLOT, Theme.SURFACE_HOVER, hover));
+        g.outline(getX(), getY(), getWidth(), getHeight(), selected ? Theme.ACCENT : Theme.lerp(Theme.BORDER, Theme.TEXT_DIM, hover));
 
         int ix = getX() + (getWidth() - 16) / 2;
         int iy = getY() + (getHeight() - 16) / 2;

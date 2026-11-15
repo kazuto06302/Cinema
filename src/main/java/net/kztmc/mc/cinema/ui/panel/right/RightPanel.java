@@ -90,6 +90,7 @@ public final class RightPanel {
     private String currentKey = "";    // 組み立て中のセクション
     private boolean headerMade;        // そのセクションの、最初の見出しを作ったか
     private final double[] pos = new double[3];
+    private int backX, backY, backW, backH;   // 戻るボタンの位置(後ろに、小さなパネルを敷く)
 
     private String status = "";
     private long statusUntil;
@@ -127,11 +128,15 @@ public final class RightPanel {
         host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), Tr.get("cinema.ui.right.delete"), ModernButton.Style.DANGER, () -> host.confirmDelete(npcId)));
 
         // ← (戻る): 右パネルの左の外に、独立したボタンとして出す(選択を外して、ワールド設定へ戻る)
-        int backW = Theme.u(26);
-        host.add(new ModernButton(lay.rightX() - backW - lay.gap(), lay.panelY(), backW, lay.btnH() + Theme.u(4), "←", ModernButton.Style.DEFAULT, () -> {
+        backW = Theme.u(26);
+        backH = lay.btnH() + Theme.u(4);
+        backX = lay.rightX() - backW - lay.gap();
+        backY = lay.panelY();
+        host.add(new ModernButton(backX, backY, backW, backH, "←", ModernButton.Style.DEFAULT, () -> {
             NpcManager.select(null);
             host.refresh();
         }));
+
         y += lay.btnH() + Theme.u(5);
 
         // タブ行(2:1、角丸なし)
@@ -240,13 +245,10 @@ public final class RightPanel {
     // ================= タブ「基本」 =================
     private int buildMain(NpcData d, int y) {
         y = run("transform", yy -> sectionTransform(d, yy), y);
-        y = run("size", yy -> sectionSize(d, yy), y);
         y = run("playerTexts", yy -> sectionPlayerTexts(d, yy), y);
-        y = run("states", yy -> sectionStates(yy), y);
+        y = run("modifier", yy -> sectionModifier(d, yy), y);
         y = run("pose", yy -> sectionPose(d, yy), y);
         y = run("animation", yy -> sectionAnimation(d, yy), y);
-        y = run("motion", yy -> sectionMotion(d, yy), y);
-        y = run("options", yy -> sectionOptions(d, yy), y);
         y = run("equipment", yy -> sectionEquipment(d, yy), y);
         y = run("dev", yy -> sectionDev(d, yy), y);
         return y;
@@ -300,14 +302,15 @@ public final class RightPanel {
         });
         y += lay.gap();
 
-        // 頭の左右
-        float headOffset = Mth.clamp(Mth.wrapDegrees(d.headYRot() - d.bodyYRot()), -75f, 75f);
-        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.transform.head"), "°", -75, 75, headOffset, v ->
-                edit(id, cur -> {
-                    float head = cur.bodyYRot() + (float) v;
-                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, cur.bodyYRot());
-                })).setDefault(0));
-        y += sh + lay.gap();
+        // サイズ(生き物だけ)
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;
+        if (living && !EntityProfiles.of(d.entityType()).hasNoScale()) {
+            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.size"), "%", 10, 400, 5,
+                    d.option(EntityFlags.SCALE, 100),
+                    v -> edit(id, cur -> cur.withOption(EntityFlags.SCALE, (int) v))).setDefault(100));
+            y += sh + lay.gap();
+        }
 
         add(new ModernButton(x, y, w, lay.btnH(), Tr.get("cinema.ui.right.movetomyself"), ModernButton.Style.DEFAULT, () -> {
             Minecraft mc = Minecraft.getInstance();
@@ -334,6 +337,63 @@ public final class RightPanel {
         }
         return y + labelH + lay.sliderH();
     }
+
+    // ---- 修飾(状態 + エンティティ固有の設定) ----
+
+    private int sectionModifier(NpcData d, int y) {
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;
+        boolean canBaby = live != null && EntityReflect.hasMethodBefore(live, "setBaby", Mob.class);
+
+        EntityProfile profile = EntityProfiles.of(d.entityType());
+        List<String[]> flags = new ArrayList<>();
+        if (!profile.isStateHidden(EntityFlags.FIRE)) flags.add(new String[] {EntityFlags.FIRE, Tr.get("cinema.ui.right.fire")});
+        if (!profile.isStateHidden(EntityFlags.GLOW)) flags.add(new String[] {EntityFlags.GLOW, Tr.get("cinema.ui.right.glow")});
+        if (canBaby) flags.add(new String[] {EntityFlags.BABY, Tr.get("cinema.ui.right.child")});
+        if (living) flags.add(new String[] {EntityFlags.DAMAGE, Tr.get("cinema.ui.right.damage")});
+        List<EntityOption> specs = profile.options();
+        if (flags.isEmpty() && specs.isEmpty()) return y;
+
+        label(Tr.get("cinema.ui.right.modifier"), x, y, Theme.SECTION);
+        y += lay.th() + Theme.u(3);
+
+        // 状態(縦に並べる)
+        for (String[] flag : flags) {
+            String key = flag[0];
+            add(new ModernCheckbox(x, y, w, lay.sliderH(), flag[1], d.option(key, 0) == 1,
+                    on -> edit(id, cur -> cur.withOption(key, on ? 1 : 0))));//.setDefault(false));
+            y += lay.sliderH();
+        }
+
+        // エンティティ固有の設定(色・種類など。プロフィールが宣言したものだけ)
+        int sh = lay.sliderH();
+        for (EntityOption spec : specs) {
+            if (spec.kind() == EntityOption.Kind.CHECKBOX) {
+                add(new ModernCheckbox(x, y, w, sh, spec.label(), d.option(spec.key(), spec.def()) == 1,
+                        on -> edit(id, cur -> cur.withOption(spec.key(), on ? 1 : 0)))
+                );//.setDefault(spec.def() == 1));
+            } else if (spec.kind() == EntityOption.Kind.DROPDOWN) {
+                add(new ModernDropdown(x, y, w, sh, spec.label(), spec.names(), d.option(spec.key(), spec.def()),
+                        i -> edit(id, cur -> cur.withOption(spec.key(), i)), host::onDropdownOpen)
+                );//.setDefault(spec.def()));
+            } else {
+                ModernSlider slider = new ModernSlider(x, y, w, sh, spec.label(), "",
+                        spec.min(), spec.max(), d.option(spec.key(), spec.def()),
+                        v -> edit(id, cur -> cur.withOption(spec.key(), (int) v)));
+                slider.setDefault(spec.def());
+                if (!spec.names().isEmpty()) {
+                    slider.setValueFormatter(v -> {
+                        int i = Math.max(0, Math.min(spec.names().size() - 1, (int) Math.round(v)));
+                        return spec.names().get(i);
+                    });
+                }
+                add(slider);
+            }
+            y += sh;
+        }
+        return y + lay.gap();
+    }
+
 
     // ---- サイズ(生き物だけ) ----
     private int sectionSize(NpcData d, int y) {
@@ -422,16 +482,76 @@ public final class RightPanel {
         return y;
     }
 
-    // ---- アニメーション ----
+    // ---- アニメーション(時間・歩行・腕) ----
+
     private int sectionAnimation(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
+        int sh = lay.sliderH();
+
+        Entity live = NpcManager.entityOf(id);
+        boolean living = live == null || live instanceof LivingEntity;   // エンドクリスタルやボートは、生き物ではない
+        boolean isPlayer = NpcData.PLAYER.equals(d.kind());
+        boolean showWalk = living && (isPlayer || EntityProfiles.of(d.entityType()).walks());
+        boolean showArms = living && (isPlayer || EntityProfiles.of(d.entityType()).isHumanoid());
+
         label(Tr.get("cinema.ui.right.animation"), x, y, Theme.SECTION);
         y += lh;
-        add(new ModernSlider(x, y, w, lay.sliderH(), Tr.get("cinema.ui.right.animation.frame"), "tick", 0,
+
+        // 時間
+        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.animation.frame"), "tick", 0,
                 EntityTweaks.animTickMax(d.entityType()), 0.1, d.animTickOrDefault(),
                 v -> edit(id, cur -> cur.withAnimTick((float) v)))
                 .setDefault(EntityTweaks.defaultAnimTick(d.entityType())));
-        return y + lay.sliderH() + lay.gap();
+        y += sh;
+
+        // 歩行
+        if (showWalk) {
+            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.walk"), "%", -100, 100,
+                    d.option(EntityMotion.WALK, 0), v -> edit(id, cur -> cur.withOption(EntityMotion.WALK, (int) v)))
+                    .setDefault(0));
+            y += sh;
+        }
+
+        // 腕(構える・振る)
+        if (showArms) {
+            add(new ModernCheckbox(x, y, w, sh, Tr.get("cinema.ui.right.movement.ready"),
+                    d.option(EntityMotion.ARMS, 0) == 1,
+                    on -> edit(id, cur -> cur.withOption(EntityMotion.ARMS, on ? 1 : 0))));//.setDefault(false));
+            y += sh;
+            // 古い保存データ(ARMS が 2〜4)は、昔の固定値で読み替える
+            int legacy = Math.round(EntityMotion.legacySwing(d.option(EntityMotion.ARMS, 0)) * 100f);
+            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.right.movement.swing"), "%", 0, 100, 1,
+                    d.option(EntityMotion.SWING, legacy),
+                    v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))).setDefault(0));
+            y += sh;
+        }
+
+        // [DEV] キーフレーム歩行の、周期と強さの調整
+        if (CinemaState.devMode && showWalk) {
+            EntityProfile walker = EntityProfiles.of(d.entityType());
+            if (walker.walkCyclePosition() > 0f) {
+                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行周期", "秒", 0.2, 6.0, 0.05,
+                        walker.walkCycleSeconds(), v -> {
+                    walker.setWalkCycleSeconds((float) v);
+                    edit(id, cur -> cur);   // 歩行を、新しい周期で反映し直す
+                }));
+                y += sh;
+                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行の強さ", "", 0.05, 1.0, 0.05,
+                        walker.walkKeyframeIntensity(), v -> {
+                    walker.setWalkKeyframeIntensity((float) v);
+                    edit(id, cur -> cur);
+                }));
+                y += sh;
+                add(new ModernButton(x, y, w, lay.btnH(), "周期をコピー", ModernButton.Style.DEFAULT, () -> {
+                    String line = String.format(Locale.ROOT, "walkKeyframe(%.2ff, %.1ff, %.2ff);",
+                            walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed(), walker.walkKeyframeIntensity());
+                    Minecraft.getInstance().keyboardHandler.setClipboard(line);
+                    Cinema.LOGGER.info("[Cinema] {} -> {}", d.entityType(), line);
+                }));
+                y += lay.btnH() + lay.gap();
+            }
+        }
+        return y + lay.gap();
     }
 
     // ---- 動き(歩行・腕) ----
@@ -546,21 +666,16 @@ public final class RightPanel {
         // メインハンドだけの装備欄(落下ブロック・額縁など)
         if (profile.isMainHandOnly()) return sectionHeldItem(d, y, profile.heldItemLabelOrDefault());
 
+        // 6スロットを、1行に並べる(メイン・オフ・頭・胴・脚・足)
         boolean animalGear = profile.hasAnimalGear();
-        int cgap = Math.max(1, Theme.u(3));
-        int cw = (w - cgap * 3) / 4;
+        int cgap = Math.max(1, Theme.u(2));
+        int cw = (w - cgap * 5) / 6;
         int ch = Math.max(Theme.u(26), 26);
-
-        // 上段: メイン/オフ
-        addSlotButton(d, EquipmentSlot.MAINHAND, x + (cw + cgap), y, cw, ch, animalGear);
-        addSlotButton(d, EquipmentSlot.OFFHAND, x + (cw + cgap) * 2, y, cw, ch, animalGear);
-        y += ch + cgap;
-
-        // 下段: 頭 / 胸 / 脚 / 足
-        addSlotButton(d, EquipmentSlot.HEAD, x, y, cw, ch, animalGear);
-        addSlotButton(d, EquipmentSlot.CHEST, x + (cw + cgap), y, cw, ch, animalGear);
-        addSlotButton(d, EquipmentSlot.LEGS, x + (cw + cgap) * 2, y, cw, ch, animalGear);
-        addSlotButton(d, EquipmentSlot.FEET, x + (cw + cgap) * 3, y, cw, ch, animalGear);
+        EquipmentSlot[] order = {EquipmentSlot.MAINHAND, EquipmentSlot.OFFHAND, EquipmentSlot.HEAD,
+                EquipmentSlot.CHEST, EquipmentSlot.LEGS, EquipmentSlot.FEET};
+        for (int i = 0; i < order.length; i++) {
+            addSlotButton(d, order[i], x + i * (cw + cgap), y, cw, ch, animalGear);
+        }
         y += ch + lay.gap();
 
         // 手の動作(使えるアイテムを持っているときだけ)
@@ -936,6 +1051,7 @@ public final class RightPanel {
     // パネルの背景と、文字(ウィジェットの前に呼ぶ)
     public void extractBackground(GuiGraphicsExtractor g) {
         Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
+        Theme.panel(g, backX, backY, backW, backH);   // 戻るボタンの背景
         NpcManager.get(id).ifPresent(d -> NpcFaces.paint(g, d, iconX, iconY, iconSize));
         for (Label l : fixedLabels) {
             Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
