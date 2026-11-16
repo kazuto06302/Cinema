@@ -39,7 +39,7 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
             if (NpcManager.isNpc(entity)) NpcManager.registerState(state);
             if (SelectionOutline.isSelected(entity)) {
                 state.outlineColor = 0;
-                SelectionOutline.collect(state);
+                SelectionOutline.collect(entity, state);
             }
             EntityRotation.attach(entity, state);
             PartEdits.attach(entity, state);
@@ -62,7 +62,7 @@ public abstract class EntityRendererMixin<T extends Entity, S extends EntityRend
         PartEdits.attach(entity, state);
         if (SelectionOutline.isSelected(entity)) {
             state.outlineColor = 0;
-            SelectionOutline.collect(state);
+            SelectionOutline.collect(entity, state);
         }
     }
 }

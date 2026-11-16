@@ -16,7 +16,12 @@ import java.util.List;
 import java.util.Optional;
 import java.util.OptionalDouble;
 import java.util.Set;
+
+import net.kztmc.mc.cinema.entity.ModelPartTree;
+import net.kztmc.mc.cinema.entity.PartEdits;
+import net.kztmc.mc.cinema.entity.PartGlow;
 import net.kztmc.mc.cinema.ui.npc.SelectionOutline;
+import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelRenderer;
 import net.minecraft.client.renderer.PostChain;
@@ -51,21 +56,37 @@ public abstract class LevelRendererSelectionMixin {
     @Unique private SubmitNodeStorage cinema$storage;
     @Unique private boolean cinema$active;
 
-    /** 選択NPCだけを、Cinema専用の保管所へ、もう1回 submit する */
     @Inject(method = "submitEntities", at = @At("TAIL"))
-    private void cinema$submitSelected(PoseStack poseStack, LevelRenderState levelRenderState,
-                                       SubmitNodeCollector output, CallbackInfo ci) {
+    private void cinema$submitSelected(PoseStack poseStack, LevelRenderState levelRenderState, SubmitNodeCollector output, CallbackInfo ci) {
         cinema$storage = null;
-        List<EntityRenderState> selected = SelectionOutline.take();
+        List<SelectionOutline.Collected> selected = SelectionOutline.take();
         if (selected.isEmpty()) return;
 
         cinema$storage = new SubmitNodeStorage();
         cinema$storage.setUseImprovedTransparency(gameRenderer.useImprovedTransparency());
         Vec3 cam = levelRenderState.cameraRenderState.pos;
-        for (EntityRenderState state : selected) {
-            state.outlineColor = SelectionOutline.COLOR;   // こちらだけ、アウトラインの対象にする
-            entityRenderDispatcher.submit(state, levelRenderState.cameraRenderState,
-                    state.x - cam.x(), state.y - cam.y(), state.z - cam.z(), poseStack, cinema$storage);
+        String glow = PartGlow.current();   // 光らせるパーツ(なければ null)
+
+        for (SelectionOutline.Collected c : selected) {
+            EntityRenderState outline = c.state();
+            int color = SelectionOutline.COLOR;
+
+            // パーツを選んでいて、このモデルにそのパーツがあれば、パーツだけの描画の情報を作る
+            if (glow != null) {
+                ModelPart root = ModelPartTree.rootOf(c.entity());
+                if (root != null && PartEdits.find(root, glow) != null) {
+                    EntityRenderState fresh = SelectionOutline.extractFresh(entityRenderDispatcher, c.entity(), levelRenderState.worldPartialTicks);
+                    if (fresh != null) {
+                        fresh.setData(PartEdits.GLOW_KEY, glow);
+                        outline = fresh;
+                        color = PartGlow.COLOR;
+                    }
+                }
+            }
+
+            outline.outlineColor = color;
+            entityRenderDispatcher.submit(outline, levelRenderState.cameraRenderState,
+                    outline.x - cam.x(), outline.y - cam.y(), outline.z - cam.z(), poseStack, cinema$storage);
         }
     }
 

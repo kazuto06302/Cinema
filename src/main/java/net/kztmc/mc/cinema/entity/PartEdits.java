@@ -17,6 +17,15 @@ import net.minecraft.world.entity.Entity;
 public final class PartEdits {
     private PartEdits() {}
 
+    // 輪郭の描画専用の状態に付ける、「このパーツだけ描く」という指定(パスの文字列)
+    public static final RenderStateDataKey<String> GLOW_KEY = RenderStateDataKey.create(() -> "cinema:part_glow");
+
+    private static String currentGlow;
+
+    // 描画のあいだだけ変えたパーツの、元の状態(描き終わったら戻す)
+    private record Saved(ModelPart part, boolean visible, boolean skipDraw) {}
+    private static final java.util.List<Saved> saved = new java.util.ArrayList<>();
+
     // 持っているアイテムの、特別なパス(モデルのパーツではない)
     public static final String ITEM_MAIN = "@item_main";
     public static final String ITEM_OFF = "@item_off";
@@ -171,36 +180,77 @@ public final class PartEdits {
     // 描画のスレッドだけで使う
     private static Map<String, PartTransform> current;
 
-    // モデルの姿勢を作る直前: この描画に、編集があるか覚える
+    // モデルの姿勢を作る直前: この描画の、編集と、光らせるパーツを覚える
     public static void beginModel(Object state) {
-        current = state instanceof EntityRenderState es ? es.getData(KEY) : null;
+        if (state instanceof EntityRenderState es) {
+            current = es.getData(KEY);
+            currentGlow = es.getData(GLOW_KEY);
+        } else {
+            current = null;
+            currentGlow = null;
+        }
     }
 
+    // 描き終わった後: 変えたパーツを、元に戻して、覚えたものを忘れる
     public static void endModel() {
+        for (Saved s : saved) {
+            s.part().visible = s.visible();
+            s.part().skipDraw = s.skipDraw();
+        }
+        saved.clear();
         current = null;
+        currentGlow = null;
     }
 
-    // 描かれる直前: 覚えた編集を、パーツに足す
+    private static void remember(ModelPart part) {
+        saved.add(new Saved(part, part.visible, part.skipDraw));
+    }
+
+    // 描かれる直前: 編集をパーツに足して、光らせるパーツがあれば、それ以外を隠す
     public static void applyCurrent(Model model) {
-        Map<String, PartTransform> edits = current;
-        if (edits == null) return;
+        if (current == null && currentGlow == null) return;
         ModelPart root = model.root();
-        for (Map.Entry<String, PartTransform> e : edits.entrySet()) {
-            if (e.getKey().startsWith("@")) continue;   // アイテムは、別の経路
-            ModelPart part = find(root, e.getKey());
-            if (part == null) continue;                 // このモデルに、無いパーツ(防具など)は飛ばす
-            PartTransform t = e.getValue();
-            part.x += t.px();
-            part.y += t.py();
-            part.z += t.pz();
-            part.xRot += (float) Math.toRadians(t.rx());
-            part.yRot += (float) Math.toRadians(t.ry());
-            part.zRot += (float) Math.toRadians(t.rz());
-            part.xScale *= t.sx() / 100f;
-            part.yScale *= t.sy() / 100f;
-            part.zScale *= t.sz() / 100f;
-            if (!t.visible()) part.visible = false;
-            applied++;
+
+        if (current != null) {
+            for (Map.Entry<String, PartTransform> e : current.entrySet()) {
+                if (e.getKey().startsWith("@")) continue;   // アイテムは、別の経路
+                ModelPart part = find(root, e.getKey());
+                if (part == null) continue;                 // このモデルに、無いパーツ(防具など)は飛ばす
+                PartTransform t = e.getValue();
+                part.x += t.px();
+                part.y += t.py();
+                part.z += t.pz();
+                part.xRot += (float) Math.toRadians(t.rx());
+                part.yRot += (float) Math.toRadians(t.ry());
+                part.zRot += (float) Math.toRadians(t.rz());
+                part.xScale *= t.sx() / 100f;
+                part.yScale *= t.sy() / 100f;
+                part.zScale *= t.sz() / 100f;
+                if (!t.visible()) {
+                    remember(part);
+                    part.visible = false;
+                }
+                applied++;
+            }
+        }
+
+        if (currentGlow != null) isolate(root, currentGlow.split("/"), 0);
+    }
+
+    // 選んだパーツと、その子だけを残す(経路の途中のパーツは、自分の形を描かず、子だけ描く)
+    private static void isolate(ModelPart part, String[] names, int index) {
+        if (index >= names.length) return;   // 選んだパーツ以下は、そのまま描く
+        remember(part);
+        part.skipDraw = true;
+        if (!(EntityReflect.getObjectQuiet(part, "children") instanceof Map<?, ?> children)) return;
+        for (Map.Entry<?, ?> e : children.entrySet()) {
+            if (!(e.getValue() instanceof ModelPart child)) continue;
+            if (String.valueOf(e.getKey()).equals(names[index])) {
+                isolate(child, names, index + 1);
+            } else {
+                remember(child);
+                child.visible = false;
+            }
         }
     }
 

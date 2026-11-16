@@ -1,13 +1,6 @@
 package net.kztmc.mc.cinema.ui.panel.right;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
-import java.util.Optional;
-import java.util.Set;
-import java.util.UUID;
+import java.util.*;
 import java.util.function.IntUnaryOperator;
 import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
@@ -24,6 +17,7 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
+import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
@@ -103,6 +97,9 @@ public final class RightPanel {
 
     private static String selectedPart;   // 編集中のパーツ(null なら、一覧)
     private UUID partsNpc;                // 編集中のパーツが、どの NPC のものか(NPC が変わったら、一覧に戻す)
+    private static final Set<String> openedParts = new HashSet<>();
+    private int partDepth;        // 組み立て中のパーツの、木の深さ(見出しのインデント)
+    private boolean partEdited;   // 組み立て中のパーツに、編集があるか(見出しを黄色にする)
 
     // ================= 組み立て =================
 
@@ -114,20 +111,27 @@ public final class RightPanel {
         scrollLabels.clear();
         sectionSpans.clear();
         items.clear();
+        PartGlow.setActive(tab == RightTab.POSE);
 
         x = lay.rightX() + lay.pad();
         w = lay.panelW() - lay.pad() * 2;
         int y = lay.panelY() + Theme.u(8);
 
-        // 最上段: 顔の画像と名前(左)、削除(右)
+        // 最上段: 顔の画像と名前(左)、削除(右)。名前の上にカーソルを置くと、IDを出す
         String name = NpcNames.of(d);
         int delW = Theme.u(44);
         iconSize = lay.btnH();
         iconX = x;
         iconY = y;
         int nameX = x + iconSize + lay.gap();
-        fixedLabels.add(new Label(Theme.fit(host.font(), name, w - delW - iconSize - lay.gap() * 2), nameX, y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
+        String shownName = Theme.fit(host.font(), name, w - delW - iconSize - lay.gap() * 2);
+        fixedLabels.add(new Label(shownName, nameX, y + (lay.btnH() - lay.th()) / 2, Theme.TEXT));
+        String idText = NpcData.PLAYER.equals(d.kind())
+                ? d.entityType() + " (" + d.skin().orElse("") + ")" : d.entityType();
+        host.add(new NameTip(nameX, y, Math.max(1, Theme.textWidth(host.font(), shownName)), lay.btnH(), idText));
         UUID npcId = id;
+
+        // 削除
         host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), Tr.get("cinema.ui.right.delete"), ModernButton.Style.DANGER, () -> host.confirmDelete(npcId)));
 
         // ← (戻る): 右パネルの左の外に、独立したボタンとして出す(選択を外して、ワールド設定へ戻る)
@@ -157,11 +161,12 @@ public final class RightPanel {
         w = fullW - barW - Theme.u(2);
         baseX = x;
         baseW = w;
+        int contentStart = y + Theme.u(4);
         int end;
         if (tab == RightTab.MAIN) {
-            end = buildMain(d, y);
+            end = buildMain(d, contentStart);
         } else {
-            end = buildParts(d, y);
+            end = buildParts(d, contentStart);
         }
 
         maxScroll = Math.max(0, end - contentBottom);
@@ -209,10 +214,10 @@ public final class RightPanel {
         if (next <= y) return next;
 
         boolean hasHeader = items.size() > itemsBefore && items.get(itemsBefore).widget instanceof SectionHeader;
-        if (hasHeader && collapsed.contains(key)) {
+        if (hasHeader && isCollapsed(key)) {
             for (int i = itemsBefore + 1; i < items.size(); i++) items.get(i).hidden = true;
             scrollLabels.subList(labelsBefore, scrollLabels.size()).clear();
-            next = y + lay.th() + Theme.u(3);   // 見出しの高さだけ残す
+            next = y + headerH();   // 見出しの高さだけ残す
         }
         sectionSpans.add(new int[] {y, next});
         return next + sectionGap();
@@ -230,7 +235,8 @@ public final class RightPanel {
         boolean heading = color == Theme.TEXT_DIM || color == Theme.SECTION;
         if (heading && !headerMade && !currentKey.isEmpty()) {
             headerMade = true;
-            add(new SectionHeader(baseX, ly, baseW, currentKey, text));
+            int indent = partDepth * Theme.u(6);
+            add(new SectionHeader(baseX + indent, ly, baseW - indent, currentKey, text, partEdited));
             return;
         }
         scrollLabels.add(new Label(text, lx, ly, heading ? Theme.SECTION : color, heading));
@@ -280,30 +286,11 @@ public final class RightPanel {
         pos[2] = d.z();
         y = numberRow(y, pos, 0.05, 0.1, (axis, v) -> {
             pos[axis] = v;
-            edit(id, cur -> cur.withTransform(pos[0], pos[1], pos[2],
-                    cur.yRot(), cur.xRot(), cur.headYRot(), cur.bodyYRot()));
+            edit(id, cur -> cur.withTransform(pos[0], pos[1], pos[2], cur.yRot(), cur.xRot(), cur.headYRot(), cur.bodyYRot()));
         });
         y += lay.gap();
 
-//        // 回転(X: 前後に倒す / Y: 体の向き / Z: 左右に倒す)。モデル全体が回る
-//        note(Tr.get("cinema.ui.right.transform.rotation"), x, y);
-//        y += lay.th() + Theme.u(2);
-//        double[] rotation = {d.option(EntityRotation.X, 0) / 100.0, Mth.wrapDegrees(d.bodyYRot()),
-//                d.option(EntityRotation.Z, 0) / 100.0};
-//        y = numberRow(y, rotation, 1.0, 1.0, (axis, v) -> {
-//            switch (axis) {
-//                case 0 -> edit(id, cur -> cur.withOption(EntityRotation.X, Math.round((float) (v * 100))));
-//                case 1 -> edit(id, cur -> {
-//                    // 体の向きを変えても、頭の左右のずれは、保つ
-//                    float body = (float) v;
-//                    float offset = Mth.clamp(Mth.wrapDegrees(cur.headYRot() - cur.bodyYRot()), -75f, 75f);
-//                    float head = body + offset;
-//                    return cur.withTransform(cur.x(), cur.y(), cur.z(), head, cur.xRot(), head, body);
-//                });
-//                default -> edit(id, cur -> cur.withOption(EntityRotation.Z, Math.round((float) (v * 100))));
-//            }
-//        });
-//        y += lay.gap();
+        // 回転
         y = rotationRows(d, y);
 
         // サイズ(生き物だけ)
@@ -320,8 +307,7 @@ public final class RightPanel {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player == null) return;
             float faceYaw = mc.player.getYRot() + 180f;
-            edit(id, cur -> cur.withTransform(mc.player.getX(), mc.player.getY(), mc.player.getZ(),
-                    faceYaw, cur.xRot(), faceYaw, faceYaw));
+            edit(id, cur -> cur.withTransform(mc.player.getX(), mc.player.getY(), mc.player.getZ(), faceYaw, cur.xRot(), faceYaw, faceYaw));
             host.refresh();   // 位置欄の表示も、新しい値にする
         }));
         return y + lay.btnH() + lay.gap();
@@ -365,7 +351,6 @@ public final class RightPanel {
     }
 
     // ---- 修飾(状態 + エンティティ固有の設定) ----
-
     private int sectionModifier(NpcData d, int y) {
         Entity live = NpcManager.entityOf(id);
         boolean living = live == null || live instanceof LivingEntity;
@@ -464,7 +449,6 @@ public final class RightPanel {
     }
 
     // ---- アニメーション(時間・歩行・腕) ----
-
     private int sectionAnimation(NpcData d, int y) {
         int lh = lay.th() + Theme.u(3);
         int sh = lay.sliderH();
@@ -764,83 +748,71 @@ public final class RightPanel {
         return y;
     }
 
+
+
     // ================= タブ「パーツ」 =================
 
     private int buildParts(NpcData d, int y) {
-        // NPC が変わったら、一覧に戻す
-        if (!id.equals(partsNpc)) {
-            partsNpc = id;
-            selectedPart = null;
-        }
         y = run("rotation", yy -> sectionRotation(d, yy), y);
-        y = run("parts", yy -> selectedPart == null ? sectionPartList(d, yy) : sectionPartEditor(d, yy), y);
-        return y;
-    }
-
-    // 全体の回転(基本タブと同じ欄を、一覧の上に置く)
-    private int sectionRotation(NpcData d, int y) {
-        label(Tr.get("cinema.ui.parts.rotation"), x, y, Theme.SECTION);
-        y += lay.th() + Theme.u(3);
-        return rotationRows(d, y);
-    }
-
-    // パーツの一覧
-    private int sectionPartList(NpcData d, int y) {
-        label(Tr.get("cinema.ui.parts.list"), x, y, Theme.SECTION);
-        y += lay.th() + Theme.u(3);
 
         Entity live = NpcManager.entityOf(id);
         List<ModelPartTree.Node> nodes = live == null ? List.of() : ModelPartTree.of(live);
-        int rowH = lay.btnH();
-        for (ModelPartTree.Node n : nodes) {
-            add(new PartRow(x, y, w, rowH, n.path(), ModelPartTree.label(n.name()), n.depth(),
-                    PartEdits.isEdited(d, n.path())));
-            y += rowH;
-        }
-        // 持っているアイテム(メイン・オフ)
-        if (live instanceof LivingEntity) {
-            for (String itemPath : new String[] {PartEdits.ITEM_MAIN, PartEdits.ITEM_OFF}) {
-                add(new PartRow(x, y, w, rowH, itemPath, ModelPartTree.label(itemPath), 0,
-                        PartEdits.isEdited(d, itemPath)));
-                y += rowH;
-            }
-        }
         if (nodes.isEmpty()) {
             note(Theme.fit(host.font(), Tr.get("cinema.ui.parts.empty"), w), x, y);
             y += lay.th() + Theme.u(3);
         }
-        y += lay.gap();
+        for (ModelPartTree.Node n : nodes) {
+            y = partSection(d, n.path(), ModelPartTree.label(n.name()), n.depth(), y);
+        }
+        // 持っているアイテム(メイン・オフ)
+        if (live instanceof LivingEntity) {
+            y = partSection(d, PartEdits.ITEM_MAIN, ModelPartTree.label(PartEdits.ITEM_MAIN), 0, y);
+            y = partSection(d, PartEdits.ITEM_OFF, ModelPartTree.label(PartEdits.ITEM_OFF), 0, y);
+        }
 
         add(new ModernButton(x, y, w, lay.btnH(), Tr.get("cinema.ui.parts.reset_all"), ModernButton.Style.DEFAULT, () -> {
+            PartGlow.select(null);
             edit(id, cur -> PartEdits.reset(cur, null));
             host.refresh();
         }));
         return y + lay.btnH() + lay.gap();
     }
 
-    private void setChannel(String path, PartEdits.Channel channel, double value) {
-        edit(id, cur -> cur.withOption(PartEdits.key(path, channel), PartEdits.encode(value)));
+    // 全体の回転(基本タブと同じ欄を、パーツの上に置く)
+    private int sectionRotation(NpcData d, int y) {
+        label(Tr.get("cinema.ui.parts.rotation"), x, y, Theme.SECTION);
+        y += headerH();
+        return rotationRows(d, y);
+    }
+    // 1つのパーツ(閉じている間は、見出しだけ)
+    private int partSection(NpcData d, String path, String title, int depth, int y) {
+        partDepth = depth;
+        partEdited = PartEdits.isEdited(d, path);
+        y = run("part:" + path, yy -> sectionPart(d, path, title, yy), y);
+        partDepth = 0;
+        partEdited = false;
+        return y;
+    }
+    private int sectionPart(NpcData d, String path, String title, int y) {
+        label(title, x, y, Theme.SECTION);
+        y += headerH();
+        if (isCollapsed("part:" + path)) return y;   // 閉じているときは、中身を作らない
+        return partControls(d, path, y);
     }
 
+    private void setChannel(String path, PartEdits.Channel channel, double value) {
+        PartGlow.select(path);
+        edit(id, cur -> cur.withOption(PartEdits.key(path, channel), PartEdits.encode(value)));
+    }
     private static double[] channelValues(NpcData d, String path, PartEdits.Channel a, PartEdits.Channel b, PartEdits.Channel c) {
         return new double[] {PartEdits.get(d, path, a), PartEdits.get(d, path, b), PartEdits.get(d, path, c)};
     }
 
-    // 1つのパーツの編集(表示・位置・回転・大きさ)
-    private int sectionPartEditor(NpcData d, int y) {
-        String path = selectedPart;
+    // 1つのパーツの編集欄(表示・位置・回転・大きさ)
+    private int partControls(NpcData d, String path, int y) {
         int sh = lay.sliderH();
 
-        label(ModelPartTree.label(ModelPartTree.lastName(path)), x, y, Theme.SECTION);
-        y += lay.th() + Theme.u(3);
-
-        add(new ModernButton(x, y, w, lay.btnH(), "← " + Tr.get("cinema.ui.parts.back"), ModernButton.Style.DEFAULT, () -> {
-            selectedPart = null;
-            host.refresh();
-        }));
-        y += lay.btnH() + lay.gap();
-
-        // 表示(非表示にすると、そのパーツと、その子のパーツが消える)
+        // 表示(オフにすると、そのパーツと、その子のパーツが消える)
         add(new ModernCheckbox(x, y, w, sh, Tr.get("cinema.ui.parts.visible"),
                 PartEdits.get(d, path, PartEdits.Channel.VISIBLE) >= 0.5,
                 on -> setChannel(path, PartEdits.Channel.VISIBLE, on ? 1 : 0)));//.setDefault(true));
@@ -867,7 +839,7 @@ public final class RightPanel {
                 1.0, 5.0, (axis, v) -> setChannel(path, PartEdits.Channel.scale(axis), v));
         y += lay.gap();
 
-        // 均等に拡大縮小(3つの軸を、まとめて変える。軸ごとの欄は、開き直すと、そろう)
+        // 均等に拡大縮小(3つの軸を、まとめて変える)
         add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.parts.uniform"), "%", 10, 400, 1,
                 PartEdits.get(d, path, PartEdits.Channel.SX), v -> {
             for (int axis = 0; axis < 3; axis++) setChannel(path, PartEdits.Channel.scale(axis), v);
@@ -881,54 +853,16 @@ public final class RightPanel {
         return y + lay.btnH() + lay.gap();
     }
 
-    // パーツの一覧の1行。クリックで、そのパーツの編集に進む。編集済みのパーツは、黄色
-    private final class PartRow extends AbstractWidget {
-        private final String path;
-        private final String text;
-        private final int depth;
-        private final boolean edited;
-        private float hover;
-
-        PartRow(int rx, int ry, int rw, int rh, String path, String text, int depth, boolean edited) {
-            super(rx, ry, rw, rh, Component.literal(text));
-            this.path = path;
-            this.text = text;
-            this.depth = depth;
-            this.edited = edited;
-        }
-
-        @Override
-        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-            Font font = host.font();
-            boolean hov = active && isMouseOver(mx, my);
-            hover += ((hov ? 1f : 0f) - hover) * 0.35f;
-            if (hover > 0.02f) {
-                Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(),
-                        Theme.lerp(Theme.GHOST_HOVER, Theme.SURFACE_HOVER, hover));
-            }
-            g.fill(getX() + 1, getY() + getHeight() - 1, getX() + getWidth() - 1, getY() + getHeight(), 0x22FFFFFF);   // 行の区切り
-
-            int pad = Theme.u(6);
-            int tx = getX() + pad + depth * Theme.u(8);   // 木の深さのぶん、右へ
-            int ty = getY() + (getHeight() - Theme.textH()) / 2;
-            int room = getWidth() - pad * 3 - (tx - getX()) - Theme.u(8);
-            int color = edited ? Theme.CHANGED : (hov ? Theme.TEXT : Theme.TEXT_DIM);
-            Theme.text(g, font, Theme.fit(font, text, room), tx, ty, color);
-            Theme.textRight(g, font, "›", getX() + getWidth() - pad, ty, Theme.TEXT_DIM);
-        }
-
-        @Override
-        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
-            selectedPart = path;
-            scroll = 0;
-            UiSounds.click();
-            host.refresh();
-            return true;
-        }
-
-        @Override
-        protected void updateWidgetNarration(NarrationElementOutput output) {}
+    // 畳んでいるか。パーツ(キーが "part:" で始まる)は、最初から閉じていて、開いたものだけ覚える
+    private static boolean isCollapsed(String key) {
+        return key.startsWith("part:") ? !openedParts.contains(key) : collapsed.contains(key);
+    }
+    private static void toggleSection(String key) {
+        Set<String> set = key.startsWith("part:") ? openedParts : collapsed;
+        if (!set.remove(key)) set.add(key);
+    }
+    private int headerH() {
+        return lay.th() + Theme.u(3) + (tab == RightTab.POSE ? Theme.u(4) : 0);
     }
 
     // スクロール
@@ -981,6 +915,8 @@ public final class RightPanel {
         dragScrolling = false;
     }
 
+
+    // ==描画==
     // 右端のスクロールバー(つまみをドラッグできる)
     private final class ScrollBar extends AbstractWidget implements Draggable {
         ScrollBar(int bx, int by, int bw, int bh) {
@@ -1023,16 +959,18 @@ public final class RightPanel {
         protected void updateWidgetNarration(NarrationElementOutput output) {}
     }
 
-    // ================= 見出し =================
+    // クリックで畳める見出し(▼ 開いている / ▶ 畳んでいる)。右に、線を引く。edited なら、黄色
     private final class SectionHeader extends AbstractWidget {
         private final String key;
         private final String text;
+        private final boolean edited;
         private float hover;
 
-        SectionHeader(int hx, int hy, int hw, String key, String text) {
-            super(hx, hy, hw, lay.th() + Theme.u(3), Component.literal(text));
+        SectionHeader(int hx, int hy, int hw, String key, String text, boolean edited) {
+            super(hx, hy, hw, headerH(), Component.literal(text));
             this.key = key;
             this.text = text;
+            this.edited = edited;
         }
 
         @Override
@@ -1040,21 +978,23 @@ public final class RightPanel {
             Font font = host.font();
             boolean hov = active && isMouseOver(mx, my);
             hover += ((hov ? 1f : 0f) - hover) * 0.35f;
-            int color = Theme.lerp(Theme.SECTION, 0xFFFFFFFF, hover * 0.5f);
+            int color = Theme.lerp(edited ? Theme.CHANGED : Theme.SECTION, 0xFFFFFFFF, hover * 0.5f);
 
+            // 背の高い見出しは、文字を縦の中央に置く
+            int top = getY() + (getHeight() - lay.th() - Theme.u(3)) / 2;
             int headH = Math.round(lay.th() * Theme.HEADING_SCALE);
             int s = Math.max(3, Theme.u(4));
-            triangle(g, getX() + s, getY() + headH / 2, s, !collapsed.contains(key), color);
+            triangle(g, getX() + s, top + headH / 2, s, !isCollapsed(key), color);
 
             int tx = getX() + s * 2 + Theme.u(4);
             String shown = Theme.fit(font, text, Math.round((getWidth() - (tx - getX())) / Theme.HEADING_SCALE));
-            Theme.heading(g, font, shown, tx, getY(), color);
+            Theme.heading(g, font, shown, tx, top, color);
 
             // 文字の右に、線(余白が狭いときは引かない)
             int lineX = tx + Theme.headingWidth(font, shown) + Theme.u(6);
             int lineEnd = getX() + getWidth();
             if (lineEnd - lineX > Theme.u(12)) {
-                int lineY = getY() + headH / 2;
+                int lineY = top + headH / 2;
                 g.fill(lineX, lineY, lineEnd, lineY + 1, Theme.SECTION_LINE);
             }
         }
@@ -1062,10 +1002,34 @@ public final class RightPanel {
         @Override
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
             if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
-            if (!collapsed.remove(key)) collapsed.add(key);
+            toggleSection(key);
+            if (key.startsWith("part:")) {
+                String path = key.substring("part:".length());
+                if (openedParts.contains(key)) PartGlow.select(path);
+                else if (path.equals(PartGlow.selected())) PartGlow.select(null);
+            }
             UiSounds.tab();
             host.refresh();
             return true;
+        }
+
+        @Override
+        protected void updateWidgetNarration(NarrationElementOutput output) {}
+    }
+
+    // モブ名の上に、IDを出すための、見えない部品(クリックは、受けない)
+    private static final class NameTip extends AbstractWidget {
+        NameTip(int nx, int ny, int nw, int nh, String text) {
+            super(nx, ny, nw, nh, Component.empty());
+            setTooltip(Tooltip.create(Component.literal(text)));
+        }
+
+        @Override
+        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {}
+
+        @Override
+        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
+            return false;
         }
 
         @Override
@@ -1084,8 +1048,6 @@ public final class RightPanel {
         }
     }
 
-    // ================= 描画 =================
-
     // パネルの背景と、文字(ウィジェットの前に呼ぶ)
     public void extractBackground(GuiGraphicsExtractor g) {
         Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
@@ -1095,16 +1057,17 @@ public final class RightPanel {
             Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
         }
 
-        if (tab == RightTab.MAIN) {
-            // セクションごとの、薄い背景(スクロールの範囲の外には、はみ出さない)
-            g.enableScissor(lay.rightX(), contentTop, lay.rightX() + lay.panelW(), contentBottom);
-            for (int[] span : sectionSpans) {
-                int top = span[0] - scroll - Theme.u(2);
-                int bottom = span[1] - scroll;
-                Theme.roundRect(g, baseX - Theme.u(3), top, baseW + Theme.u(6), bottom - top, Theme.SECTION_CARD);
-            }
-            g.disableScissor();
+        boolean parts = tab == RightTab.POSE;
+        int padV = parts ? Theme.u(4) : Theme.u(2);
+        int padH = parts ? Theme.u(5) : Theme.u(3);
+        int extraBottom = parts ? Theme.u(2) : 0;
+        g.enableScissor(lay.rightX(), contentTop, lay.rightX() + lay.panelW(), contentBottom);
+        for (int[] span : sectionSpans) {
+            int top = span[0] - scroll - padV;
+            int bottom = span[1] - scroll + extraBottom;
+            Theme.roundRect(g, baseX - padH, top, baseW + padH * 2, bottom - top, Theme.SECTION_CARD);
         }
+        g.disableScissor();
 
         for (Label l : scrollLabels) {
             int ly = l.y() - scroll;
