@@ -13,10 +13,7 @@ import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
 import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
 import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
 import net.kztmc.mc.cinema.ui.panel.world.WorldPanel;
-import net.kztmc.mc.cinema.ui.widget.DockButton;
-import net.kztmc.mc.cinema.ui.widget.ModernDropdown;
-import net.kztmc.mc.cinema.ui.widget.ModernNumberField;
-import net.kztmc.mc.cinema.ui.widget.ModernTextField;
+import net.kztmc.mc.cinema.ui.widget.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -310,6 +307,13 @@ public class CinemaScreen extends Screen implements PanelHost {
         // 通常。ドラッグできるウィジェット(数値欄・スクロールバー)を押したら、覚えておく
         boolean handled = super.mouseClicked(event, doubleClick);
         pressed = null;
+
+        // 3軸
+        if (hasRight && event.button() == 0 && overWorld(event.x(), event.y())
+                && right.gizmoPress(event.x(), event.y())) {
+            return true;
+        }
+
         if (handled && Theme.isClick(event.button())) {
             getChildAt(event.x(), event.y()).ifPresent(child -> {
                 if (child instanceof Draggable draggable) pressed = draggable;
@@ -327,6 +331,10 @@ public class CinemaScreen extends Screen implements PanelHost {
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double dx, double dy) {
         if (confirm.isOpen()) return true;
+        if (hasRight && right.gizmoDragging()) {
+            right.gizmoDrag(dx, dy);
+            return true;
+        }
         if (hasRight && right.isDragScrolling()) {
             right.dragScrollBy(dy);
             return true;
@@ -341,6 +349,10 @@ public class CinemaScreen extends Screen implements PanelHost {
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
         if (confirm.isOpen()) return true;
+        if (hasRight && right.gizmoDragging()) {
+            right.gizmoRelease();
+            return true;
+        }
         if (hasRight && right.isDragScrolling()) {
             right.endDragScroll();
             return true;
@@ -442,6 +454,11 @@ public class CinemaScreen extends Screen implements PanelHost {
         }
         menu.extract(g, this.font, mx, my);
         confirm.extract(g, this.width, this.height, mouseX, mouseY, delta);
+        if (hasRight) {
+            right.gizmoHover(mouseX, mouseY, overWorld(mouseX, mouseY));
+            right.gizmoOverlay(g, mouseX, mouseY);
+        }
+        Tooltips.draw(g, this.font, mouseX, mouseY, this.width, this.height);
     }
 
     /** スライド中の描画: 画面の半分だけを、dx ずらして描く(はみ出しは切り取る) */
@@ -492,5 +509,19 @@ public class CinemaScreen extends Screen implements PanelHost {
 
     private boolean isSliding() {
         return !hasTuner && slideProgress() < 1f;
+    }
+
+    // 左パネル(または、まとめた四角)の上か
+    private boolean overLeftPanel(double mx, double my) {
+        int s = dockSize();
+        int w = Math.round(Mth.lerp(panelAnim, s, layout.leftW()));
+        int h = Math.round(Mth.lerp(panelAnim, s, layout.panelH()));
+        return mx >= layout.leftX() && mx < layout.leftX() + w && my >= layout.panelY() && my < layout.panelY() + h;
+    }
+
+    // パネル(左・右・戻るボタン)の外で、世界が見えている所か
+    private boolean overWorld(double mx, double my) {
+        if (overLeftPanel(mx, my)) return false;
+        return !(hasRight && right.contains(mx, my));
     }
 }

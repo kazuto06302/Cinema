@@ -57,5 +57,9 @@
   "cinema.part.left_pants": "Left pants",
   "cinema.part.cloak": "Cape",
   "cinema.part.@item_main": "Held item (main hand)",
-  "cinema.part.@item_off": "Held item (off hand)"
+  "cinema.part.@item_off": "Held item (off hand)",
+
+  "cinema.ui.parts.mode.move": "Move",
+  "cinema.ui.parts.mode.rotate": "Rotate",
+  "cinema.ui.parts.mode.scale": "Scale"
 }

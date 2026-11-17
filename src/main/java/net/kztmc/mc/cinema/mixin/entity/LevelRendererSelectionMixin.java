@@ -18,6 +18,7 @@ import java.util.OptionalDouble;
 import java.util.Set;
 
 import net.kztmc.mc.cinema.entity.ModelPartTree;
+import net.kztmc.mc.cinema.entity.PartAxes;
 import net.kztmc.mc.cinema.entity.PartEdits;
 import net.kztmc.mc.cinema.entity.PartGlow;
 import net.kztmc.mc.cinema.ui.npc.SelectionOutline;
@@ -60,6 +61,10 @@ public abstract class LevelRendererSelectionMixin {
     private void cinema$submitSelected(PoseStack poseStack, LevelRenderState levelRenderState, SubmitNodeCollector output, CallbackInfo ci) {
         cinema$storage = null;
         List<SelectionOutline.Collected> selected = SelectionOutline.take();
+        // 選んだパーツの方向軸(Gizmos に、この1フレームぶんを足す)
+        try (var scope = ((LevelRenderer) (Object) this).collectPerFrameRenderThreadGizmos()) {
+            PartAxes.emit();
+        }
         if (selected.isEmpty()) return;
 
         cinema$storage = new SubmitNodeStorage();

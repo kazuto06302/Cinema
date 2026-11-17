@@ -1,6 +1,7 @@
 package net.kztmc.mc.cinema.ui.panel.right;
 
 import net.kztmc.mc.cinema.ui.panel.Theme;
+import net.kztmc.mc.cinema.ui.widget.Tooltips;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
@@ -25,6 +26,7 @@ public class ItemButton extends AbstractWidget {
     private final Click onClick;
     private boolean selected;
     private float hover;
+    private String tip;
 
     public ItemButton(int x, int y, int w, int h, ItemStack stack, ItemStack ghost, Click onClick) {
         super(x, y, w, h, Component.empty());
@@ -39,13 +41,14 @@ public class ItemButton extends AbstractWidget {
     }
 
     public ItemButton tip(String text) {
-        setTooltip(Tooltip.create(Component.literal(text)));
+        this.tip = text;
         return this;
     }
 
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         boolean hov = active && mx >= getX() && mx < getX() + getWidth() && my >= getY() && my < getY() + getHeight();
+        if (hov && tip != null) Tooltips.request(this, tip);
         hover += ((hov ? 1f : 0f) - hover) * 0.35f;
 
         // 背景と枠(選択中は、アクセント色の枠)

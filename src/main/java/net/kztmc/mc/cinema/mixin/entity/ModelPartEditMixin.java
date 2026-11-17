@@ -20,7 +20,7 @@ public abstract class ModelPartEditMixin {
     // 描く直前: 覚えた編集を、パーツに足す
     @Inject(method = "renderToBuffer", at = @At("HEAD"))
     private void cinema$apply(PoseStack pose, VertexConsumer buffer, int light, int overlay, int color, CallbackInfo ci) {
-        PartEdits.applyCurrent((Model) (Object) this);
+        PartEdits.applyCurrent((Model) (Object) this, pose);
     }
 
     // 描き終わったら、忘れる(別のモデルに、編集が移らないように)

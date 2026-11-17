@@ -11,6 +11,7 @@ import net.minecraft.network.chat.Component;
 
 /** 左側に並べる、正方形のボタン。背景は描かず(パネルの背景の上に載る)、押せる場所を、ホバーで見せる */
 public class DockButton extends AbstractWidget {
+    private final String tooltip;
     /** アイコンの描き方(x, y は左上、size は一辺) */
     @FunctionalInterface
     public interface Icon {
@@ -42,12 +43,13 @@ public class DockButton extends AbstractWidget {
         super(x, y, size, size, Component.literal(tooltip));
         this.icon = icon;
         this.onPress = onPress;
-        setTooltip(Tooltip.create(Component.literal(tooltip)));
+        this.tooltip = tooltip;
     }
 
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         boolean hov = active && isMouseOver(mx, my);
+        if (hov) Tooltips.request(this, tooltip);
         hover += ((hov ? 1f : 0f) - hover) * 0.35f;
         if (hover > 0.02f) {
             Theme.roundRect(g, getX() + 1, getY() + 1, getWidth() - 2, getHeight() - 2,

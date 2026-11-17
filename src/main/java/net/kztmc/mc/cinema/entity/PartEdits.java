@@ -4,12 +4,18 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.WeakHashMap;
+
+import com.mojang.blaze3d.vertex.PoseStack;
 import net.fabricmc.fabric.api.client.rendering.v1.RenderStateDataKey;
 import net.kztmc.mc.cinema.npc.NpcData;
+import net.minecraft.client.Minecraft;
 import net.minecraft.client.model.Model;
 import net.minecraft.client.model.geom.ModelPart;
 import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.phys.Vec3;
+import org.joml.Matrix4f;
+import org.joml.Vector3f;
 
 // NPC のパーツごとの編集(位置・回転・大きさ・表示)
 //   保存: NPC のオプションに「part.<パス>.<項目>」で入る(値は100倍の整数)
@@ -31,6 +37,11 @@ public final class PartEdits {
     public static final String ITEM_OFF = "@item_off";
 
     private static final String PREFIX = "part.";
+
+    // 選択中の NPC の描画の情報に付ける印(方向軸を描く対象かどうか)
+    public static final RenderStateDataKey<Boolean> SELECTED_KEY = RenderStateDataKey.create(() -> "cinema:part_selected");
+
+    private static boolean currentSelected;
 
     // 編集できる項目
     public enum Channel {
@@ -185,9 +196,11 @@ public final class PartEdits {
         if (state instanceof EntityRenderState es) {
             current = es.getData(KEY);
             currentGlow = es.getData(GLOW_KEY);
+            currentSelected = es.getData(SELECTED_KEY) != null;
         } else {
             current = null;
             currentGlow = null;
+            currentSelected = false;
         }
     }
 
@@ -200,14 +213,15 @@ public final class PartEdits {
         saved.clear();
         current = null;
         currentGlow = null;
+        currentSelected = false;
     }
 
     private static void remember(ModelPart part) {
         saved.add(new Saved(part, part.visible, part.skipDraw));
     }
 
-    // 描かれる直前: 編集をパーツに足して、光らせるパーツがあれば、それ以外を隠す
-    public static void applyCurrent(Model model) {
+    public static void applyCurrent(Model model, PoseStack pose) {
+        String axisPath = currentSelected ? PartGlow.current() : null;
         if (current == null && currentGlow == null) return;
         ModelPart root = model.root();
 
@@ -235,6 +249,7 @@ public final class PartEdits {
         }
 
         if (currentGlow != null) isolate(root, currentGlow.split("/"), 0);
+        if (axisPath != null) captureAxes(root, axisPath, pose);
     }
 
     // 選んだパーツと、その子だけを残す(経路の途中のパーツは、自分の形を描かず、子だけ描く)
@@ -262,5 +277,43 @@ public final class PartEdits {
             current = current.getChild(name);
         }
         return current;
+    }
+
+
+    // 選んだパーツの、位置と軸の向き(世界座標)を求める。根から、親のパーツまでの姿勢を順に掛けて、
+    // 最後のパーツは、位置のずれだけを掛ける(軸は、位置のずれが動く向き=親の向き)
+    private static void captureAxes(ModelPart root, String path, PoseStack pose) {
+        Matrix4f m = new Matrix4f(pose.last().pose());
+        compose(m, root, true);
+        ModelPart part = root;
+        String[] names = path.split("/");
+        for (int i = 0; i < names.length; i++) {
+            if (!part.hasChild(names[i])) return;
+            part = part.getChild(names[i]);
+            compose(m, part, i < names.length - 1);
+        }
+        Vec3 cam = Minecraft.getInstance().gameRenderer.mainCamera().position();   // 姿勢は、カメラからの相対なので、足す
+        Vector3f o = m.transformPosition(0, 0, 0, new Vector3f());
+        PartAxes.store(path, new Vec3(o.x + cam.x, o.y + cam.y, o.z + cam.z),
+                axis(m, 1, 0, 0), axis(m, 0, 1, 0), axis(m, 0, 0, 1));
+    }
+
+    // パーツの姿勢を掛ける(withChildren が true なら、子に効く、回転と大きさも)
+    private static void compose(Matrix4f m, ModelPart p, boolean withChildren) {
+        m.translate(p.x / 16f, p.y / 16f, p.z / 16f);
+        if (!withChildren) return;
+        if (p.xRot != 0 || p.yRot != 0 || p.zRot != 0) m.rotateZYX(p.zRot, p.yRot, p.xRot);
+        m.scale(p.xScale, p.yScale, p.zScale);
+    }
+
+    // モデルの1ブロックぶんが、世界で、どの向き・長さになるか(正規化しない)
+    private static Vec3 axis(Matrix4f m, float x, float y, float z) {
+        Vector3f d = m.transformDirection(x, y, z, new Vector3f());
+        return new Vec3(d.x, d.y, d.z);
+    }
+
+    // 選択中の NPC の描画の情報に、印を付ける(方向軸を描く対象)
+    public static void markSelected(EntityRenderState state) {
+        state.setData(SELECTED_KEY, Boolean.TRUE);
     }
 }
