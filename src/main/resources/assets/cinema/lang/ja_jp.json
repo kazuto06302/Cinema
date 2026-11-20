@@ -2,11 +2,12 @@
   "cinema.title.installed": "Cinema導入済み",
   "cinema.pause.open": "Cinemaを開く",
   "cinema.item.wand": "Cinemaワンド",
+  "cinema.ui.delete": "削除",
+
+  "cinema.ui.confirm.delete": "%sを削除しますか?",
 
   "cinema.ui.right.basic": "基本",
   "cinema.ui.right.parts": "パーツ",
-  "cinema.ui.right.delete": "削除",
-
   "cinema.ui.right.transform": "外観",
   "cinema.ui.right.transform.position": "位置",
   "cinema.ui.right.transform.rotation": "回転",

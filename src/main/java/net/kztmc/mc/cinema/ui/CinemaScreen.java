@@ -150,7 +150,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         String name = NpcManager.get(id).map(NpcNames::of).orElse("NPC");
         menu.close();
         confirm.open(this.font, layout, this.width, this.height,
-                "「" + name + "」を削除しますか?(元に戻せません)", "削除", () -> {
+                Tr.get("cinema.ui.confirm.delete",name), Tr.get("cinema.ui.delete"), () -> {
                     NpcManager.remove(id);
                     refresh();
                 });
@@ -517,7 +517,6 @@ public class CinemaScreen extends Screen implements PanelHost {
     }
 
     // ================= 描画 =================
-
     @Override
     public void extractRenderState(GuiGraphicsExtractor g, int mouseX, int mouseY, float delta) {
         if (pendingRefresh) {

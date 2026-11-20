@@ -2,10 +2,12 @@
   "cinema.title.installed": "Cinema installed",
   "cinema.pause.open": "Open Cinema",
   "cinema.item.wand": "Cinema Wand",
+  "cinema.ui.delete": "Delete",
+
+  "cinema.ui.confirm.delete": "Do you want to delete %s?",
 
   "cinema.ui.right.basic": "Basic",
   "cinema.ui.right.parts": "Parts",
-  "cinema.ui.right.delete": "Delete",
   "cinema.ui.right.transform": "Transform",
   "cinema.ui.right.transform.position": "Position",
   "cinema.ui.right.transform.rotation": "Rotation",

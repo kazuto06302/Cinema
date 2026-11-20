@@ -96,7 +96,6 @@ public final class RightPanel {
     private int iconX, iconY, iconSize;
 
     private UUID partsNpc;                // 編集中のパーツが、どの NPC のものか(NPC が変わったら、一覧に戻す)
-    private static String selectedPart;   // 選んでいるパーツ(null なら、なし)
     private int editorTop;                // パーツのタブの、下半分(値の設定)の上端
     private int panelBottom;              // 右パネルの中身の下端
     private boolean fixedMode;            // true の間は、固定の欄(スクロールしない)に追加する
@@ -116,7 +115,6 @@ public final class RightPanel {
             PartSelection.select(null);
         }
         PartGlow.setActive(tab == RightTab.POSE);
-        PartGlow.select(selectedPart);   // 画面の選択と、光らせる対象を、そろえる
 
         x = lay.rightX() + lay.pad();
         w = lay.panelW() - lay.pad() * 2;
@@ -136,7 +134,7 @@ public final class RightPanel {
         UUID npcId = id;
 
         // 削除
-        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), Tr.get("cinema.ui.right.delete"), ModernButton.Style.DANGER, () -> host.confirmDelete(npcId)));
+        host.add(new ModernButton(x + w - delW, y, delW, lay.btnH(), Tr.get("cinema.ui.delete"), ModernButton.Style.DANGER, () -> host.confirmDelete(npcId)));
 
         // ← (戻る): 右パネルの左の外に、独立したボタンとして出す(選択を外して、ワールド設定へ戻る)
         backW = Theme.u(26);
@@ -168,12 +166,6 @@ public final class RightPanel {
 
         int contentStart = y + Theme.u(4);   // 内容の始まりを、少し下げる
         int end = tab == RightTab.MAIN ? buildMain(d, contentStart) : buildParts(d, contentStart);
-        if (tab == RightTab.MAIN) {
-            end = buildMain(d, contentStart);
-        } else {
-            end = buildParts(d, contentStart);
-            buildPartEditor(d, editorTop);
-        }
 
         maxScroll = Math.max(0, end - contentBottom);
         scroll = Mth.clamp(scroll, 0, maxScroll);
@@ -772,19 +764,6 @@ public final class RightPanel {
         return y;
     }
 
-
-    // ================= タブ「パーツ」 =================
-    // 値の設定(下半分)の高さ。buildPartEditor の積み方と合わせる
-    private int partEditorHeight() {
-        int sh = lay.sliderH();
-        int noteH = lay.th() + Theme.u(2);
-        int block = noteH + (noteH + sh) + lay.gap();   // 見出しの文字 + 軸のラベルと欄 + 余白
-        return (lay.th() + Theme.u(3))                  // パーツの名前
-                + lay.btnH() + lay.gap()                // 操作のモード(移動・回転・拡大)
-                + sh + lay.gap()                        // 表示 + リセット
-                + block * 3                             // 位置・回転・大きさ
-                + sh;                                   // 均等に拡大縮小
-    }
     // ================= タブ「パーツ」 =================
 
     // 全体の回転と、選んだパーツの調整(パーツの一覧は、左パネルにある)
@@ -894,134 +873,6 @@ public final class RightPanel {
             y += lay.th() + Theme.u(3);
         }
         return y;
-    }
-
-    // パーツを選ぶ(選んだパーツが、光る)
-    private void selectPart(String path) {
-        selectedPart = path;
-        PartGlow.select(path);
-    }
-
-    // 下半分(固定): 選んでいるパーツの値の設定
-    private void buildPartEditor(NpcData d, int top) {
-        fixedMode = true;
-        x = baseX;
-        w = baseW;
-        int y = top + Theme.u(3);
-        String path = selectedPart;
-        int sh = lay.sliderH();
-
-        if (path == null) {
-            note(Theme.fit(host.font(), Tr.get("cinema.ui.parts.select_hint"), w), x, y);
-        } else {
-            label(ModelPartTree.label(ModelPartTree.lastName(path)), x, y, Theme.SECTION);
-            y += lay.th() + Theme.u(3);
-
-            // 操作のモード(本体のパーツを、画面のドラッグで動かすときの、動かし方)
-            String[] modeNames = {Tr.get("cinema.ui.parts.mode.move"), Tr.get("cinema.ui.parts.mode.rotate"),
-                    Tr.get("cinema.ui.parts.mode.scale")};
-            int mw = (w - lay.gap() * 2) / 3;
-            for (int i = 0; i < 3; i++) {
-                PartGizmo.Mode mode = PartGizmo.Mode.values()[i];
-                add(new ModernButton(x + i * (mw + lay.gap()), y, mw, lay.btnH(), modeNames[i], ModernButton.Style.DEFAULT, () -> {
-                    PartGizmo.mode = mode;
-                    host.refresh();
-                }).setSelected(PartGizmo.mode == mode));
-            }
-            y += lay.btnH() + lay.gap();
-
-            // 表示とリセットを、1行に
-            int half = (w - lay.gap()) / 2;
-            add(new ModernCheckbox(x, y, half, sh, Tr.get("cinema.ui.parts.visible"),
-                    PartEdits.get(d, path, PartEdits.Channel.VISIBLE) >= 0.5,
-                    on -> setChannel(path, PartEdits.Channel.VISIBLE, on ? 1 : 0)));//.setDefault(true));
-            add(new ModernButton(x + half + lay.gap(), y, w - half - lay.gap(), sh, Tr.get("cinema.ui.parts.reset"),
-                    ModernButton.Style.DEFAULT, () -> {
-                edit(id, cur -> PartEdits.reset(cur, path));
-                host.refresh();
-            }));
-            y += sh + lay.gap();
-
-            // 位置のずれ(ピクセル)
-            note(Tr.get("cinema.ui.parts.position"), x, y);
-            y += lay.th() + Theme.u(2);
-            y = numberRow(y, channelValues(d, path, PartEdits.Channel.PX, PartEdits.Channel.PY, PartEdits.Channel.PZ),
-                    0.1, 0.5, (axis, v) -> setChannel(path, PartEdits.Channel.position(axis), v));
-            y += lay.gap();
-
-            // 回転(足し算。度)
-            note(Tr.get("cinema.ui.parts.rotation.add"), x, y);
-            y += lay.th() + Theme.u(2);
-            y = numberRow(y, channelValues(d, path, PartEdits.Channel.RX, PartEdits.Channel.RY, PartEdits.Channel.RZ),
-                    1.0, 1.0, (axis, v) -> setChannel(path, PartEdits.Channel.rotation(axis), v));
-            y += lay.gap();
-
-            // 大きさ(%)
-            note(Tr.get("cinema.ui.parts.scale"), x, y);
-            y += lay.th() + Theme.u(2);
-            y = numberRow(y, channelValues(d, path, PartEdits.Channel.SX, PartEdits.Channel.SY, PartEdits.Channel.SZ),
-                    1.0, 5.0, (axis, v) -> setChannel(path, PartEdits.Channel.scale(axis), v));
-            y += lay.gap();
-
-            // 均等に拡大縮小(3つの軸を、まとめて変える)
-            add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.parts.uniform"), "%", 10, 400, 1,
-                    PartEdits.get(d, path, PartEdits.Channel.SX), v -> {
-                for (int axis = 0; axis < 3; axis++) setChannel(path, PartEdits.Channel.scale(axis), v);
-            }).setDefault(100));
-        }
-        fixedMode = false;
-    }
-
-    // パーツの一覧の1行。クリックで、選ぶ。選択中は、左に青い線。編集済みのパーツは、黄色
-    private final class PartRow extends AbstractWidget {
-        private final String path;
-        private final String text;
-        private final int depth;
-        private final boolean edited;
-        private float hover;
-
-        PartRow(int rx, int ry, int rw, int rh, String path, String text, int depth, boolean edited) {
-            super(rx, ry, rw, rh, Component.literal(text));
-            this.path = path;
-            this.text = text;
-            this.depth = depth;
-            this.edited = edited;
-        }
-
-        @Override
-        protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
-            Font font = host.font();
-            boolean hov = active && isMouseOver(mx, my);
-            boolean selected = path.equals(selectedPart);
-            hover += ((hov ? 1f : 0f) - hover) * 0.35f;
-            if (selected) {
-                Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(), Theme.SURFACE_HOVER);
-                g.fill(getX(), getY() + 2, getX() + Math.max(2, Theme.u(2)), getY() + getHeight() - 2, Theme.ACCENT);
-            } else if (hover > 0.02f) {
-                Theme.roundRect(g, getX(), getY(), getWidth(), getHeight(),
-                        Theme.lerp(Theme.GHOST_HOVER, Theme.SURFACE_HOVER, hover));
-            }
-            g.fill(getX() + 1, getY() + getHeight() - 1, getX() + getWidth() - 1, getY() + getHeight(), 0x22FFFFFF);   // 行の区切り
-
-            int pad = Theme.u(7);
-            int tx = getX() + pad + depth * Theme.u(8);   // 木の深さのぶん、右へ
-            int ty = getY() + (getHeight() - Theme.textH()) / 2;
-            int room = getWidth() - pad * 2 - (tx - getX());
-            int color = edited ? Theme.CHANGED : (selected || hov ? Theme.TEXT : Theme.TEXT_DIM);
-            Theme.text(g, font, Theme.fit(font, text, room), tx, ty, color);
-        }
-
-        @Override
-        public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-            if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
-            selectPart(path);
-            UiSounds.click();
-            host.refresh();
-            return true;
-        }
-
-        @Override
-        protected void updateWidgetNarration(NarrationElementOutput output) {}
     }
 
     // 畳んでいるか(基本タブのセクションだけ)
