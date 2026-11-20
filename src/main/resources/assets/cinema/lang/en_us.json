@@ -61,5 +61,11 @@
 
   "cinema.ui.parts.mode.move": "Move",
   "cinema.ui.parts.mode.rotate": "Rotate",
-  "cinema.ui.parts.mode.scale": "Scale"
+  "cinema.ui.parts.mode.scale": "Scale",
+
+  "cinema.dock.menu": "Open menu",
+  "cinema.dock.parts": "Open parts list",
+  "cinema.dock.minimize": "Minimize",
+  "cinema.ui.parts.editor": "Part settings",
+  "cinema.ui.parts.select_hint": "Pick a part from the list on the left (open it with the left button)"
 }

@@ -12,6 +12,18 @@ import net.minecraft.network.chat.Component;
 /** 左側に並べる、正方形のボタン。背景は描かず(パネルの背景の上に載る)、押せる場所を、ホバーで見せる */
 public class DockButton extends AbstractWidget {
     private final String tooltip;
+    // パーツ(人型のシルエット: 頭・腕・体・脚)
+    public static final Icon PARTS = (g, x, y, s, c) -> {
+        int u = Math.max(1, s / 10);
+        int cx = x + s / 2;
+        int top = y + (s - u * 8) / 2;
+        g.fill(cx - u, top, cx + u, top + u * 2, c);                                   // 頭
+        g.fill(cx - u * 3, top + u * 2 + 1, cx + u * 3, top + u * 3 + 1, c);           // 腕
+        g.fill(cx - u, top + u * 2 + 1, cx + u, top + u * 5 + 1, c);                   // 体
+        g.fill(cx - u, top + u * 5 + 1, cx, top + u * 7 + 1, c);                       // 左脚
+        g.fill(cx + 1, top + u * 5 + 1, cx + u, top + u * 7 + 1, c);                   // 右脚
+    };
+
     /** アイコンの描き方(x, y は左上、size は一辺) */
     @FunctionalInterface
     public interface Icon {

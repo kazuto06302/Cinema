@@ -20,6 +20,7 @@ import net.minecraft.util.Mth;
 public class ModernList<T> extends AbstractWidget {
     private final Function<T, String> label;
     private final Function<T, String> sub;
+    private Function<T, Integer> colorOf;
     private final Predicate<T> isSelected;
     private final Consumer<T> onSelect;
     private final String emptyText;
@@ -110,7 +111,9 @@ public class ModernList<T> extends AbstractWidget {
             }
             String main = Theme.fit(font, label.apply(item), textRight - textX - subW);
             int ty = ry + (rowH - th) / 2;
-            Theme.text(g, font, main, textX, ty, sel ? 0xFFFFFFFF : Theme.TEXT);
+            Integer custom = colorOf == null ? null : colorOf.apply(item);
+            int mainColor = custom != null ? custom : (sel ? 0xFFFFFFFF : Theme.TEXT);
+            Theme.text(g, font, main, textX, ty, mainColor);
             if (!subText.isEmpty()) {
                 Theme.textRight(g, font, subText, textRight, ty, Theme.TEXT_DIM);
             }
@@ -149,6 +152,11 @@ public class ModernList<T> extends AbstractWidget {
 
     public ModernList<T> setIcon(RowIcon<T> icon) {
         this.icon = icon;
+        return this;
+    }
+
+    public ModernList<T> setColor(java.util.function.Function<T, Integer> colorOf) {
+        this.colorOf = colorOf;
         return this;
     }
 }

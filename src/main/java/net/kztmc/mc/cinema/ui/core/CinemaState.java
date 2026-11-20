@@ -16,4 +16,16 @@ public final class CinemaState {
 
     /** 左パネルを広げているか(画面を開き直しても保持する) */
     public static boolean leftOpen = false;
+
+    // 左パネルの種類
+    public enum LeftView { NONE, MAIN, PARTS }
+
+    // 開いている左パネル(画面を開き直しても保持する)
+    public static LeftView leftView = LeftView.NONE;
+
+    // パーツ一覧を開く前に、メインのパネルが開いていたか(パーツを閉じたとき、元に戻すため)
+    public static boolean mainWasOpen;
+
+    // 右パネルからの、左パネルの切り替えの要求(画面が、次のフレームで受け取る)
+    public static LeftView leftRequest;
 }

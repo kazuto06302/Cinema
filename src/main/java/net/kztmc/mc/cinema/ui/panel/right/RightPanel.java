@@ -8,6 +8,7 @@ import net.kztmc.mc.cinema.entity.*;
 import net.kztmc.mc.cinema.npc.*;
 import net.kztmc.mc.cinema.entity.profile.AnimationModeProfile;
 import net.kztmc.mc.cinema.ui.core.*;
+import net.kztmc.mc.cinema.ui.panel.PartSelection;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.kztmc.mc.cinema.ui.panel.inventory.CinemaCreativeScreen;
@@ -17,7 +18,6 @@ import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.AbstractWidget;
-import net.minecraft.client.gui.components.Tooltip;
 import net.minecraft.client.gui.narration.NarrationElementOutput;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.player.LocalPlayer;
@@ -96,10 +96,6 @@ public final class RightPanel {
     private int iconX, iconY, iconSize;
 
     private UUID partsNpc;                // 編集中のパーツが、どの NPC のものか(NPC が変わったら、一覧に戻す)
-    private static final Set<String> openedParts = new HashSet<>();
-    private int partDepth;        // 組み立て中のパーツの、木の深さ(見出しのインデント)
-    private boolean partEdited;   // 組み立て中のパーツに、編集があるか(見出しを黄色にする)
-
     private static String selectedPart;   // 選んでいるパーツ(null なら、なし)
     private int editorTop;                // パーツのタブの、下半分(値の設定)の上端
     private int panelBottom;              // 右パネルの中身の下端
@@ -115,7 +111,12 @@ public final class RightPanel {
         scrollLabels.clear();
         sectionSpans.clear();
         items.clear();
+        if (!d.id().equals(partsNpc)) {
+            partsNpc = d.id();
+            PartSelection.select(null);
+        }
         PartGlow.setActive(tab == RightTab.POSE);
+        PartGlow.select(selectedPart);   // 画面の選択と、光らせる対象を、そろえる
 
         x = lay.rightX() + lay.pad();
         w = lay.panelW() - lay.pad() * 2;
@@ -156,8 +157,7 @@ public final class RightPanel {
         y += lay.btnH() + lay.gap();
 
         contentTop = y;
-        panelBottom = lay.panelY() + lay.panelH() - lay.pad();
-        contentBottom = panelBottom;
+        contentBottom = lay.panelY() + lay.panelH() - lay.pad();
 
         // スクロールバーの分だけ、中身の幅を狭くする
         int barW = Theme.u(5);
@@ -166,15 +166,8 @@ public final class RightPanel {
         baseX = x;
         baseW = w;
 
-        // パーツのタブ: 下半分(値の設定)を、収まる最小の高さにして、上半分だけスクロールさせる
-        if (tab == RightTab.POSE) {
-            int editorH = partEditorHeight() + Theme.u(8);
-            editorTop = Math.max(contentTop + Theme.u(70), panelBottom - editorH);
-            contentBottom = editorTop - Theme.u(4);
-        }
-
         int contentStart = y + Theme.u(4);   // 内容の始まりを、少し下げる
-        int end;
+        int end = tab == RightTab.MAIN ? buildMain(d, contentStart) : buildParts(d, contentStart);
         if (tab == RightTab.MAIN) {
             end = buildMain(d, contentStart);
         } else {
@@ -192,11 +185,29 @@ public final class RightPanel {
 
     private void selectTab(RightTab t) {
         if (tab != t) UiSounds.tab();
+        if (t == RightTab.POSE && tab != RightTab.POSE) {
+            // 左は、パーツ一覧にする(いま開いているパネルは、閉じる)。戻るときのために、覚えておく
+            CinemaState.mainWasOpen = CinemaState.leftView == CinemaState.LeftView.MAIN;
+            CinemaState.leftRequest = CinemaState.LeftView.PARTS;
+        } else if (t == RightTab.MAIN && CinemaState.leftView == CinemaState.LeftView.PARTS) {
+            // パーツ一覧を閉じて、開いていたパネルを元に戻す
+            CinemaState.leftRequest = CinemaState.mainWasOpen
+                    ? CinemaState.LeftView.MAIN : CinemaState.LeftView.NONE;
+        }
         tab = t;
         scroll = 0;
         host.refresh();
     }
 
+    // 左側のパーツのボタンから、パーツのタブを開く
+    public void showPartsTab() {
+        if (tab == RightTab.POSE) {
+            CinemaState.leftRequest = CinemaState.LeftView.PARTS;   // タブは、そのまま。左のパネルだけ開く
+            host.refresh();
+        } else {
+            selectTab(RightTab.POSE);
+        }
+    }
     // セクション同士の余白
     private static int sectionGap() {
         return Theme.u(9);
@@ -239,19 +250,15 @@ public final class RightPanel {
         return fixedMode ? fixedLabels : scrollLabels;
     }
 
-    // スクロールする部品として登録して、追加する(固定の間は、登録しない)
+    // スクロールする部品として登録して、追加する
     private <T extends AbstractWidget> T add(T widget) {
         host.add(widget);
-        if (!fixedMode) items.add(new Item(widget, widget.getY()));
+        items.add(new Item(widget, widget.getY()));
         return widget;
     }
 
     private void label(String text, int lx, int ly, int color) {
         boolean heading = color == Theme.TEXT_DIM || color == Theme.SECTION;
-        if (fixedMode) {
-            labels().add(new Label(text, lx, ly, heading ? Theme.SECTION : color, heading));
-            return;
-        }
         if (heading && !headerMade && !currentKey.isEmpty()) {
             headerMade = true;
             add(new SectionHeader(baseX, ly, baseW, currentKey, text, false));
@@ -261,7 +268,7 @@ public final class RightPanel {
     }
 
     private void note(String text, int lx, int ly) {
-        labels().add(new Label(text, lx, ly, Theme.TEXT_DIM));
+        scrollLabels.add(new Label(text, lx, ly, Theme.TEXT_DIM));
     }
 
     private static void edit(UUID id, UnaryOperator<NpcData> fn) {
@@ -360,7 +367,7 @@ public final class RightPanel {
         for (int i = 0; i < 3; i++) {
             final int axis = i;
             int cx = x + i * (colW + colGap);
-            scrollLabels.add(new Label(AXES[i], cx, y, AXIS_COLORS[i]));
+            labels().add(new Label(AXES[i], cx, y, AXIS_COLORS[i]));   // 固定の欄のときは、固定のラベルへ
             add(new ModernNumberField(cx, y + labelH, colW, lay.sliderH(), "", AXIS_COLORS[i], values[i],
                     v -> onChange.accept(axis, v)).framed().dragSpeed(dragPerPixel, wheelStep));
         }
@@ -778,65 +785,29 @@ public final class RightPanel {
                 + block * 3                             // 位置・回転・大きさ
                 + sh;                                   // 均等に拡大縮小
     }
+    // ================= タブ「パーツ」 =================
 
-    // 上半分: 全体の回転と、パーツの一覧
+    // 全体の回転と、選んだパーツの調整(パーツの一覧は、左パネルにある)
     private int buildParts(NpcData d, int y) {
         Entity live = NpcManager.entityOf(id);
-        List<ModelPartTree.Node> nodes = live == null ? List.of() : ModelPartTree.of(live);
+        String selected = PartSelection.selected();
 
         // 選んでいたパーツが、このモブに無ければ、選択を外す
-        if (selectedPart != null && !selectedPart.startsWith("@")
-                && nodes.stream().noneMatch(n -> n.path().equals(selectedPart))) {
-            selectPart(null);
+        if (selected != null && !selected.startsWith("@")) {
+            List<ModelPartTree.Node> nodes = live == null ? List.of() : ModelPartTree.of(live);
+            if (nodes.stream().noneMatch(n -> n.path().equals(selected))) PartSelection.select(null);
         }
 
         y = run("rotation", yy -> sectionRotation(d, yy), y);
-        y = run("parts", yy -> sectionPartList(d, yy, nodes, live), y);
+        y = run("part", yy -> sectionPartEditor(d, yy), y);
         return y;
     }
 
-    // 全体の回転(基本タブと同じ欄を、一覧の上に置く)
+    // 全体の回転(基本タブと同じ欄)
     private int sectionRotation(NpcData d, int y) {
         label(Tr.get("cinema.ui.parts.rotation"), x, y, Theme.SECTION);
         y += headerH();
         return rotationRows(d, y);
-    }
-
-    private int sectionPartList(NpcData d, int y, List<ModelPartTree.Node> nodes, Entity live) {
-        label(Tr.get("cinema.ui.parts.list"), x, y, Theme.SECTION);
-        y += headerH();
-
-        int rowH = lay.btnH();
-        for (ModelPartTree.Node n : nodes) {
-            add(new PartRow(x, y, w, rowH, n.path(), ModelPartTree.label(n.name()), n.depth(),
-                    PartEdits.isEdited(d, n.path())));
-            y += rowH;
-        }
-        // 持っているアイテム(メイン・オフ)
-        if (live instanceof LivingEntity) {
-            for (String itemPath : new String[] {PartEdits.ITEM_MAIN, PartEdits.ITEM_OFF}) {
-                add(new PartRow(x, y, w, rowH, itemPath, ModelPartTree.label(itemPath), 0,
-                        PartEdits.isEdited(d, itemPath)));
-                y += rowH;
-            }
-        }
-        if (nodes.isEmpty()) {
-            note(Theme.fit(host.font(), Tr.get("cinema.ui.parts.empty"), w), x, y);
-            y += lay.th() + Theme.u(3);
-        }
-        y += lay.gap();
-
-        add(new ModernButton(x, y, w, lay.btnH(), Tr.get("cinema.ui.parts.reset_all"), ModernButton.Style.DEFAULT, () -> {
-            edit(id, cur -> PartEdits.reset(cur, null));
-            host.refresh();
-        }));
-        return y + lay.btnH() + lay.gap();
-    }
-
-    // パーツを選ぶ(選んだパーツが、光る)
-    private void selectPart(String path) {
-        selectedPart = path;
-        PartGlow.select(path);
     }
 
     private void setChannel(String path, PartEdits.Channel channel, double value) {
@@ -846,6 +817,89 @@ public final class RightPanel {
 
     private static double[] channelValues(NpcData d, String path, PartEdits.Channel a, PartEdits.Channel b, PartEdits.Channel c) {
         return new double[] {PartEdits.get(d, path, a), PartEdits.get(d, path, b), PartEdits.get(d, path, c)};
+    }
+
+    // 選んでいるパーツの調整(表示・位置・回転・大きさ)
+    private int sectionPartEditor(NpcData d, int y) {
+        String path = PartSelection.selected();
+        int sh = lay.sliderH();
+
+        if (path == null) {
+            label(Tr.get("cinema.ui.parts.editor"), x, y, Theme.SECTION);
+            y += headerH();
+            note(Theme.fit(host.font(), Tr.get("cinema.ui.parts.select_hint"), w), x, y);
+            return y + lay.th() + Theme.u(3);
+        }
+
+        label(ModelPartTree.label(ModelPartTree.lastName(path)), x, y, Theme.SECTION);
+        y += headerH();
+
+        // 操作のモード(本体のパーツを、画面のドラッグで動かすときの、動かし方)
+        String[] modeNames = {Tr.get("cinema.ui.parts.mode.move"), Tr.get("cinema.ui.parts.mode.rotate"),
+                Tr.get("cinema.ui.parts.mode.scale")};
+        int mw = (w - lay.gap() * 2) / 3;
+        for (int i = 0; i < 3; i++) {
+            PartGizmo.Mode mode = PartGizmo.Mode.values()[i];
+            add(new ModernButton(x + i * (mw + lay.gap()), y, mw, lay.btnH(), modeNames[i], ModernButton.Style.DEFAULT, () -> {
+                PartGizmo.mode = mode;
+                host.refresh();
+            }).setSelected(PartGizmo.mode == mode));
+        }
+        y += lay.btnH() + lay.gap();
+
+        // 表示とリセットを、1行に
+        int half = (w - lay.gap()) / 2;
+        add(new ModernCheckbox(x, y, half, sh, Tr.get("cinema.ui.parts.visible"),
+                PartEdits.get(d, path, PartEdits.Channel.VISIBLE) >= 0.5,
+                on -> setChannel(path, PartEdits.Channel.VISIBLE, on ? 1 : 0)));
+        add(new ModernButton(x + half + lay.gap(), y, w - half - lay.gap(), sh, Tr.get("cinema.ui.parts.reset"),
+                ModernButton.Style.DEFAULT, () -> {
+            edit(id, cur -> PartEdits.reset(cur, path));
+            host.refresh();
+        }));
+        y += sh + lay.gap();
+
+        // 位置のずれ(ピクセル)
+        note(Tr.get("cinema.ui.parts.position"), x, y);
+        y += lay.th() + Theme.u(2);
+        y = numberRow(y, channelValues(d, path, PartEdits.Channel.PX, PartEdits.Channel.PY, PartEdits.Channel.PZ),
+                0.1, 0.5, (axis, v) -> setChannel(path, PartEdits.Channel.position(axis), v));
+        y += lay.gap();
+
+        // 回転(足し算。度)
+        note(Tr.get("cinema.ui.parts.rotation.add"), x, y);
+        y += lay.th() + Theme.u(2);
+        y = numberRow(y, channelValues(d, path, PartEdits.Channel.RX, PartEdits.Channel.RY, PartEdits.Channel.RZ),
+                1.0, 1.0, (axis, v) -> setChannel(path, PartEdits.Channel.rotation(axis), v));
+        y += lay.gap();
+
+        // 大きさ(%)
+        note(Tr.get("cinema.ui.parts.scale"), x, y);
+        y += lay.th() + Theme.u(2);
+        y = numberRow(y, channelValues(d, path, PartEdits.Channel.SX, PartEdits.Channel.SY, PartEdits.Channel.SZ),
+                1.0, 5.0, (axis, v) -> setChannel(path, PartEdits.Channel.scale(axis), v));
+        y += lay.gap();
+
+        // 均等に拡大縮小(3つの軸を、まとめて変える)
+        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.parts.uniform"), "%", 10, 400, 1,
+                PartEdits.get(d, path, PartEdits.Channel.SX), v -> {
+            for (int axis = 0; axis < 3; axis++) setChannel(path, PartEdits.Channel.scale(axis), v);
+        }).setDefault(100));
+        y += sh + lay.gap();
+
+        // [DEV] つながりの確認(描画のフック・軸・選択・光る対象)
+        if (CinemaState.devMode) {
+            note(Theme.fit(host.font(), "hook=" + PartEdits.applied + " axes=" + PartAxes.hasData(path)
+                    + " glow=" + PartGlow.current(), w), x, y);
+            y += lay.th() + Theme.u(3);
+        }
+        return y;
+    }
+
+    // パーツを選ぶ(選んだパーツが、光る)
+    private void selectPart(String path) {
+        selectedPart = path;
+        PartGlow.select(path);
     }
 
     // 下半分(固定): 選んでいるパーツの値の設定
@@ -1119,11 +1173,6 @@ public final class RightPanel {
         public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
             if (!active || !visible || !Theme.isClick(event.button()) || !isMouseOver(event.x(), event.y())) return false;
             toggleSection(key);
-            if (key.startsWith("part:")) {
-                String path = key.substring("part:".length());
-                if (openedParts.contains(key)) PartGlow.select(path);
-                else if (path.equals(PartGlow.selected())) PartGlow.select(null);
-            }
             UiSounds.tab();
             host.refresh();
             return true;
@@ -1226,32 +1275,31 @@ public final class RightPanel {
     private final PartGizmo.Target gizmoTarget = new PartGizmo.Target() {
         @Override
         public double get(PartEdits.Channel channel) {
-            return NpcManager.get(id).map(d -> PartEdits.get(d, selectedPart, channel)).orElse(channel.def);
+            return NpcManager.get(id).map(d -> PartEdits.get(d, PartSelection.selected(), channel)).orElse(channel.def);
         }
 
         @Override
         public void set(PartEdits.Channel channel, double value) {
-            setChannel(selectedPart, channel, value);
+            setChannel(PartSelection.selected(), channel, value);
         }
     };
 
     // ドラッグできる状態か(パーツのタブで、モデルのパーツを選んでいる)
     private boolean gizmoReady() {
-        return tab == RightTab.POSE && selectedPart != null && !selectedPart.startsWith("@");
+        String selected = PartSelection.selected();
+        return tab == RightTab.POSE && selected != null && !selected.startsWith("@");
     }
 
-    // 画面が、カーソルが世界の上にあるとき、毎フレーム呼ぶ
     public void gizmoHover(double mx, double my, boolean overWorld) {
         if (!gizmoReady()) {
             PartAxes.hovered = -1;
             return;
         }
-        PartGizmo.hover(selectedPart, mx, my, overWorld);
+        PartGizmo.hover(PartSelection.selected(), mx, my, overWorld);
     }
 
-    // 世界の上を押したとき。矢印を掴めたら true
     public boolean gizmoPress(double mx, double my) {
-        return gizmoReady() && PartGizmo.press(selectedPart, mx, my);
+        return gizmoReady() && PartGizmo.press(PartSelection.selected(), mx, my);
     }
 
     public boolean gizmoDragging() {

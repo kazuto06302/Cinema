@@ -2,7 +2,11 @@ package net.kztmc.mc.cinema.ui;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
+
+import net.kztmc.mc.cinema.entity.PartGlow;
+import net.kztmc.mc.cinema.npc.NpcData;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.core.*;
 import net.kztmc.mc.cinema.ui.panel.Theme;
@@ -10,7 +14,9 @@ import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.kztmc.mc.cinema.ui.panel.confirm.ConfirmDialog;
 import net.kztmc.mc.cinema.ui.panel.left.ContextMenu;
 import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
+import net.kztmc.mc.cinema.ui.panel.left.PartsPanel;
 import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
+import net.kztmc.mc.cinema.ui.panel.right.PartGizmo;
 import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
 import net.kztmc.mc.cinema.ui.panel.world.WorldPanel;
 import net.kztmc.mc.cinema.ui.widget.*;
@@ -66,9 +72,17 @@ public class CinemaScreen extends Screen implements PanelHost {
     private final List<DockButton> dock = new ArrayList<>();              // 左側の四角のボタン(広がっていないときだけ出す)
     private DockButton minimize;                                          // 広がっているとき、右上に出す、小さくするボタン
 
-    private float panelAnim = CinemaState.leftOpen ? 1f : 0f;   // 0 = 四角、1 = 広がった状態
+    // いま描いている左パネル(閉じる動きの間も、これを描く)
+    private CinemaState.LeftView shownView = CinemaState.leftView == CinemaState.LeftView.NONE
+            ? CinemaState.LeftView.MAIN : CinemaState.leftView;
+    private float panelAnim = CinemaState.leftView == CinemaState.LeftView.NONE ? 0f : 1f;   // 0 = 四角、1 = 広がった状態
     private float animFrom, animTo = panelAnim;
     private long animStart;
+
+    private final PartsPanel parts = new PartsPanel();
+    private final List<AbstractWidget> partsWidgets = new ArrayList<>();   // パーツ一覧の中身
+    private DockButton partsDock;// 左側のパーツのボタン
+
 
     public CinemaScreen() {
         super(Component.literal("Cinema"));
@@ -146,9 +160,6 @@ public class CinemaScreen extends Screen implements PanelHost {
     public void openContextMenu(int x, int y, List<ContextMenu.Entry> entries) {
         menu.open(this.font, layout, this.width, this.height, x, y, entries);
     }
-
-    // ================= 作り直し =================
-
     @Override
     protected void init() {
         layout = Layout.of(this.width, this.height);
@@ -156,23 +167,31 @@ public class CinemaScreen extends Screen implements PanelHost {
         hasTuner = false;
         openDropdown = null;
         pressed = null;
-
         hasWorld = false;
 
-        // 左パネルの中身(あとで、まとめて隠せるように、足されたウィジェットを覚える)
+        // 左パネル(メイン)の中身: あとで、まとめて隠せるように、足されたウィジェットを覚える
         leftWidgets.clear();
         int before = children().size();
         left.build(layout, this);
-        for (int i = before; i < children().size(); i++) {
-            if (children().get(i) instanceof AbstractWidget w) leftWidgets.add(w);
-        }
+        captureWidgets(before, leftWidgets);
+
+        // 左パネル(パーツ一覧): NPC を選んでいるときだけ
+        partsWidgets.clear();
+        Optional<NpcData> selected = NpcManager.selectedData();
+        before = children().size();
+        selected.ifPresent(d -> parts.build(layout, this, d));
+        captureWidgets(before, partsWidgets);
+        if (selected.isEmpty()) dropPartsView();
+
         buildDock();
 
-        NpcManager.selectedData().ifPresentOrElse(d -> {
+        selected.ifPresentOrElse(d -> {
             hasRight = true;
             right.build(layout, this, d);
         }, () -> {
             hasWorld = true;
+            PartGlow.setActive(false);   // 光らせる・軸を出すのを、止める
+            PartGizmo.release();
             world.build(layout, this);
         });
 
@@ -183,25 +202,71 @@ public class CinemaScreen extends Screen implements PanelHost {
         updateLeftPanel();
     }
 
+    private void captureWidgets(int from, List<AbstractWidget> into) {
+        for (int i = from; i < children().size(); i++) {
+            if (children().get(i) instanceof AbstractWidget w) into.add(w);
+        }
+    }
+
+    // NPC を選んでいないときは、パーツ一覧を閉じる(パーツを開く前に開いていたパネルがあれば、それに戻す)
+    private void dropPartsView() {
+        if (CinemaState.leftView != CinemaState.LeftView.PARTS) return;
+        CinemaState.leftView = CinemaState.mainWasOpen ? CinemaState.LeftView.MAIN : CinemaState.LeftView.NONE;
+        if (CinemaState.leftView != CinemaState.LeftView.NONE) shownView = CinemaState.leftView;
+        panelAnim = CinemaState.leftView == CinemaState.LeftView.NONE ? 0f : 1f;
+        animFrom = panelAnim;
+        animTo = panelAnim;
+    }
+
     private int dockSize() {
         return Theme.u(28);
     }
+    // 左側の四角の位置(メインは一番上、パーツはその下)
+    private int[] dockRect(CinemaState.LeftView view) {
+        int s = dockSize();
+        int y = layout.panelY() + (view == CinemaState.LeftView.PARTS ? s + layout.gap() : 0);
+        return new int[] {layout.leftX(), y, s, s};
+    }
 
-    /** 左側の四角のボタン。今後、エクスポート・設定などを、ここに足す */
+    // 左側の四角のボタン。今後、エクスポート・設定などを、ここに足す
     private void buildDock() {
         dock.clear();
-        int s = dockSize();
-        int x = layout.leftX();
-        int y = layout.panelY();
+        int[] main = dockRect(CinemaState.LeftView.MAIN);
+        dock.add(add(new DockButton(main[0], main[1], main[2], DockButton.MENU, Tr.get("cinema.dock.menu"),
+                () -> setLeftView(CinemaState.LeftView.MAIN))));
 
-        dock.add(add(new DockButton(x, y, s, DockButton.MENU, "メニューを開く", () -> setLeftOpen(true))));
-        // 例: y += s + layout.gap();
-        //     dock.add(add(new DockButton(x, y, s, 〈アイコン〉, "エクスポート", () -> { ... })));
+        int[] p = dockRect(CinemaState.LeftView.PARTS);
+        partsDock = add(new DockButton(p[0], p[1], p[2], DockButton.PARTS, Tr.get("cinema.dock.parts"),
+                () -> right.showPartsTab()));   // 右のタブが「パーツ」になり、その要求で、左のパネルが開く
+        dock.add(partsDock);
 
         // 広がっているとき、左パネルの右上に出す、小さくするボタン
         int ms = Theme.u(16);
         minimize = add(new DockButton(layout.leftX() + layout.leftW() - ms - Theme.u(4), layout.panelY() + Theme.u(4),
-                ms, DockButton.MINIMIZE, "小さくする", () -> setLeftOpen(false)));
+                ms, DockButton.MINIMIZE, Tr.get("cinema.dock.minimize"), () -> setLeftView(CinemaState.LeftView.NONE)));
+    }
+
+    // 左パネルを切り替える(NONE で、まとめる)。別のパネルが開いていたら、それは、すぐ閉じる
+    private void setLeftView(CinemaState.LeftView view) {
+        if (CinemaState.leftView == view) return;
+        CinemaState.leftView = view;
+        menu.close();
+        if (openDropdown != null) openDropdown.close();
+        openDropdown = null;
+        setFocused(null);
+
+        if (view == CinemaState.LeftView.NONE) {
+            animFrom = panelAnim;   // いま開いているものを、四角へ縮める
+            animTo = 0f;
+            UiSounds.tab();
+        } else {
+            shownView = view;
+            panelAnim = 0f;         // 前のパネルは、すぐ消えて、新しいものが、四角から広がる
+            animFrom = 0f;
+            animTo = 1f;
+            UiSounds.open();
+        }
+        animStart = System.currentTimeMillis();
     }
 
     /** 広げる/まとめる。アニメーションを始める */
@@ -218,45 +283,79 @@ public class CinemaScreen extends Screen implements PanelHost {
         if (open) UiSounds.open();
         else UiSounds.tab();
     }
-
-    /** アニメーションを進めて、広がり具合に合わせて、ウィジェットの表示を切り替える */
+    // アニメーションを進めて、広がり具合に合わせて、ウィジェットの表示を切り替える
     private void updateLeftPanel() {
-        float target = animTo;
-        if (panelAnim != target) {
+        // 右パネルからの切り替えの要求(パーツのタブを開いた・閉じた)
+        CinemaState.LeftView request = CinemaState.leftRequest;
+        if (request != null) {
+            CinemaState.leftRequest = null;
+            if (request != CinemaState.LeftView.PARTS || NpcManager.selectedData().isPresent()) setLeftView(request);
+        }
+
+        if (panelAnim != animTo) {
             float t = (System.currentTimeMillis() - animStart) / (float) PANEL_MS;
             if (t >= 1f) {
-                panelAnim = target;
+                panelAnim = animTo;
             } else {
                 float inv = 1f - Math.max(0f, t);
-                panelAnim = animFrom + (target - animFrom) * (1f - inv * inv * inv);   // ゆっくり止まる動き
+                panelAnim = animFrom + (animTo - animFrom) * (1f - inv * inv * inv);   // ゆっくり止まる動き
             }
         }
         boolean open = panelAnim >= 0.999f;
-        boolean closed = panelAnim <= 0.001f;
+        boolean closed = panelAnim <= 0.001f && animTo == 0f;
+        boolean main = open && shownView == CinemaState.LeftView.MAIN;
+        boolean partsShown = open && shownView == CinemaState.LeftView.PARTS;
+
         for (AbstractWidget w : leftWidgets) {
-            w.visible = open;
-            w.active = open;
+            w.visible = main;
+            w.active = main;
+        }
+        for (AbstractWidget w : partsWidgets) {
+            w.visible = partsShown;
+            w.active = partsShown;
         }
         for (DockButton b : dock) {
-            b.visible = closed;
-            b.active = closed;
+            boolean show = closed && (b != partsDock || hasRight);   // パーツのボタンは、NPC を選んでいるときだけ
+            b.visible = show;
+            b.active = show;
         }
         if (minimize != null) {
             minimize.visible = open;
             minimize.active = open;
         }
     }
+    // 広がっている途中の、左パネルの大きさ { x, y, w, h }(四角のボタンの位置から、パネル全体へ)
+    private int[] leftRect() {
+        int[] from = dockRect(shownView);
+        return new int[] {
+                Math.round(Mth.lerp(panelAnim, from[0], layout.leftX())),
+                Math.round(Mth.lerp(panelAnim, from[1], layout.panelY())),
+                Math.round(Mth.lerp(panelAnim, from[2], layout.leftW())),
+                Math.round(Mth.lerp(panelAnim, from[3], layout.panelH()))};
+    }
 
-    /** 左パネルの背景。広がりきっていないときは、四角から広がる途中の大きさで描く */
+    // 左パネルの背景。広がりきっていないときは、四角から広がる途中の大きさで描く
     private void drawLeftBackground(GuiGraphicsExtractor g) {
         if (panelAnim >= 0.999f) {
-            left.extractBackground(g);   // パネルと、「CINEMA」などの文字
+            if (shownView == CinemaState.LeftView.PARTS) parts.extractBackground(g);
+            else left.extractBackground(g);   // パネルと、「CINEMA」などの文字
             return;
         }
-        int s = dockSize();
-        int w = Math.round(Mth.lerp(panelAnim, s, layout.leftW()));
-        int h = Math.round(Mth.lerp(panelAnim, s, layout.panelH()));
-        Theme.panel(g, layout.leftX(), layout.panelY(), w, h);
+        if (panelAnim <= 0.001f && animTo == 0f) {   // まとめた状態: 四角のボタンの背景
+            int[] m = dockRect(CinemaState.LeftView.MAIN);
+            Theme.panel(g, m[0], m[1], m[2], m[3]);
+            if (hasRight) {
+                int[] p = dockRect(CinemaState.LeftView.PARTS);
+                Theme.panel(g, p[0], p[1], p[2], p[3]);
+            }
+            return;
+        }
+        int[] r = leftRect();
+        Theme.panel(g, r[0], r[1], r[2], r[3]);
+    }
+
+    private static boolean inside(double mx, double my, int[] r) {
+        return mx >= r[0] && mx < r[0] + r[2] && my >= r[1] && my < r[1] + r[3];
     }
 
     // ================= マウス・キー =================
@@ -424,6 +523,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         if (pendingRefresh) {
             pendingRefresh = false;
             left.saveScroll();
+            parts.saveScroll();
             rebuildWidgets();
         }
 
@@ -513,10 +613,12 @@ public class CinemaScreen extends Screen implements PanelHost {
 
     // 左パネル(または、まとめた四角)の上か
     private boolean overLeftPanel(double mx, double my) {
-        int s = dockSize();
-        int w = Math.round(Mth.lerp(panelAnim, s, layout.leftW()));
-        int h = Math.round(Mth.lerp(panelAnim, s, layout.panelH()));
-        return mx >= layout.leftX() && mx < layout.leftX() + w && my >= layout.panelY() && my < layout.panelY() + h;
+        if (panelAnim <= 0.001f && animTo == 0f) {
+            int[] m = dockRect(CinemaState.LeftView.MAIN);
+            if (inside(mx, my, m)) return true;
+            return hasRight && inside(mx, my, dockRect(CinemaState.LeftView.PARTS));
+        }
+        return inside(mx, my, leftRect());
     }
 
     // パネル(左・右・戻るボタン)の外で、世界が見えている所か
