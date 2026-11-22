@@ -376,54 +376,52 @@ public class CinemaScreen extends Screen implements PanelHost {
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
         if (isSliding()) return true;
-        // 確認ダイアログの表示中は、ほかを操作できない
         if (confirm.isOpen()) return confirm.mouseClicked(event);
 
-        // 右クリックのメニュー(中のクリックは、ここで受ける。外のクリックは、閉じて、そのまま下へ通す)
-        if (menu.isOpen() && menu.mouseClicked(event)) return true;
+        boolean blocked = blockScrollItems(event.x(), event.y());
+        try{
+            // 右クリックのメニュー(中のクリックは、ここで受ける。外のクリックは、閉じて、そのまま下へ通す)
+            if (menu.isOpen() && menu.mouseClicked(event)) return true;
 
-        // NPCリストの上の右クリック: メニューを開く
-        if (Theme.isRightClick(event.button()) && left.rightClick(event)) return true;
+            // NPCリストの上の右クリック: メニューを開く
+            if (Theme.isRightClick(event.button()) && left.rightClick(event)) return true;
 
-        // 入力中の数値欄の外をクリックしたら、確定する
-        ModernNumberField editing = editingField();
-        if (editing != null && !editing.isMouseOver(event.x(), event.y())) {
-            editing.commitEditing();
-        }
-
-        // 開いているドロップダウンの選択肢が、他のウィジェットより先にクリックを受ける
-        if (openDropdown != null && openDropdown.isOpen()) {
-            if (openDropdown.popupClicked(event)) {
-                openDropdown = null;
-                return true;
+            // 入力中の数値欄の外をクリックしたら、確定する
+            ModernNumberField editing = editingField();
+            if (editing != null && !editing.isMouseOver(event.x(), event.y())) {
+                editing.commitEditing();
             }
-            if (!openDropdown.isMouseOver(event.x(), event.y())) {
-                openDropdown.close();   // 外をクリックしたら閉じる(ボタン自身のクリックは、ボタンが開閉する)
-                openDropdown = null;
+
+            // 開いているドロップダウンの選択肢が、他のウィジェットより先にクリックを受ける
+            if (openDropdown != null && openDropdown.isOpen()) {
+                if (openDropdown.popupClicked(event)) {
+                    openDropdown = null;
+                    return true;
+                }
+                if (!openDropdown.isMouseOver(event.x(), event.y())) {
+                    openDropdown.close();   // 外をクリックしたら閉じる(ボタン自身のクリックは、ボタンが開閉する)
+                    openDropdown = null;
+                }
             }
-        }
 
-        // 通常。ドラッグできるウィジェット(数値欄・スクロールバー)を押したら、覚えておく
-        boolean handled = super.mouseClicked(event, doubleClick);
-        pressed = null;
+            // 通常。ドラッグできるウィジェット(数値欄・スクロールバー)を押したら、覚えておく
+            boolean handled = super.mouseClicked(event, doubleClick);
+            pressed = null;
 
-        // 3軸
-        if (hasRight && event.button() == 0 && overWorld(event.x(), event.y())
-                && right.gizmoPress(event.x(), event.y())) {
-            return true;
-        }
+            // 3軸
+            if (hasRight && event.button() == 0 && overWorld(event.x(), event.y()) && right.gizmoPress(event.x(), event.y())) return true;
+            if (handled && Theme.isClick(event.button())) {
+                getChildAt(event.x(), event.y()).ifPresent(child -> {
+                    if (child instanceof Draggable draggable) pressed = draggable;
+                });
+            }
+            // 右パネルの、項目のない所を押した: そこからのドラッグで、パネルをスクロールする
+            if (!handled && Theme.isClick(event.button()) && hasRight && right.beginDragScroll(event.x(), event.y())) return true;
 
-        if (handled && Theme.isClick(event.button())) {
-            getChildAt(event.x(), event.y()).ifPresent(child -> {
-                if (child instanceof Draggable draggable) pressed = draggable;
-            });
+            return handled;
+        } finally {
+            if (blocked) right.setScrollItemsActive(true);
         }
-
-        // 右パネルの、項目のない所を押した: そこからのドラッグで、パネルをスクロールする
-        if (!handled && Theme.isClick(event.button()) && hasRight && right.beginDragScroll(event.x(), event.y())) {
-            return true;
-        }
-        return handled;
     }
 
     /** この環境では、ドラッグの標準処理にボタン番号が合わないことがあるので、押したウィジェットへ直接届ける */
@@ -544,6 +542,7 @@ public class CinemaScreen extends Screen implements PanelHost {
 
         drawLeftBackground(g);
         if (hasRight) right.extractBackground(g);
+        if (hasRight) right.extractScrollItems(g, mx, my, delta);
         if (hasTuner) tuner.extractBackground(g);
         if (hasWorld) world.extractBackground(g);
         super.extractRenderState(g, mx, my, delta);
@@ -569,6 +568,7 @@ public class CinemaScreen extends Screen implements PanelHost {
             drawLeftBackground(g);
         } else {
             if (hasRight) right.extractBackground(g);
+            if (hasRight) right.extractScrollItems(g, -1, -1, delta);
             if (hasWorld) world.extractBackground(g);
         }
         super.extractRenderState(g, -1, -1, delta);   // 動いている間は、ホバーの表示を止める
@@ -606,6 +606,14 @@ public class CinemaScreen extends Screen implements PanelHost {
         return 1f - inv * inv * inv;
     }
 
+    // スクロールの表示範囲の外(上のタブの行・下の余白)を押したときは、スクロールする部品を、押せなくする。
+    // 戻り値が true なら、呼び出し側が、終わったあとに、元に戻す
+    private boolean blockScrollItems(double mx, double my) {
+        if (!hasRight || !right.outsideScrollBand(mx, my)) return false;
+        right.setScrollItemsActive(false);
+        return true;
+    }
+
     private boolean isSliding() {
         return !hasTuner && slideProgress() < 1f;
     }
@@ -624,5 +632,11 @@ public class CinemaScreen extends Screen implements PanelHost {
     private boolean overWorld(double mx, double my) {
         if (overLeftPanel(mx, my)) return false;
         return !(hasRight && right.contains(mx, my));
+    }
+
+    @Override
+    public <T extends AbstractWidget> T addChild(T widget) {
+        addWidget(widget);   // 入力の対象にだけ入れる(描画の一覧には入れない)
+        return widget;
     }
 }

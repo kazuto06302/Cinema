@@ -6,7 +6,6 @@ import java.util.function.UnaryOperator;
 import net.kztmc.mc.cinema.Cinema;
 import net.kztmc.mc.cinema.entity.*;
 import net.kztmc.mc.cinema.npc.*;
-import net.kztmc.mc.cinema.entity.profile.AnimationModeProfile;
 import net.kztmc.mc.cinema.ui.core.*;
 import net.kztmc.mc.cinema.ui.panel.PartSelection;
 import net.kztmc.mc.cinema.ui.panel.Theme;
@@ -242,9 +241,9 @@ public final class RightPanel {
         return fixedMode ? fixedLabels : scrollLabels;
     }
 
-    // スクロールする部品として登録して、追加する
+    // スクロールする部品として登録して、追加する(描画は、extractScrollItems が、切り取りながら行う)
     private <T extends AbstractWidget> T add(T widget) {
-        host.add(widget);
+        host.addChild(widget);
         items.add(new Item(widget, widget.getY()));
         return widget;
     }
@@ -275,7 +274,6 @@ public final class RightPanel {
         y = run("pose", yy -> sectionPose(d, yy), y);
         y = run("animation", yy -> sectionAnimation(d, yy), y);
         y = run("equipment", yy -> sectionEquipment(d, yy), y);
-        y = run("dev", yy -> sectionDev(d, yy), y);
         return y;
     }
 
@@ -618,11 +616,13 @@ public final class RightPanel {
         int ch = Math.max(Theme.u(26), 26);
         ItemStack stack = EquipmentEdit.stackOf(d, EquipmentSlot.MAINHAND);
 
+        UUID npcId = d.id();
         ItemButton slot = new ItemButton(x + (w - cw) / 2, y, cw, ch, stack,
                 EquipmentEdit.ghostOf(EquipmentSlot.MAINHAND), b -> {
+            ItemStack current = currentStack(npcId, EquipmentSlot.MAINHAND);   // クリック時点の最新の装備
             if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
-                if (!stack.isEmpty()) {
-                    EquipmentEdit.set(id, EquipmentSlot.MAINHAND, ItemStack.EMPTY);
+                if (!current.isEmpty()) {
+                    EquipmentEdit.set(npcId, EquipmentSlot.MAINHAND, ItemStack.EMPTY);
                     host.refresh();
                 }
                 return;
@@ -654,28 +654,29 @@ public final class RightPanel {
     }
 
     private void addSlotButton(NpcData d, EquipmentSlot slot, int bx, int by, int bw, int bh, boolean animalGear) {
-        ItemStack stack = EquipmentEdit.stackOf(d, slot);
+        UUID npcId = d.id();
+        ItemStack stack = EquipmentEdit.stackOf(d, slot);   // 表示用(ツールチップ)。クリックでは、最新を取り直す
         String slotName = EquipmentEdit.label(slot, animalGear);
         ItemButton button = new ItemButton(bx, by, bw, bh, stack, EquipmentEdit.ghostOf(slot), b -> {
+            ItemStack current = currentStack(npcId, slot);
             if (Modifiers.shift()) {   // Shift+クリック(左右とも): 外す
-                if (!stack.isEmpty()) {
-                    EquipmentEdit.set(id, slot, ItemStack.EMPTY);
+                if (!current.isEmpty()) {
+                    EquipmentEdit.set(npcId, slot, ItemStack.EMPTY);
                     host.refresh();
                 }
                 return;
             }
             if (b == 0) {   // 左クリック: インベントリを開く
                 openInventory();
-            } else if (stack.isEmpty()) {   // 右クリック: 装飾(空のときは、できない)
+            } else if (current.isEmpty()) {   // 右クリック: 装飾(空のときは、できない)
                 say(slotName + "は空です(左クリックでインベントリを開けます)");
             } else {
                 Minecraft.getInstance().gui.setScreen(new EquipmentMenuScreen(host.screen(), slotName,
-                        () -> NpcManager.get(id).map(cur -> EquipmentEdit.stackOf(cur, slot)).orElse(ItemStack.EMPTY),
-                        s -> EquipmentEdit.set(id, slot, s)));
+                        () -> currentStack(npcId, slot),
+                        s -> EquipmentEdit.set(npcId, slot, s)));
             }
         });
-        button.tip(stack.isEmpty() ? slotName + "(左クリック: インベントリ)"
-                : slotName + ": " + stack.getHoverName().getString() + "(右: 装飾 / Shift: 外す)");
+        button.tip(stack.isEmpty() ? slotName + "(左クリック: インベントリ)" : slotName + ": " + stack.getHoverName().getString() + "(右: 装飾 / Shift: 外す)");
         add(button);
     }
 
@@ -683,25 +684,6 @@ public final class RightPanel {
         status = text;
         statusUntil = System.currentTimeMillis() + 3000;
         UiSounds.deny();
-    }
-
-    // ---- [DEV] 動作の長さの調整(AnimationState を使うモブ) ----
-    private int sectionDev(NpcData d, int y) {
-        if (!CinemaState.devMode || !(EntityProfiles.of(d.entityType()) instanceof AnimationModeProfile moded)) return y;
-        int modeIdx = d.option(moded.optionKey(), 0);
-        if (!moded.hasField(modeIdx)) return y;
-
-        add(new ModernSlider(x, y, w, lay.sliderH(), "[DEV] 動作の長さ", "秒", 0.0, 12.0, 0.05,
-                moded.secondsOf(modeIdx), v -> {
-            moded.setSeconds(modeIdx, (float) v);
-            edit(id, cur -> cur);   // 新しい長さで反映し直す
-        }));
-        y += lay.sliderH();
-        add(new ModernButton(x, y, w, lay.btnH(), "長さをコピー", ModernButton.Style.DEFAULT, () -> {
-            Minecraft.getInstance().keyboardHandler.setClipboard(moded.secondsLine());
-            Cinema.LOGGER.info("[Cinema] {} seconds -> {}", d.entityType(), moded.secondsLine());
-        }));
-        return y + lay.btnH() + lay.gap();
     }
 
     // ---- プレイヤーのネームタグ・ケープの文字(プレイヤーだけ) ----
@@ -891,11 +873,11 @@ public final class RightPanel {
         for (Item it : items) {
             AbstractWidget widget = it.widget;
             widget.setY(it.baseY - scroll);
-            // 中身の領域に、完全に収まっているものだけを、表示して操作できるようにする(畳んだ中身は、常に隠す)
-            boolean inside = !it.hidden
-                    && widget.getY() >= contentTop && widget.getY() + widget.getHeight() <= contentBottom;
-            widget.visible = inside;
-            widget.active = inside;
+            // 表示範囲に、少しでも掛かっていれば表示する(はみ出した部分は、描くときに切り取る)。畳んだ中身は、常に隠す
+            boolean overlaps = widget.getY() + widget.getHeight() > contentTop && widget.getY() < contentBottom;
+            boolean show = !it.hidden && overlaps;
+            widget.visible = show;
+            widget.active = show;
         }
     }
     private void setScroll(int value) {
@@ -936,6 +918,24 @@ public final class RightPanel {
         dragScrolling = false;
     }
 
+    // スクロールする部品を、表示範囲で切り取って描く(範囲の外にはみ出した部分は、見えない)
+    public void extractScrollItems(GuiGraphicsExtractor g, int mx, int my, float delta) {
+        // 範囲の外に、カーソルがあるときは、ホバーの表示を出さない
+        int hoverY = my >= contentTop && my < contentBottom ? my : -10000;
+        g.enableScissor(lay.rightX(), contentTop, lay.rightX() + lay.panelW(), contentBottom);
+        for (Item it : items) {
+            if (it.widget.visible) it.widget.extractRenderState(g, mx, hoverY, delta);
+        }
+        g.disableScissor();
+    }
+    // スクロールの表示範囲の外(上のタブの行・下の余白)か(パネルの中で)
+    public boolean outsideScrollBand(double mx, double my) {
+        return contains(mx, my) && (my < contentTop || my >= contentBottom);
+    }
+    // スクロールする部品の、押せる・押せないを、まとめて切り替える
+    public void setScrollItemsActive(boolean on) {
+        for (Item it : items) it.widget.active = on && it.widget.visible;
+    }
 
     // ==描画==
     // 右端のスクロールバー(つまみをドラッグできる)
@@ -1085,21 +1085,21 @@ public final class RightPanel {
             Theme.roundRect(g, baseX - Theme.u(3), editorTop, baseW + Theme.u(6), panelBottom - editorTop, Theme.SECTION_CARD);
         }
 
-        boolean parts = tab == RightTab.POSE;
-        int padV = parts ? Theme.u(4) : Theme.u(2);
-        int padH = parts ? Theme.u(5) : Theme.u(3);
-        int extraBottom = parts ? Theme.u(2) : 0;
+        int padV = Theme.u(2);
+        int padH = Theme.u(3);
         g.enableScissor(lay.rightX(), contentTop, lay.rightX() + lay.panelW(), contentBottom);
         for (int[] span : sectionSpans) {
             int top = span[0] - scroll - padV;
-            int bottom = span[1] - scroll + extraBottom;
+            int bottom = span[1] - scroll;
             Theme.roundRect(g, baseX - padH, top, baseW + padH * 2, bottom - top, Theme.SECTION_CARD);
         }
         g.disableScissor();
 
+        // スクロールするラベル(表示範囲で切り取る)
+        g.enableScissor(lay.rightX(), contentTop, lay.rightX() + lay.panelW(), contentBottom);
         for (Label l : scrollLabels) {
             int ly = l.y() - scroll;
-            if (ly < contentTop || ly + lay.th() > contentBottom) continue;
+            if (ly + lay.th() * 2 < contentTop || ly > contentBottom) continue;   // 完全に外のものだけ、省く
             if (l.heading()) {
                 // 畳めない見出し(同じセクションの2つ目以降): 大きめの文字と、右の線
                 Theme.heading(g, host.font(), l.text(), l.x(), ly, l.color());
@@ -1114,15 +1114,17 @@ public final class RightPanel {
             }
         }
         if (tab == RightTab.MAIN && System.currentTimeMillis() < statusUntil) {
-            int sy = statusY - scroll;
-            if (sy >= contentTop && sy + lay.th() <= contentBottom) {
-                Theme.text(g, host.font(), Theme.fit(host.font(), status, w), x, sy, 0xFFE5A04B);
-            }
+            Theme.text(g, host.font(), Theme.fit(host.font(), status, w), x, statusY - scroll, 0xFFE5A04B);
         }
+        g.disableScissor();
+    }
+
+    // 最新の装備を取得する(クリックの時点で、データが変わっていても、安全なように)
+    private static ItemStack currentStack(UUID npcId, EquipmentSlot slot) {
+        return NpcManager.get(npcId).map(cur -> EquipmentEdit.stackOf(cur, slot)).orElse(ItemStack.EMPTY);
     }
 
     // ---- 本体のパーツを、画面のドラッグで動かす ----
-
     private final PartGizmo.Target gizmoTarget = new PartGizmo.Target() {
         @Override
         public double get(PartEdits.Channel channel) {
@@ -1134,13 +1136,10 @@ public final class RightPanel {
             setChannel(PartSelection.selected(), channel, value);
         }
     };
-
-    // ドラッグできる状態か(パーツのタブで、モデルのパーツを選んでいる)
     private boolean gizmoReady() {
         String selected = PartSelection.selected();
         return tab == RightTab.POSE && selected != null && !selected.startsWith("@");
     }
-
     public void gizmoHover(double mx, double my, boolean overWorld) {
         if (!gizmoReady()) {
             PartAxes.hovered = -1;
@@ -1148,25 +1147,19 @@ public final class RightPanel {
         }
         PartGizmo.hover(PartSelection.selected(), mx, my, overWorld);
     }
-
     public boolean gizmoPress(double mx, double my) {
         return gizmoReady() && PartGizmo.press(PartSelection.selected(), mx, my);
     }
-
     public boolean gizmoDragging() {
         return PartGizmo.dragging();
     }
-
     public void gizmoDrag(double dx, double dy) {
         PartGizmo.drag(dx, dy, gizmoTarget);
     }
-
-    // 離したとき: 下半分の数値欄を、新しい値にする
     public void gizmoRelease() {
         PartGizmo.release();
         host.refresh();
     }
-
     public void gizmoOverlay(GuiGraphicsExtractor g, int mx, int my) {
         PartGizmo.drawOverlay(g, host.font(), mx, my);
     }

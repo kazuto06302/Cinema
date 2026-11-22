@@ -7,6 +7,9 @@ import net.minecraft.client.gui.components.AbstractWidget;
 import net.minecraft.client.gui.components.events.GuiEventListener;
 import net.minecraft.client.gui.screens.Screen;
 
+import java.util.List;
+import java.util.UUID;
+
 /** 各パネル(左・右・下)が、画面(CinemaScreen)に頼む機能。 */
 public interface PanelHost {
     /** ウィジェットを、画面に追加する */
@@ -27,8 +30,11 @@ public interface PanelHost {
     Screen screen();
 
     /** NPCを削除する(確認のダイアログを、画面の中央に出して、「削除」を押したときだけ削除する) */
-    void confirmDelete(java.util.UUID id);
+    void confirmDelete(UUID id);
 
     /** 右クリックのメニューを、その位置に開く */
-    void openContextMenu(int x, int y, java.util.List<ContextMenu.Entry> entries);
+    void openContextMenu(int x, int y, List<ContextMenu.Entry> entries);
+
+    // 描画は、呼び出し側がする部品を追加する(入力だけ、画面が受け持つ)
+    <T extends AbstractWidget> T addChild(T widget);
 }
