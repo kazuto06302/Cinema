@@ -3,8 +3,9 @@
   "cinema.pause.open": "Open Cinema",
   "cinema.item.wand": "Cinema Wand",
   "cinema.ui.delete": "Delete",
+  "cinema.ui.cancel": "Cancel",
 
-  "cinema.ui.confirm.delete": "Do you want to delete %s?",
+  "cinema.ui.confirm.delete": "Do you want to delete '%s?'",
 
   "cinema.ui.right.basic": "Basic",
   "cinema.ui.right.parts": "Parts",
@@ -20,6 +21,8 @@
   "cinema.ui.right.damage": "\uD83D\uDDE1 Damage",
 
   "cinema.ui.right.modifier": "Modifier",
+  "cinema.ui.right.state": "State",
+  "cinema.ui.right.entityoption": "EntityOption",
   "cinema.ui.right.pose": "Pose",
   "cinema.ui.right.model": "Model",
   "cinema.ui.right.model.auto": "Auto",

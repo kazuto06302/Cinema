@@ -3,8 +3,9 @@
   "cinema.pause.open": "Cinemaを開く",
   "cinema.item.wand": "Cinemaワンド",
   "cinema.ui.delete": "削除",
+  "cinema.ui.cancel": "キャンセル",
 
-  "cinema.ui.confirm.delete": "%sを削除しますか?",
+  "cinema.ui.confirm.delete": "'%s'を削除しますか?",
 
   "cinema.ui.right.basic": "基本",
   "cinema.ui.right.parts": "パーツ",
@@ -20,6 +21,8 @@
   "cinema.ui.right.damage": "\uD83D\uDDE1 ダメージ",
 
   "cinema.ui.right.modifier": "状態",
+  "cinema.ui.right.state": "特性",
+  "cinema.ui.right.entityoption": "個別設定",
   "cinema.ui.right.pose": "ポーズ",
   "cinema.ui.right.model": "モデル",
   "cinema.ui.right.model.auto": "自動",

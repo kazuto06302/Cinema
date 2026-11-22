@@ -20,6 +20,7 @@ public final class Theme {
     public static final int ACCENT_DIM = 0xFF2C5BA6;
     public static final int TEXT = 0xFFE8ECF4;
     public static final int TEXT_DIM = 0xFF8D95A8;
+    public static final int TEXT_NOTE = 0xFF8397B9;
     public static final int DANGER = 0xE6E5575F;
     public static final int DANGER_DIM = 0xE63A1D23;
     public static final int GHOST_HOVER = 0x00232938; // alpha 0 から補間して出す

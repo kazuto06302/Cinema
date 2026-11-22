@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import net.kztmc.mc.cinema.ui.core.Layout;
+import net.kztmc.mc.cinema.ui.core.Tr;
 import net.kztmc.mc.cinema.ui.widget.ModernButton;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
@@ -55,7 +56,7 @@ public final class ConfirmDialog {
         int bw = (w - pad * 2 - lay.gap()) / 2;
         int by = y + h - pad - lay.btnH();
         confirmButton = new ModernButton(x + pad, by, bw, lay.btnH(), confirmLabel, ModernButton.Style.DANGER, this::confirm);
-        cancelButton = new ModernButton(x + pad + bw + lay.gap(), by, bw, lay.btnH(), "キャンセル",
+        cancelButton = new ModernButton(x + pad + bw + lay.gap(), by, bw, lay.btnH(), Tr.get("cinema.ui.cancel"),
                 ModernButton.Style.DEFAULT, this::close);
         open = true;
         UiSounds.open();

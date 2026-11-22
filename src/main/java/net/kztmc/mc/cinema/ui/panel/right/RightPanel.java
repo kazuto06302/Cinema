@@ -259,7 +259,7 @@ public final class RightPanel {
     }
 
     private void note(String text, int lx, int ly) {
-        scrollLabels.add(new Label(text, lx, ly, Theme.TEXT_DIM));
+        scrollLabels.add(new Label(text, lx, ly, Theme.TEXT_NOTE));
     }
 
     private static void edit(UUID id, UnaryOperator<NpcData> fn) {
@@ -383,6 +383,10 @@ public final class RightPanel {
         y += lay.th() + Theme.u(3);
 
         // 状態(縦に並べる)
+        if(!flags.isEmpty()){
+            note(Tr.get("cinema.ui.right.state"), x, y);
+            y += lay.th();
+        }
         for (String[] flag : flags) {
             String key = flag[0];
             add(new ModernCheckbox(x, y, w, lay.sliderH(), flag[1], d.option(key, 0) == 1,
@@ -392,6 +396,11 @@ public final class RightPanel {
 
         // エンティティ固有の設定(色・種類など。プロフィールが宣言したものだけ)
         int sh = lay.sliderH();
+        if (!specs.isEmpty()) {
+            y += Theme.u(2);
+            note(Tr.get("cinema.ui.right.entityoption"), x, y);
+            y += lay.th();
+        }
         for (EntityOption spec : specs) {
             if (spec.kind() == EntityOption.Kind.CHECKBOX) {
                 add(new ModernCheckbox(x, y, w, sh, spec.label(), d.option(spec.key(), spec.def()) == 1,
@@ -503,32 +512,6 @@ public final class RightPanel {
                     d.option(EntityMotion.SWING, legacy),
                     v -> edit(id, cur -> cur.withOption(EntityMotion.SWING, (int) v))).setDefault(0));
             y += sh;
-        }
-
-        // [DEV] キーフレーム歩行の、周期と強さの調整
-        if (CinemaState.devMode && showWalk) {
-            EntityProfile walker = EntityProfiles.of(d.entityType());
-            if (walker.walkCyclePosition() > 0f) {
-                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行周期", "秒", 0.2, 6.0, 0.05,
-                        walker.walkCycleSeconds(), v -> {
-                    walker.setWalkCycleSeconds((float) v);
-                    edit(id, cur -> cur);   // 歩行を、新しい周期で反映し直す
-                }));
-                y += sh;
-                add(new ModernSlider(x, y, w, sh, "[DEV] 歩行の強さ", "", 0.05, 1.0, 0.05,
-                        walker.walkKeyframeIntensity(), v -> {
-                    walker.setWalkKeyframeIntensity((float) v);
-                    edit(id, cur -> cur);
-                }));
-                y += sh;
-                add(new ModernButton(x, y, w, lay.btnH(), "周期をコピー", ModernButton.Style.DEFAULT, () -> {
-                    String line = String.format(Locale.ROOT, "walkKeyframe(%.2ff, %.1ff, %.2ff);",
-                            walker.walkCycleSeconds(), walker.walkMaxAnimationSpeed(), walker.walkKeyframeIntensity());
-                    Minecraft.getInstance().keyboardHandler.setClipboard(line);
-                    Cinema.LOGGER.info("[Cinema] {} -> {}", d.entityType(), line);
-                }));
-                y += lay.btnH() + lay.gap();
-            }
         }
         return y + lay.gap();
     }

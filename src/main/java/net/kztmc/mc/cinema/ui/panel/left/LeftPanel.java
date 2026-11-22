@@ -9,6 +9,7 @@ import net.kztmc.mc.cinema.npc.PlayerHistory;
 import net.kztmc.mc.cinema.ui.core.CinemaState;
 import net.kztmc.mc.cinema.ui.core.Layout;
 import net.kztmc.mc.cinema.ui.core.PanelHost;
+import net.kztmc.mc.cinema.ui.core.Tr;
 import net.kztmc.mc.cinema.ui.npc.MobCatalog;
 import net.kztmc.mc.cinema.ui.npc.MobIcons;
 import net.kztmc.mc.cinema.ui.panel.Theme;
@@ -266,7 +267,7 @@ public final class LeftPanel {
                     NpcManager.duplicate(id);
                     host.refresh();
                 }, false),
-                new ContextMenu.Entry("削除", () -> host.confirmDelete(id), true)));
+                new ContextMenu.Entry(Tr.get("cinema.ui.delete"), () -> host.confirmDelete(id), true)));
         return true;
     }
 }
