@@ -51,32 +51,24 @@ public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
     @Override
     protected void slotClicked(Slot slot, int slotId, int mouseButton, ContainerInput type) {
         if (slot == null) return;
-
         // シフトクリックは、アイテム一覧・ホットバー・ゴミ箱を含めてすべて禁止
         if (type == ContainerInput.QUICK_MOVE) return;
 
         if (slot.container instanceof Inventory) {
             // ホットバーからは移動ではなく、アイテム一覧と同じようにコピーする
-            if (slot.getSlotIndex() < HOTBAR_SIZE
-                    && (type == ContainerInput.PICKUP || type == ContainerInput.CLONE)) {
+            if (slot.index < HOTBAR_SIZE && (type == ContainerInput.PICKUP || type == ContainerInput.CLONE)) {
                 ItemStack source = slot.getItem();
                 if (!source.isEmpty()) {
                     ItemStack copy = source.copy();
-                    int count = type == ContainerInput.PICKUP && mouseButton == 1
-                            ? 1
-                            : copy.getMaxStackSize();
+                    int count = type == ContainerInput.PICKUP && mouseButton == 1 ? 1 : copy.getMaxStackSize();
                     copy.setCount(Math.min(count, copy.getMaxStackSize()));
                     this.getMenu().setCarried(copy);
                 }
             }
-
-            // プレイヤーの実際のインベントリには一切書き込まない
             return;
         }
-
         // アイテム一覧からの取得・複製だけ許可
         if (type != ContainerInput.PICKUP && type != ContainerInput.CLONE) return;
-
         super.slotClicked(slot, slotId, mouseButton, type);
     }
 
