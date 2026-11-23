@@ -17,8 +17,6 @@ import net.minecraft.util.Mth;
 
 /** カード型のグリッドリスト。各カードは「画像+名前」。縦スクロール対応。 */
 public class ModernCardGrid<T> extends AbstractWidget {
-    private static final int CARD_BG = 0xFF1F2430;
-
     /** カードの画像を描く。x, y から size 四方に描くこと */
     public interface IconPainter<T> {
         void paint(GuiGraphicsExtractor g, T item, int x, int y, int size);
@@ -139,7 +137,7 @@ public class ModernCardGrid<T> extends AbstractWidget {
             boolean hov = inside && mx >= cx && mx < cx + cw && my >= cy && my < cy + ch;
 
             boolean hl = highlight.test(item);
-            Theme.roundRect(g, cx, cy, cw, ch, (hov || hl) ? Theme.SURFACE_HOVER : CARD_BG);
+            Theme.roundRect(g, cx, cy, cw, ch, (hov || hl) ? Theme.SURFACE_HOVER : Theme.CARD);
             if (hov || hl) g.outline(cx, cy, cw, ch, Theme.ACCENT);
 
             painter.paint(g, item, cx + (cw - icon) / 2, cy + gap, icon);

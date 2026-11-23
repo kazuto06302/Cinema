@@ -22,7 +22,6 @@ public final class ConfirmDialog {
     /** 後ろの画面を暗くする色 */
     private static final int DIM = 0x66000000;
     /** パネルの背景(後ろが透けないよう、ほぼ不透明) */
-    private static final int BACKGROUND = 0xF20F1218;
 
     private boolean open;
     private Font font;
@@ -72,7 +71,7 @@ public final class ConfirmDialog {
     public void extract(GuiGraphicsExtractor g, int screenW, int screenH, int mouseX, int mouseY, float delta) {
         if (!open) return;
         g.fill(0, 0, screenW, screenH, DIM);
-        Theme.roundRect(g, x, y, w, h, BACKGROUND);
+        Theme.roundRect(g, x, y, w, h, Theme.PANEL);
         g.outline(x, y, w, h, Theme.ACCENT);
 
         int ty = y + pad;

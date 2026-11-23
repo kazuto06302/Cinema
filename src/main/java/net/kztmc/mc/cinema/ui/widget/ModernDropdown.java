@@ -114,7 +114,7 @@ public class ModernDropdown extends AbstractWidget {
             int ry = py + 1 + row * getHeight();
             boolean hov = mx >= px && mx < px + pw && my >= ry && my < ry + getHeight();
             if (index == selected) {
-                g.fill(px + 1, ry, px + pw - 1, ry + getHeight(), 0xFF22406E);
+                g.fill(px + 1, ry, px + pw - 1, ry + getHeight(), Theme.SELECTED);
                 g.fill(px + 1, ry, px + 1 + Math.max(1, Theme.u(2)), ry + getHeight(), Theme.ACCENT);
             } else if (hov) {
                 g.fill(px + 1, ry, px + pw - 1, ry + getHeight(), Theme.SURFACE_HOVER);

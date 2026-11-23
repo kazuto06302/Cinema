@@ -10,28 +10,25 @@ public final class Theme {
     private Theme() {}
 
     public static final float FONT_PX = 18f;
-
-    public static final int PANEL = 0xE60F1218;
-    public static final int PANEL_BORDER = 0xFF262C38;
-    public static final int SURFACE = 0x00191D26;
-    public static final int SURFACE_HOVER = 0xE6232938;
-    public static final int BORDER = 0xFF303848;
-    public static final int ACCENT = 0xFF5B9DFF;
-    public static final int ACCENT_DIM = 0xFF2C5BA6;
-    public static final int TEXT = 0xFFE8ECF4;
-    public static final int TEXT_DIM = 0xFF8D95A8;
-    public static final int TEXT_NOTE = 0xFF8397B9;
+    // ---- 色(setThemeColor で再計算される) ----
+    public static int PANEL, PANEL_BORDER, SURFACE, SURFACE_HOVER, BORDER;
+    public static int ACCENT, ACCENT_DIM;
+    public static int TEXT, TEXT_DIM, TEXT_NOTE;
+    public static int GHOST_HOVER, SECTION, SECTION_LINE;
+    public static int POPUP, POPUP_HOVER;
+    public static int SELECTED, CARD, TOOLTIP_BG, TOOLTIP_BORDER;   // 他クラスに直書きされていた色
+    // テーマに関係しない色(固定)
     public static final int DANGER = 0xE6E5575F;
     public static final int DANGER_DIM = 0xE63A1D23;
-    public static final int GHOST_HOVER = 0x00232938; // alpha 0 から補間して出す
-    public static final int SECTION = 0xFF7FA8E0;
-    public static final int POPUP = 0xFF191D26;
-    public static final int POPUP_HOVER = 0xFF232938;
-    public static final int SLOT = 0x66000000;    // 装備のスロットの背景
+    public static final int CHANGED = 0xFFFFD34D;
+    public static final int SLOT = 0x66000000;
+    public static final int SECTION_CARD = 0x14FFFFFF;
 
-    public static final int CHANGED = 0xFFFFD34D;        // 既定値から変えた項目の文字(黄)
-    public static final int SECTION_LINE = 0x557FA8E0;   // 見出しの横の線
-    public static final int SECTION_CARD = 0x14FFFFFF;   // セクションの背景(白の8%)
+    private static final int DEFAULT_THEME = 0x5B9DFF;
+    private static final float MUTE = 0.5f;   // 灰色寄りにする割合(大きいほど色味が薄い)
+    private static int base = DEFAULT_THEME;
+
+
     public static final float HEADING_SCALE = 1f;     // 見出しの文字の倍率
 
     private static final float ICON_BOX = 9f;    // 絵文字を入れる箱の幅(8pxフォント基準)
@@ -184,6 +181,55 @@ public final class Theme {
     }
     public static boolean isRightClick(int button) {
         return button == 2 || button == 3;
+    }
+
+    static { setThemeColor(DEFAULT_THEME); }
+
+    public static int themeColor() { return base; }
+
+    /** テーマカラー(RGB)を指定して、全部の色を計算し直す */
+    public static void setThemeColor(int rgb) {
+        base = rgb & 0xFFFFFF;
+        int muted = mix(base, 0x808080, MUTE);   // 背景・文字用: 色味を薄めたベース
+
+        // アクセント系: ベース色そのまま / 黒を混ぜる / 白を混ぜる
+        ACCENT        = tone(base, 0f, 0f, 0xFF);
+        ACCENT_DIM    = tone(base, 0f, 0.35f, 0xFF);
+        SELECTED      = tone(base, 0f, 0.60f, 0xFF);
+        SECTION       = tone(base, 0.30f, 0f, 0xFF);
+        SECTION_LINE  = tone(base, 0.30f, 0f, 0x55);
+
+        // 背景系: 黒の割合が大きいほど暗い。alpha で透け具合を決める
+        PANEL          = tone(muted, 0f, 0.88f, 0xE6);
+        PANEL_BORDER   = tone(muted, 0f, 0.66f, 0xFF);
+        SURFACE        = tone(muted, 0f, 0.78f, 0x00);
+        SURFACE_HOVER  = tone(muted, 0f, 0.68f, 0xE6);
+        GHOST_HOVER    = tone(muted, 0f, 0.68f, 0x00);   // alpha 0 から補間して出す
+        BORDER         = tone(muted, 0f, 0.58f, 0xFF);
+        POPUP          = tone(muted, 0f, 0.78f, 0xFF);
+        POPUP_HOVER    = tone(muted, 0f, 0.68f, 0xFF);
+        CARD           = tone(muted, 0f, 0.75f, 0xFF);
+        TOOLTIP_BG     = tone(muted, 0f, 0.90f, 0xF2);
+        TOOLTIP_BORDER = tone(muted, 0f, 0.45f, 0xFF);
+
+        // 文字系: 白の割合が大きいほど明るい
+        TEXT      = tone(muted, 0.88f, 0f, 0xFF);
+        TEXT_DIM  = tone(muted, 0.55f, 0.26f, 0xFF);
+        TEXT_NOTE = tone(muted, 0.12f, 0f, 0xFF);
+    }
+
+    /** a から b へ t(0〜1)だけ混ぜる。RGB のみ */
+    private static int mix(int a, int b, float t) {
+        int r = Math.round(((a >> 16) & 0xFF) * (1 - t) + ((b >> 16) & 0xFF) * t);
+        int g = Math.round(((a >> 8) & 0xFF) * (1 - t) + ((b >> 8) & 0xFF) * t);
+        int bl = Math.round((a & 0xFF) * (1 - t) + (b & 0xFF) * t);
+        return (r << 16) | (g << 8) | bl;
+    }
+
+    /** 白を white、黒を black の割合で混ぜて、alpha(0〜255)をつける */
+    private static int tone(int rgb, float white, float black, int alpha) {
+        int c = mix(mix(rgb, 0xFFFFFF, white), 0x000000, black);
+        return (alpha << 24) | c;
     }
 
 }

@@ -95,7 +95,7 @@ public class ModernList<T> extends AbstractWidget {
             boolean hov = inside && my >= ry && my < ry + rowH;
 
             if (sel) {
-                g.fill(x + 1, ry + 1, x + w - 1, ry + rowH - 1, 0xFF22406E);
+                g.fill(x + 1, ry + 1, x + w - 1, ry + rowH - 1, Theme.SELECTED);
                 g.fill(x + 1, ry + 1, x + 1 + bar, ry + rowH - 1, Theme.ACCENT);
             } else if (hov) {
                 g.fill(x + 1, ry + 1, x + w - 1, ry + rowH - 1, Theme.SURFACE_HOVER);

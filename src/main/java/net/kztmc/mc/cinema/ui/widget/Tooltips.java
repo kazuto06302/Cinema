@@ -8,10 +8,7 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 //   部品が request() で文字を頼み、画面が、描画の最後に draw() で、まとめて1つだけ描く
 public final class Tooltips {
     private Tooltips() {}
-
-    private static final long DELAY_MS = 300;                // 乗せてから、出るまで
-    private static final int BACKGROUND = 0xF2101319;
-    private static final int BORDER = 0xFF4B5568;
+    private static final long DELAY_MS = 250;                // 乗せてから、出るまで
 
     private static Object owner;     // いま、乗っている部品
     private static long since;       // その部品に乗り始めた時刻
@@ -51,8 +48,8 @@ public final class Tooltips {
         if (y + h > screenH - 2) y = Math.max(2, screenH - h - 2);
 
         g.nextStratum();   // ほかの部品より、手前に描く
-        g.fill(x, y, x + w, y + h, BACKGROUND);
-        g.outline(x, y, w, h, BORDER);
+        g.fill(x, y, x + w, y + h, Theme.TOOLTIP_BG);
+        g.outline(x, y, w, h, Theme.TOOLTIP_BORDER);
         for (int i = 0; i < lines.length; i++) {
             Theme.text(g, font, lines[i], x + pad, y + pad + i * lineH, Theme.TEXT);
         }
