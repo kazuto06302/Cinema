@@ -1,6 +1,5 @@
 package net.kztmc.mc.cinema.ui.panel.inventory;
 
-import net.kztmc.mc.cinema.CinemaWand;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -17,9 +16,11 @@ import net.minecraft.world.item.ItemStack;
 /**
  * クリエイティブ画面に、NPCの装備パネルを重ねたもの。
  * ゲームモード・OP に関係なく開く。実際の持ち物は変えず、サーバーへも何も送らない。
- * 使えるのは、タブのアイテム一覧から「取る」ことだけ(取ったものは、NPCの装備へ渡す)。
+ * アイテム一覧とホットバーから、NPC装備用のコピーだけを取得できる。
  */
 public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
+    private static final int HOTBAR_SIZE = 9;
+
     private final InventoryOverlay overlay = new InventoryOverlay(this, () -> this.getMenu().getCarried());
 
     public CinemaCreativeScreen(LocalPlayer player, FeatureFlagSet features, boolean operatorTab) {
@@ -39,36 +40,39 @@ public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
         super.extractRenderState(g, mouseX, mouseY, delta);
     }
 
-    /** アイテム一覧から取る操作だけ通す。持ち物・ホットバー・画面外(ドロップ)・削除は、すべて止める */
+    /**
+     * Cinema独自のクリエイティブ画面では、プレイヤーインベントリを変更しない。
+     *
+     * - QUICK_MOVE: アイテムの種類・場所に関係なく禁止
+     * - ホットバー: PICKUP / CLONE は元のスタックを残してカーソルへコピー
+     * - アイテム一覧: Minecraft本来の取得・複製処理を使用
+     * - それ以外のプレイヤーインベントリ操作: 禁止
+     */
     @Override
     protected void slotClicked(Slot slot, int slotId, int mouseButton, ContainerInput type) {
-        // インベントリタブのゴミ箱スロットに対するシフトクリック
-        boolean trashQuickMove =
-                this.isInventoryOpen()
-                        && slot != null
-                        && type == ContainerInput.QUICK_MOVE
-                        && !this.getMenu().slots.isEmpty()
-                        && slot == this.getMenu().slots.get(
-                        this.getMenu().slots.size() - 1
-                );
+        if (slot == null) return;
 
-        if (trashQuickMove) {
-            super.slotClicked(slot, slotId, mouseButton, type);
+        // シフトクリックは、アイテム一覧・ホットバー・ゴミ箱を含めてすべて禁止
+        if (type == ContainerInput.QUICK_MOVE) return;
+
+        if (slot.container instanceof Inventory) {
+            // ホットバーからは移動ではなく、アイテム一覧と同じようにコピーする
+            if (slot.getSlotIndex() < HOTBAR_SIZE
+                    && (type == ContainerInput.PICKUP || type == ContainerInput.CLONE)) {
+                ItemStack source = slot.getItem();
+                if (!source.isEmpty()) {
+                    ItemStack copy = source.copy();
+                    int count = type == ContainerInput.PICKUP && mouseButton == 1
+                            ? 1
+                            : copy.getMaxStackSize();
+                    copy.setCount(Math.min(count, copy.getMaxStackSize()));
+                    this.getMenu().setCarried(copy);
+                }
+            }
+
+            // プレイヤーの実際のインベントリには一切書き込まない
             return;
         }
-
-        // ワンドのシフトクリックだけ許可
-        if (slot != null
-                && slot.container instanceof Inventory
-                && type == ContainerInput.QUICK_MOVE
-                && CinemaWand.isWand(slot.getItem())) {
-
-            super.slotClicked(slot, slotId, mouseButton, type);
-            return;
-        }
-
-        // プレイヤーの実際のインベントリ操作は禁止
-        if (slot == null || slot.container instanceof Inventory) return;
 
         // アイテム一覧からの取得・複製だけ許可
         if (type != ContainerInput.PICKUP && type != ContainerInput.CLONE) return;
