@@ -46,16 +46,6 @@ public final class CinemaCommands {
                                 .then(ClientCommands.argument("entity", StringArgumentType.word())
                                         .executes(ctx -> spawn(NpcData.MOB,
                                                 StringArgumentType.getString(ctx, "entity"), null))))
-                        .then(ClientCommands.literal("fields")
-                                .then(ClientCommands.argument("entity", StringArgumentType.word())
-                                        .executes(ctx -> {
-                                            dumpFields(StringArgumentType.getString(ctx, "entity"));
-                                            return 1;
-                                        })))
-                        .then(ClientCommands.literal("atlas").executes(ctx -> {
-                            TextureAnimations.dump();
-                            return 1;
-                        }))
                         .then(ClientCommands.literal("entities")
                                 .executes(ctx -> {
                                     EntityExport.run();

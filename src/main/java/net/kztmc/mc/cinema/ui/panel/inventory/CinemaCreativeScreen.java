@@ -19,8 +19,6 @@ import net.minecraft.world.item.ItemStack;
  * アイテム一覧とホットバーから、NPC装備用のコピーだけを取得できる。
  */
 public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
-    private static final int HOTBAR_SIZE = 9;
-
     private final InventoryOverlay overlay = new InventoryOverlay(this, () -> this.getMenu().getCarried());
 
     public CinemaCreativeScreen(LocalPlayer player, FeatureFlagSet features, boolean operatorTab) {
@@ -50,18 +48,18 @@ public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
      */
     @Override
     protected void slotClicked(Slot slot, int slotId, int mouseButton, ContainerInput type) {
-        if (slot == null) return;
+        if (slot == null || this.minecraft.player == null) return;
         // シフトクリックは、アイテム一覧・ホットバー・ゴミ箱を含めてすべて禁止
         if (type == ContainerInput.QUICK_MOVE) return;
+        Inventory playerInventory = this.minecraft.player.getInventory();
 
-        if (slot.container instanceof Inventory) {
-            // ホットバーからは移動ではなく、アイテム一覧と同じようにコピーする
-            if (slot.index < HOTBAR_SIZE && (type == ContainerInput.PICKUP || type == ContainerInput.CLONE)) {
+        if (slot.container == playerInventory) {
+            // プレイヤーインベントリのスロット
+            if (slot.index >= 0 && slot.index < 9 && (type == ContainerInput.PICKUP || type == ContainerInput.CLONE)) {
                 ItemStack source = slot.getItem();
                 if (!source.isEmpty()) {
                     ItemStack copy = source.copy();
-                    int count = type == ContainerInput.PICKUP && mouseButton == 1 ? 1 : copy.getMaxStackSize();
-                    copy.setCount(Math.min(count, copy.getMaxStackSize()));
+                    copy.setCount(1);
                     this.getMenu().setCarried(copy);
                 }
             }
