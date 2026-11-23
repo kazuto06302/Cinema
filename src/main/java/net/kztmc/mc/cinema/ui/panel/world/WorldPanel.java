@@ -116,6 +116,25 @@ public final class WorldPanel {
         }
         y += lay.btnH() + lay.gap() * 2;
 
+        // --- 月 ---
+        labels.add(new Label("月の満ち欠け", x, y, Theme.TEXT_DIM));
+        y += lh;
+        host.add(new ModernCheckbox(x, y, w, sh, "月の形を上書きする", ClientOverrides.moonOn, on -> {
+            if (building) return;
+            ClientOverrides.moonOn = on;
+            WorldSettings.save();
+            host.refresh();
+        }));
+        y += sh;
+        String[] moonNames = {"満月", "欠けていく(大)", "下弦", "欠けていく(小)",
+                "新月", "満ちていく(小)", "上弦", "満ちていく(大)"};
+        host.add(new ModernSlider(x, y, w, sh, "月の形", "", 0, 7, ClientOverrides.moonPhase, v -> {
+            if (building) return;
+            ClientOverrides.moonPhase = (int) v;   // チェックに関係なく、設定値を変える
+            WorldSettings.markDirty();
+        }).setValueFormatter(v -> moonNames[Math.max(0, Math.min(7, (int) Math.round(v)))]).setDefault(0));
+        y += sh + lay.gap() * 2;
+
         // --- テクスチャのアニメーション(炎・水・溶岩・ポータルなど) ---
         labels.add(new Label("テクスチャのアニメーション", x, y, Theme.TEXT_DIM));
         y += lh;

@@ -1107,8 +1107,7 @@ public final class RightPanel {
         }
     };
     public boolean gizmoReady() {
-        String selected = PartSelection.selected();
-        return tab == RightTab.POSE && selected != null && !selected.startsWith("@");
+        return tab == RightTab.POSE && PartSelection.selected() != null;
     }
     public void gizmoHover(double mx, double my, boolean overWorld) {
         if (!gizmoReady()) {

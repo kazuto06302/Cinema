@@ -22,7 +22,13 @@ public final class PartGlow {
         active = value;
     }
 
-    // いま光らせるパーツのパス。なければ null(アイテムは、まだ光らせられないので、対象外)
+    // 光らせる対象(モデルのパーツでも、持っているアイテムでも)。なければ null
+    public static String target() {
+        String p = path;
+        return active ? p : null;
+    }
+
+    // モデルのパーツだけ(アイテムは除く)
     public static String current() {
         String p = path;
         return active && p != null && !p.startsWith("@") ? p : null;

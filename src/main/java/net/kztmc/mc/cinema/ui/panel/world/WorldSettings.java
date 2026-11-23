@@ -27,6 +27,8 @@ public final class WorldSettings {
         boolean weatherOn;
         int weather;
         Map<String, Boolean> render = new HashMap<>();
+        boolean moonOn;
+        int moonPhase;
     }
 
     public static boolean textureFixed;
@@ -46,6 +48,8 @@ public final class WorldSettings {
             ClientOverrides.timeTicks = Math.floorMod(d.timeTicks, 24000);
             ClientOverrides.weatherOn = d.weatherOn;
             ClientOverrides.weather = Math.max(0, Math.min(2, d.weather));
+            ClientOverrides.moonOn = d.moonOn;
+            ClientOverrides.moonPhase = Math.max(0, Math.min(7, d.moonPhase));
             if (d.render != null) for (RenderToggles.Item i : RenderToggles.Item.values()) {
                 Boolean v = d.render.get(i.name());
                 if (v != null) i.set(v);
@@ -64,11 +68,13 @@ public final class WorldSettings {
             d.timeTicks = ClientOverrides.timeTicks;
             d.weatherOn = ClientOverrides.weatherOn;
             d.weather = ClientOverrides.weather;
+            d.moonOn = ClientOverrides.moonOn;
+            d.moonPhase = ClientOverrides.moonPhase;
+            for (RenderToggles.Item i : RenderToggles.Item.values()) d.render.put(i.name(), i.on());
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, GSON.toJson(d));
             dirty = false;
             lastWrite = System.currentTimeMillis();
-            for (RenderToggles.Item i : RenderToggles.Item.values()) d.render.put(i.name(), i.on());
         } catch (IOException e) {
             Cinema.LOGGER.warn("[Cinema] could not write world_panel.json", e);
         }

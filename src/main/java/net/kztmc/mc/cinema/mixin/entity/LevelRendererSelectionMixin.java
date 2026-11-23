@@ -34,6 +34,9 @@ import net.minecraft.client.renderer.entity.state.EntityRenderState;
 import net.minecraft.client.renderer.feature.FeatureRenderDispatcher;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EquipmentSlot;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Matrix4fStack;
 import org.joml.Vector4f;
@@ -70,22 +73,19 @@ public abstract class LevelRendererSelectionMixin {
         cinema$storage = new SubmitNodeStorage();
         cinema$storage.setUseImprovedTransparency(gameRenderer.useImprovedTransparency());
         Vec3 cam = levelRenderState.cameraRenderState.pos;
-        String glow = PartGlow.current();   // 光らせるパーツ(なければ null)
+        String glow = PartGlow.target();   // 光らせるパーツ(なければ null)
 
         for (SelectionOutline.Collected c : selected) {
             EntityRenderState outline = c.state();
             int color = SelectionOutline.COLOR;
 
             // パーツを選んでいて、このモデルにそのパーツがあれば、パーツだけの描画の情報を作る
-            if (glow != null) {
-                ModelPart root = ModelPartTree.rootOf(c.entity());
-                if (root != null && PartEdits.find(root, glow) != null) {
-                    EntityRenderState fresh = SelectionOutline.extractFresh(entityRenderDispatcher, c.entity(), levelRenderState.worldPartialTicks);
-                    if (fresh != null) {
-                        fresh.setData(PartEdits.GLOW_KEY, glow);
-                        outline = fresh;
-                        color = PartGlow.COLOR;
-                    }
+            if (glow != null && glowExists(c.entity(), glow)) {
+                EntityRenderState fresh = SelectionOutline.extractFresh(entityRenderDispatcher, c.entity(), levelRenderState.worldPartialTicks);
+                if (fresh != null) {
+                    fresh.setData(PartEdits.GLOW_KEY, glow);
+                    outline = fresh;
+                    color = PartGlow.COLOR;
                 }
             }
 
@@ -178,5 +178,15 @@ public abstract class LevelRendererSelectionMixin {
             cinema$target.destroyBuffers();
             cinema$target = null;
         }
+    }
+
+    @Unique
+    private static boolean glowExists(Entity entity, String glow) {
+        if (glow.startsWith("@")) {
+            EquipmentSlot slot = glow.equals(PartEdits.ITEM_MAIN) ? EquipmentSlot.MAINHAND : EquipmentSlot.OFFHAND;
+            return entity instanceof LivingEntity living && !living.getItemBySlot(slot).isEmpty();
+        }
+        ModelPart root = ModelPartTree.rootOf(entity);
+        return root != null && PartEdits.find(root, glow) != null;
     }
 }

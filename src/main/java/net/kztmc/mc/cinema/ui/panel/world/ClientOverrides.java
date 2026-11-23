@@ -8,6 +8,8 @@ public final class ClientOverrides {
     public static int timeTicks;       // 1日の中の時刻 0〜23999(0 = 6:00)
     public static boolean weatherOn;
     public static int weather;         // 0 晴れ / 1 雨 / 2 雷雨
+    public static boolean moonOn;
+    public static int moonPhase;       // 0 満月 / 1〜3 欠けていく / 4 新月 / 5〜7 満ちていく
 
     /** 上書き前の、実際の時刻(Mixin が毎回更新する。表示用) */
     public static long realTime;

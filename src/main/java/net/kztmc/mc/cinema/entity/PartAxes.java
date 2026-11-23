@@ -49,7 +49,7 @@ public final class PartAxes {
 
     // 1フレームに1回、Gizmos の収集の中で呼ぶ。パーツを選んでいて、最近の値があれば、3本の矢印を描く
     public static void emit() {
-        String selected = PartGlow.current();
+        String selected = PartGlow.target();
         if (!hasData(selected)) return;
         for (int i = 0; i < 3; i++) {
             boolean hot = hovered == i;

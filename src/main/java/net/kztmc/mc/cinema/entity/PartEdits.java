@@ -317,18 +317,34 @@ public final class PartEdits {
         state.setData(SELECTED_KEY, Boolean.TRUE);
     }
 
-    // 持っているアイテムの編集を、描く直前のポーズに足す(アイテムの向きの座標系で)。false なら、描かない
+    // 持っているアイテム: 描く直前に呼ぶ(ItemInHandEditMixin から)。false なら、アイテムを描かない
     public static boolean applyItem(EntityRenderState state, boolean mainHand, PoseStack pose) {
+        String path = mainHand ? ITEM_MAIN : ITEM_OFF;
+
+        // 別のパーツ(またはもう片方の手)を光らせている間は、描かない(輪郭がアイテムにも付くため)
+        String glow = state.getData(GLOW_KEY);
+        if (glow != null && !glow.equals(path)) return false;
+
         Map<String, PartTransform> edits = state.getData(KEY);
-        if (edits == null) return true;
-        PartTransform t = edits.get(mainHand ? ITEM_MAIN : ITEM_OFF);
+        PartTransform t = edits == null ? null : edits.get(path);
+
+        if (t != null) pose.translate(t.px() / 16f, t.py() / 16f, t.pz() / 16f);
+        // 軸は、位置のずれまで掛けた所(回転・大きさの前)。モデルのパーツと同じ考え方
+        if (state.getData(SELECTED_KEY) != null && path.equals(PartGlow.target())) captureItemAxes(path, pose);
+
         if (t == null) return true;
         if (!t.visible()) return false;
-
-        pose.translate(t.px() / 16f, t.py() / 16f, t.pz() / 16f);
         pose.rotate(new org.joml.Quaternionf().rotationZYX(
                 (float) Math.toRadians(t.rz()), (float) Math.toRadians(t.ry()), (float) Math.toRadians(t.rx())));
         pose.scale(t.sx() / 100f, t.sy() / 100f, t.sz() / 100f);
         return true;
+    }
+
+    private static void captureItemAxes(String path, PoseStack pose) {
+        Matrix4f m = pose.last().pose();
+        Vec3 cam = Minecraft.getInstance().gameRenderer.mainCamera().position();
+        Vector3f o = m.transformPosition(0, 0, 0, new Vector3f());
+        PartAxes.store(path, new Vec3(o.x + cam.x, o.y + cam.y, o.z + cam.z),
+                axis(m, 1, 0, 0), axis(m, 0, 1, 0), axis(m, 0, 0, 1));
     }
 }

@@ -13,13 +13,15 @@ public abstract class ClientClockInstanceMixin {
     private void cinema$overrideTime(CallbackInfoReturnable<Long> cir) {
         long realTime = cir.getReturnValue();
         ClientOverrides.realTime = realTime;
-        if (!ClientOverrides.timeOn) return;
+        if (!ClientOverrides.timeOn && !ClientOverrides.moonOn) return;
 
-        // 日数を維持して、1日の中の時刻だけ変更
-        long dayStart = realTime - Math.floorMod(realTime, 24000L);
-        long overriddenTime = dayStart + Math.floorMod(ClientOverrides.timeTicks, 24000);
+        long day = Math.floorDiv(realTime, 24000L);
+        long tick = ClientOverrides.timeOn
+                ? Math.floorMod(ClientOverrides.timeTicks, 24000)
+                : Math.floorMod(realTime, 24000L);
+        if (ClientOverrides.moonOn) day += ClientOverrides.moonPhase - Math.floorMod(day, 8L);
 
-        cir.setReturnValue(overriddenTime);
+        cir.setReturnValue(day * 24000L + tick);
     }
 
     @Inject(method = "partialTick", at = @At("RETURN"), cancellable = true)

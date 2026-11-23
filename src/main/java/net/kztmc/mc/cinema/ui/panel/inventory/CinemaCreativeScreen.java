@@ -1,5 +1,6 @@
 package net.kztmc.mc.cinema.ui.panel.inventory;
 
+import net.kztmc.mc.cinema.CinemaWand;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -43,20 +44,32 @@ public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
     protected void slotClicked(Slot slot, int slotId, int mouseButton, ContainerInput type) {
         // インベントリタブのゴミ箱スロットに対するシフトクリック
         boolean trashQuickMove =
-                this.isInventoryOpen() && slot != null
+                this.isInventoryOpen()
+                        && slot != null
                         && type == ContainerInput.QUICK_MOVE
                         && !this.getMenu().slots.isEmpty()
                         && slot == this.getMenu().slots.get(
                         this.getMenu().slots.size() - 1
                 );
 
-        // ゴミ箱のシフトクリックだけMinecraft本来の処理に通す
         if (trashQuickMove) {
             super.slotClicked(slot, slotId, mouseButton, type);
             return;
         }
+
+        // ワンドのシフトクリックだけ許可
+        if (slot != null
+                && slot.container instanceof Inventory
+                && type == ContainerInput.QUICK_MOVE
+                && CinemaWand.isWand(slot.getItem())) {
+
+            super.slotClicked(slot, slotId, mouseButton, type);
+            return;
+        }
+
         // プレイヤーの実際のインベントリ操作は禁止
         if (slot == null || slot.container instanceof Inventory) return;
+
         // アイテム一覧からの取得・複製だけ許可
         if (type != ContainerInput.PICKUP && type != ContainerInput.CLONE) return;
 
