@@ -316,4 +316,19 @@ public final class PartEdits {
     public static void markSelected(EntityRenderState state) {
         state.setData(SELECTED_KEY, Boolean.TRUE);
     }
+
+    // 持っているアイテムの編集を、描く直前のポーズに足す(アイテムの向きの座標系で)。false なら、描かない
+    public static boolean applyItem(EntityRenderState state, boolean mainHand, PoseStack pose) {
+        Map<String, PartTransform> edits = state.getData(KEY);
+        if (edits == null) return true;
+        PartTransform t = edits.get(mainHand ? ITEM_MAIN : ITEM_OFF);
+        if (t == null) return true;
+        if (!t.visible()) return false;
+
+        pose.translate(t.px() / 16f, t.py() / 16f, t.pz() / 16f);
+        pose.rotate(new org.joml.Quaternionf().rotationZYX(
+                (float) Math.toRadians(t.rz()), (float) Math.toRadians(t.ry()), (float) Math.toRadians(t.rx())));
+        pose.scale(t.sx() / 100f, t.sy() / 100f, t.sz() / 100f);
+        return true;
+    }
 }

@@ -41,8 +41,25 @@ public class CinemaCreativeScreen extends CreativeModeInventoryScreen {
     /** アイテム一覧から取る操作だけ通す。持ち物・ホットバー・画面外(ドロップ)・削除は、すべて止める */
     @Override
     protected void slotClicked(Slot slot, int slotId, int mouseButton, ContainerInput type) {
+        // インベントリタブのゴミ箱スロットに対するシフトクリック
+        boolean trashQuickMove =
+                this.isInventoryOpen() && slot != null
+                        && type == ContainerInput.QUICK_MOVE
+                        && !this.getMenu().slots.isEmpty()
+                        && slot == this.getMenu().slots.get(
+                        this.getMenu().slots.size() - 1
+                );
+
+        // ゴミ箱のシフトクリックだけMinecraft本来の処理に通す
+        if (trashQuickMove) {
+            super.slotClicked(slot, slotId, mouseButton, type);
+            return;
+        }
+        // プレイヤーの実際のインベントリ操作は禁止
         if (slot == null || slot.container instanceof Inventory) return;
-        if (type != ContainerInput.PICKUP && type != ContainerInput.CLONE) return;   // シフトクリックなどは止める
+        // アイテム一覧からの取得・複製だけ許可
+        if (type != ContainerInput.PICKUP && type != ContainerInput.CLONE) return;
+
         super.slotClicked(slot, slotId, mouseButton, type);
     }
 
