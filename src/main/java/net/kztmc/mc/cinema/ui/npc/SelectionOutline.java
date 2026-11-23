@@ -40,6 +40,7 @@ public final class SelectionOutline {
 
     // 描画の情報を作った直後に呼ぶ(EntityRendererMixin から)
     public static void collect(Entity entity, EntityRenderState state) {
+        if (extractingGlow) return;
         if (STATES.size() < 16) STATES.add(new Collected(entity, state));
         SELECTED_THIS_FRAME.add(state);
     }

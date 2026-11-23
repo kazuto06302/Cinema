@@ -16,6 +16,7 @@ import net.kztmc.mc.cinema.ui.panel.left.ContextMenu;
 import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
 import net.kztmc.mc.cinema.ui.panel.left.PartsPanel;
 import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
+import net.kztmc.mc.cinema.ui.panel.right.GizmoModeBar;
 import net.kztmc.mc.cinema.ui.panel.right.PartGizmo;
 import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
 import net.kztmc.mc.cinema.ui.panel.world.WorldPanel;
@@ -48,6 +49,7 @@ public class CinemaScreen extends Screen implements PanelHost {
     private final TunerPanel tuner = new TunerPanel();
     private final ContextMenu menu = new ContextMenu();
     private final ConfirmDialog confirm = new ConfirmDialog();
+    private final GizmoModeBar modeBar = new GizmoModeBar();
 
     private Layout layout;
     private boolean hasRight;
@@ -194,7 +196,7 @@ public class CinemaScreen extends Screen implements PanelHost {
             PartGizmo.release();
             world.build(layout, this);
         });
-
+        modeBar.build(layout, this, hasRight && right.gizmoReady());
         if (CinemaState.devMode && left.isMobsTab()) {
             hasTuner = true;
             tuner.build(layout, this);
@@ -409,7 +411,8 @@ public class CinemaScreen extends Screen implements PanelHost {
             pressed = null;
 
             // 3軸
-            if (hasRight && event.button() == 0 && overWorld(event.x(), event.y()) && right.gizmoPress(event.x(), event.y())) return true;
+            if (!handled && hasRight && Theme.isClick(event.button())
+                    && overWorld(event.x(), event.y()) && right.gizmoPress(event.x(), event.y())) return true;
             if (handled && Theme.isClick(event.button())) {
                 getChildAt(event.x(), event.y()).ifPresent(child -> {
                     if (child instanceof Draggable draggable) pressed = draggable;
@@ -543,6 +546,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         drawLeftBackground(g);
         if (hasRight) right.extractBackground(g);
         if (hasRight) right.extractScrollItems(g, mx, my, delta);
+        modeBar.extractBackground(g);
         if (hasTuner) tuner.extractBackground(g);
         if (hasWorld) world.extractBackground(g);
         super.extractRenderState(g, mx, my, delta);
@@ -631,6 +635,7 @@ public class CinemaScreen extends Screen implements PanelHost {
     // パネル(左・右・戻るボタン)の外で、世界が見えている所か
     private boolean overWorld(double mx, double my) {
         if (overLeftPanel(mx, my)) return false;
+        if (modeBar.contains(mx, my)) return false;
         return !(hasRight && right.contains(mx, my));
     }
 

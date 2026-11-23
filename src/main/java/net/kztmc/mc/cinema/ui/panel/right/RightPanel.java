@@ -778,19 +778,6 @@ public final class RightPanel {
         label(ModelPartTree.label(ModelPartTree.lastName(path)), x, y, Theme.SECTION);
         y += headerH();
 
-        // 操作のモード(本体のパーツを、画面のドラッグで動かすときの、動かし方)
-        String[] modeNames = {Tr.get("cinema.ui.parts.mode.move"), Tr.get("cinema.ui.parts.mode.rotate"),
-                Tr.get("cinema.ui.parts.mode.scale")};
-        int mw = (w - lay.gap() * 2) / 3;
-        for (int i = 0; i < 3; i++) {
-            PartGizmo.Mode mode = PartGizmo.Mode.values()[i];
-            add(new ModernButton(x + i * (mw + lay.gap()), y, mw, lay.btnH(), modeNames[i], ModernButton.Style.DEFAULT, () -> {
-                PartGizmo.mode = mode;
-                host.refresh();
-            }).setSelected(PartGizmo.mode == mode));
-        }
-        y += lay.btnH() + lay.gap();
-
         // 表示とリセットを、1行に
         int half = (w - lay.gap()) / 2;
         add(new ModernCheckbox(x, y, half, sh, Tr.get("cinema.ui.parts.visible"),
@@ -1119,7 +1106,7 @@ public final class RightPanel {
             setChannel(PartSelection.selected(), channel, value);
         }
     };
-    private boolean gizmoReady() {
+    public boolean gizmoReady() {
         String selected = PartSelection.selected();
         return tab == RightTab.POSE && selected != null && !selected.startsWith("@");
     }
