@@ -21,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
+import java.util.logging.Logger;
 import java.util.stream.Stream;
 import net.fabricmc.loader.api.FabricLoader;
 import net.kztmc.mc.cinema.Cinema;
@@ -75,7 +76,7 @@ public final class CapeLibrary {
         List<Item> out = new ArrayList<>();
         Set<String> seen = new HashSet<>();
         for (CapeCatalog.Entry e : CapeCatalog.all()) {
-            out.add(new Item(e.id(), e.nameJa(), (e.id() + " " + e.nameJa() + " " + e.nameEn()).toLowerCase(Locale.ROOT)));
+            out.add(new Item(e.id(), e.name(), (e.id() + " " + e.name()).toLowerCase(Locale.ROOT)));
             seen.add(e.id());
         }
         for (String name : names()) {
@@ -87,7 +88,7 @@ public final class CapeLibrary {
     /** ボタンなどに出す名前。空は「なし」 */
     public static String labelOf(String id) {
         if (id == null || id.isEmpty()) return "なし";
-        return CapeCatalog.find(id).map(CapeCatalog.Entry::nameJa).orElse(id);
+        return CapeCatalog.find(id).map(CapeCatalog.Entry::name).orElse(id);
     }
 
     /** 画像の名前から、読み込み済みのケープ。無ければ null(ハッシュがあれば、裏でダウンロードを始める) */

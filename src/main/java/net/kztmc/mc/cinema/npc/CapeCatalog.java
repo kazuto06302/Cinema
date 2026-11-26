@@ -17,7 +17,7 @@ import net.kztmc.mc.cinema.Cinema;
 public final class CapeCatalog {
     private CapeCatalog() {}
 
-    public record Entry(String id, String nameJa, String nameEn, String hash) {}
+    public record Entry(String id, String name, String hash) {}
 
     private static final String RESOURCE = "/data/cinema/capes.csv";
     private static List<Entry> all;
@@ -51,13 +51,34 @@ public final class CapeCatalog {
                     continue;
                 }
                 String[] c = line.split(",", -1);
-                if (c.length < 2 || c[0].isBlank()) continue;
-                out.add(new Entry(c[0].trim(), c[1].trim(), c.length > 2 ? c[2].trim() : "", c.length > 3 ? c[3].trim() : ""));
+                if (c.length < 3) continue;
+
+                String id = parseField(c[0]);
+                String name = parseField(c[1]);
+                String hash = parseField(c[2]);
+
+                if (id.isBlank()) continue;
+
+                out.add(new Entry(id, name, hash));
             }
             return out;
         } catch (IOException ex) {
             Cinema.LOGGER.warn("[Cinema] could not read capes.csv", ex);
             return new ArrayList<>();
         }
+    }
+
+    private static String parseField(String value) {
+        String result = value.trim();
+
+        // CSVの外側のダブルクォーテーションを除去
+        if (result.length() >= 2
+                && result.startsWith("\"")
+                && result.endsWith("\"")) {
+            result = result.substring(1, result.length() - 1);
+        }
+
+        // CSV内のエスケープされたダブルクォーテーションを復元
+        return result.replace("\"\"", "\"");
     }
 }
