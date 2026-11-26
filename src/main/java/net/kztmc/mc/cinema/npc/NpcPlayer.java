@@ -50,6 +50,7 @@ public class NpcPlayer extends RemotePlayer {
 
         // ケープ: 1. 画像ファイル  2. 持ち主のケープ(取得できたら)  3. 自分のスキンのケープ
         Texture cape;
+        if (!capeFile.isEmpty() && capeFileAsset == null) capeFileAsset = CapeLibrary.assetOf(capeFile);
         if (capeFileAsset instanceof Texture file) cape = file;
         else if (owner != null && owner.cape() != null) cape = owner.cape();
         else cape = base.cape();
@@ -149,9 +150,7 @@ public class NpcPlayer extends RemotePlayer {
     }
 
     public void setCapeFile(String name) {
-        String file = name == null ? "" : name;
-        if (file.equals(capeFile)) return;
-        capeFile = file;
-        capeFileAsset = CapeLibrary.assetOf(file);
+        capeFile = name == null ? "" : name;
+        capeFileAsset = CapeLibrary.assetOf(capeFile);   // まだ無ければ null
     }
 }

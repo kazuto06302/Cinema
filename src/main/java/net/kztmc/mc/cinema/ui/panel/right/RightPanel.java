@@ -701,30 +701,14 @@ public final class RightPanel {
         add(belowField);
         y += lay.btnH() + lay.gap();
 
-        // ケープの画像(config/cinema/capes/*.png)。先頭は「なし」(スキンのケープ)
-        List<String> capeFiles = new ArrayList<>();
-        capeFiles.add("なし(スキンのケープ)");
-        capeFiles.addAll(CapeLibrary.names());
-        int capeIndex = Math.max(0, capeFiles.indexOf(NpcTexts.get(id, NpcTexts.CAPE_FILE)));
-        add(new ModernDropdown(x, y, w, lay.sliderH(), "ケープ画像", capeFiles, capeIndex, i -> {
-            NpcTexts.set(id, NpcTexts.CAPE_FILE, i == 0 ? "" : capeFiles.get(i));
-            edit(id, cur -> cur);
-        }, host::onDropdownOpen));//.setDefault(0));
-        y += lay.sliderH();
-        note(Theme.fit(host.font(), "画像は config/cinema/capes/ に PNG(64×32)", w), x, y + Theme.u(2));
-        y += lay.th() + Theme.u(6);
-
-        // ケープの持ち主(ユーザー名)。Enter で反映
-        ModernTextField capeField = new ModernTextField(x, y, w, lay.btnH());
-        capeField.setHint("ケープの持ち主(Enterで反映)");
-        capeField.setMaxLength(16);
-        capeField.setCharFilter(cp -> cp < 128 && (Character.isLetterOrDigit(cp) || cp == '_'));
-        capeField.setValue(NpcTexts.get(id, NpcTexts.CAPE_OWNER));
-        capeField.setOnEnter(s -> {
-            NpcTexts.set(id, NpcTexts.CAPE_OWNER, s.trim());
-            edit(id, cur -> cur);
-        });
-        add(capeField);
+// ケープ: 画像と名前から選ぶ画面を開く
+        String capeName = NpcTexts.get(id, NpcTexts.CAPE_FILE);
+        add(new ModernButton(x, y, w, lay.btnH(), "ケープ: " + CapeLibrary.labelOf(capeName),
+                ModernButton.Style.DEFAULT, () -> Minecraft.getInstance().gui.setScreen(
+                new CapeScreen(host.screen(), capeName, picked -> {
+                    NpcTexts.set(id, NpcTexts.CAPE_FILE, picked);
+                    edit(id, cur -> cur);
+                }))));
         y += lay.btnH() + lay.gap();
         return y;
     }
