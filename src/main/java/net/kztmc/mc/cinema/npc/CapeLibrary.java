@@ -135,18 +135,29 @@ public final class CapeLibrary {
     }
 
     // ---- 読み込み ----
-
     private static Loaded load(String name, Path file) {
         try (InputStream in = Files.newInputStream(file)) {
             NativeImage image = NativeImage.read(in);
             int[] preview = previewOf(image);
-            Identifier id = Identifier.fromNamespaceAndPath("cinema", "capes/" + name.toLowerCase(Locale.ROOT)
-                    .replaceAll("[^a-z0-9_.-]", "_"));
+
+            Identifier id = Identifier.fromNamespaceAndPath(
+                    "cinema",
+                    "capes/" + name.toLowerCase(Locale.ROOT).replaceAll("[^a-z0-9_.-]", "_")
+            );
+
             AbstractTexture texture = newTexture(id, image);
             if (texture == null) return null;
-            Minecraft.getInstance().getTextureManager().register(id, texture);
+
             Object asset = newAsset(id);
-            return asset == null ? null : new Loaded(asset, id, preview);
+            if (!(asset instanceof net.minecraft.core.ClientAsset.Texture capeAsset)) {
+                texture.close();
+                return null;
+            }
+
+            // Minecraftの描画処理が参照するTexturePathと同じIDで登録する
+            Identifier texturePath = capeAsset.texturePath();
+            Minecraft.getInstance().getTextureManager().register(texturePath, texture);
+            return new Loaded(asset, texturePath, preview);
         } catch (IOException | RuntimeException ex) {
             Cinema.LOGGER.warn("[Cinema] could not load cape {}", file, ex);
             return null;

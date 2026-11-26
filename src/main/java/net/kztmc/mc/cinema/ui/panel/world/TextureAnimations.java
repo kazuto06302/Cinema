@@ -14,6 +14,7 @@ import net.kztmc.mc.cinema.entity.EntityReflect;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.texture.AbstractTexture;
 import net.minecraft.client.renderer.texture.TextureAtlas;
+import net.minecraft.resources.Identifier;
 
 /**
  * ブロックのテクスチャのアニメーション(炎・水・溶岩・ポータルなど)を、指定した再生tick(0〜20)で固定する。
@@ -31,6 +32,8 @@ public final class TextureAnimations {
     private static final String LIST_FIELD = "animatedTexturesStates";
     private static final List<String> FRAME_FIELDS = List.of("frame", "currentFrame", "frameIndex");
     private static final List<String> SUB_FRAME_FIELDS = List.of("subFrame", "frameTicks", "ticks", "elapsed");
+
+    private static final Identifier BLOCK_ATLAS = Identifier.withDefaultNamespace("textures/atlas/blocks.png");
 
     /** 状態1つの解析結果 */
     private record Cached(List<Integer> times, Object frameOwner, Object subOwner) {}
@@ -52,7 +55,7 @@ public final class TextureAnimations {
     }
 
     private static TextureAtlas blockAtlas() {
-        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(TextureAtlas.LOCATION_BLOCKS);
+        AbstractTexture texture = Minecraft.getInstance().getTextureManager().getTexture(BLOCK_ATLAS);
         return texture instanceof TextureAtlas atlas ? atlas : null;
     }
 
@@ -257,7 +260,7 @@ public final class TextureAnimations {
         Cinema.LOGGER.info("[Cinema] animation states: {} (fixed = {})", shown.size(), fixed);
         if (shown.isEmpty()) return;
 
-        Object state = shown.get(0);
+        Object state = shown.getFirst();
         EntityReflect.dumpObject(state);
         int count = 0;
         for (Object child : children(state)) {
