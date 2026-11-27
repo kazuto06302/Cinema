@@ -19,6 +19,7 @@ import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
 import net.kztmc.mc.cinema.ui.panel.right.GizmoModeBar;
 import net.kztmc.mc.cinema.ui.panel.right.PartGizmo;
 import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
+import net.kztmc.mc.cinema.ui.panel.settings.SettingsScreen;
 import net.kztmc.mc.cinema.ui.panel.world.WorldPanel;
 import net.kztmc.mc.cinema.ui.widget.*;
 import net.minecraft.client.Minecraft;
@@ -84,6 +85,8 @@ public class CinemaScreen extends Screen implements PanelHost {
     private final PartsPanel parts = new PartsPanel();
     private final List<AbstractWidget> partsWidgets = new ArrayList<>();   // パーツ一覧の中身
     private DockButton partsDock;// 左側のパーツのボタン
+
+    private DockButton settingsDock;
 
 
     public CinemaScreen() {
@@ -230,6 +233,13 @@ public class CinemaScreen extends Screen implements PanelHost {
         return new int[] {layout.leftX(), y, s, s};
     }
 
+    // 設定のボタンの位置(パーツのボタンの下。NPC を選んでいないときは、メインの下)
+    private int[] settingsRect() {
+        int s = dockSize();
+        int slot = NpcManager.selectedData().isPresent() ? 2 : 1;
+        return new int[] {layout.leftX(), layout.panelY() + slot * (s + layout.gap()), s, s};
+    }
+
     // 左側の四角のボタン。今後、エクスポート・設定などを、ここに足す
     private void buildDock() {
         dock.clear();
@@ -241,6 +251,11 @@ public class CinemaScreen extends Screen implements PanelHost {
         partsDock = add(new DockButton(p[0], p[1], p[2], DockButton.PARTS, Tr.get("cinema.dock.parts"),
                 () -> right.showPartsTab()));   // 右のタブが「パーツ」になり、その要求で、左のパネルが開く
         dock.add(partsDock);
+
+        int[] st = settingsRect();
+        settingsDock = add(new DockButton(st[0], st[1], st[2], DockButton.SETTINGS, Tr.get("cinema.dock.settings"),
+                () -> Minecraft.getInstance().gui.setScreen(new SettingsScreen(this))));
+        dock.add(settingsDock);
 
         // 広がっているとき、左パネルの右上に出す、小さくするボタン
         int ms = Theme.u(16);
@@ -343,13 +358,15 @@ public class CinemaScreen extends Screen implements PanelHost {
             else left.extractBackground(g);   // パネルと、「CINEMA」などの文字
             return;
         }
-        if (panelAnim <= 0.001f && animTo == 0f) {   // まとめた状態: 四角のボタンの背景
+        if (panelAnim <= 0.001f && animTo == 0f) {
             int[] m = dockRect(CinemaState.LeftView.MAIN);
             Theme.panel(g, m[0], m[1], m[2], m[3]);
             if (hasRight) {
                 int[] p = dockRect(CinemaState.LeftView.PARTS);
                 Theme.panel(g, p[0], p[1], p[2], p[3]);
             }
+            int[] st = settingsRect();   // 追加
+            Theme.panel(g, st[0], st[1], st[2], st[3]);
             return;
         }
         int[] r = leftRect();
@@ -627,6 +644,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         if (panelAnim <= 0.001f && animTo == 0f) {
             int[] m = dockRect(CinemaState.LeftView.MAIN);
             if (inside(mx, my, m)) return true;
+            if (inside(mx, my, settingsRect())) return true;
             return hasRight && inside(mx, my, dockRect(CinemaState.LeftView.PARTS));
         }
         return inside(mx, my, leftRect());

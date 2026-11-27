@@ -24,9 +24,18 @@ public final class Theme {
     public static final int SLOT = 0x66000000;
     public static final int SECTION_CARD = 0x14FFFFFF;
 
-    private static final int DEFAULT_THEME = 0x5B9DFF;
+    public static final int DEFAULT_THEME = 0x5B9DFF;
+    public static final float DEFAULT_OPACITY = 0.90f;
+
     private static final float MUTE = 0.5f;   // 灰色寄りにする割合(大きいほど色味が薄い)
     private static int base = DEFAULT_THEME;
+    private static float opacity = DEFAULT_OPACITY;
+    public static float opacity() { return opacity; }
+    public static void setOpacity(float v) {
+        opacity = Mth.clamp(v, 0.1f, 1f);
+        setThemeColor(base);
+    }
+    private static int bgAlpha() { return Math.round(255 * opacity); }
 
 
     public static final float HEADING_SCALE = 1f;     // 見出しの文字の倍率

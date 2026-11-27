@@ -84,6 +84,7 @@ final class ProfileCatalog {
 
     private static void humans() {
         reg(new PlayerProfile());
+        reg(new VillagerProfile());
     }
 
     /** 数値の調整(devモードで合わせた値)。フラグではないので、表ではなくコードに置く */

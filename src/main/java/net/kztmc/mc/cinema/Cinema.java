@@ -9,6 +9,7 @@ import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.CinemaHud;
 import net.kztmc.mc.cinema.ui.CinemaScreen;
 import net.kztmc.mc.cinema.ui.PauseMenuButton;
+import net.kztmc.mc.cinema.ui.panel.UiSettings;
 import net.kztmc.mc.cinema.ui.panel.world.WorldSettings;
 
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -25,6 +26,8 @@ public class Cinema implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
+        //config
+        UiSettings.load();
         //npc
         NpcManager.init();
         //command

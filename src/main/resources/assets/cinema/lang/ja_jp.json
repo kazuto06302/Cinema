@@ -66,6 +66,7 @@
 
   "cinema.dock.menu": "メニューを開く",
   "cinema.dock.parts": "パーツ一覧を開く",
+  "cinema.dock.settings": "設定",
   "cinema.dock.minimize": "小さくする",
   "cinema.ui.parts.editor": "パーツの調整",
   "cinema.ui.parts.select_hint": "左のパーツ一覧から、パーツを選んでください(一覧は、左のボタンで開けます)"

@@ -70,6 +70,7 @@
 
   "cinema.dock.menu": "Open menu",
   "cinema.dock.parts": "Open parts list",
+  "cinema.dock.settings": "Settings",
   "cinema.dock.minimize": "Minimize",
   "cinema.ui.parts.editor": "Part settings",
   "cinema.ui.parts.select_hint": "Pick a part from the list on the left (open it with the left button)"

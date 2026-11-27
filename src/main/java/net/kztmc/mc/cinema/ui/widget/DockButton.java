@@ -47,6 +47,23 @@ public class DockButton extends AbstractWidget {
         g.fill(x + (s - w) / 2, y + (s - h) / 2, x + (s + w) / 2, y + (s + h) / 2, c);
     };
 
+    /** スライダー(設定) */
+    public static final Icon SETTINGS = (g, x, y, s, c) -> {
+        int w = s / 2;
+        int h = Math.max(2, s / 14);
+        int gap = Math.max(3, s / 5);
+        int k = Math.max(3, s / 9);   // つまみの大きさ
+        int bx = x + (s - w) / 2;
+        int by = y + (s - (h * 3 + gap * 2)) / 2;
+        int[] knob = {w / 3, w * 2 / 3, w / 2};
+        for (int i = 0; i < 3; i++) {
+            int ly = by + i * (h + gap);
+            int ky = ly - (k - h) / 2;
+            g.fill(bx, ly, bx + w, ly + h, c);
+            g.fill(bx + knob[i] - k / 2, ky, bx + knob[i] - k / 2 + k, ky + k, c);
+        }
+    };
+
     private final Icon icon;
     private final Runnable onPress;
     private float hover;
