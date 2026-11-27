@@ -567,6 +567,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         if (hasRight) right.extractBackground(g);
         if (hasWorld) world.extractBackground(g);
         if (scrollPanel != null) scrollPanel.extractScrollItems(g, mx, my, delta);
+        modeBar.extractBackground(g);
         if (hasTuner) tuner.extractBackground(g);
         super.extractRenderState(g, mx, my, delta);
 

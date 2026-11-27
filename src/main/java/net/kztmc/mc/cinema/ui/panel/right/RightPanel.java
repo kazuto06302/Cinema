@@ -1051,10 +1051,11 @@ public final class RightPanel implements ScrollPanel{
         g.enableScissor(lay.rightX(), contentTop, lay.rightX() + lay.panelW(), contentBottom);
         for (Label l : scrollLabels) {
             int ly = l.y() - scroll;
-            if (ly + lay.th() * 2 < contentTop || ly > contentBottom) continue;   // 完全に外のものだけ、省く
-            // スクロールするラベルの、見出しの枝
+            if (ly + lay.th() * 2 < contentTop || ly > contentBottom) continue;
+            // すべてのラベルを描画
+            Theme.text(g, host.font(), l.text(), l.x(), ly, l.color());
+            // 見出しの場合だけ、右側に区切り線を描画
             if (l.heading()) {
-                Theme.text(g, host.font(), l.text(), l.x(), ly, l.color());
                 int lineX = l.x() + Theme.textWidth(host.font(), l.text()) + Theme.u(6);
                 int lineEnd = baseX + baseW;
                 if (lineEnd - lineX > Theme.u(12)) {
