@@ -88,6 +88,8 @@ public class CinemaScreen extends Screen implements PanelHost {
 
     private DockButton settingsDock;
 
+    private ScrollPanel scrollPanel;   // いまのスクロールするパネル(右パネル または ワールド設定)
+
 
     public CinemaScreen() {
         super(Component.literal("Cinema"));
@@ -199,6 +201,7 @@ public class CinemaScreen extends Screen implements PanelHost {
             PartGizmo.release();
             world.build(layout, this);
         });
+        scrollPanel = hasRight ? right : hasWorld ? world.scroll() : null;
         modeBar.build(layout, this, hasRight && right.gizmoReady());
         if (CinemaState.devMode && left.isMobsTab()) {
             hasTuner = true;
@@ -436,11 +439,11 @@ public class CinemaScreen extends Screen implements PanelHost {
                 });
             }
             // 右パネルの、項目のない所を押した: そこからのドラッグで、パネルをスクロールする
-            if (!handled && Theme.isClick(event.button()) && hasRight && right.beginDragScroll(event.x(), event.y())) return true;
-
+            if (!handled && Theme.isClick(event.button()) && scrollPanel != null
+                    && scrollPanel.beginDragScroll(event.x(), event.y())) return true;
             return handled;
         } finally {
-            if (blocked) right.setScrollItemsActive(true);
+            if (blocked && scrollPanel != null) scrollPanel.setScrollItemsActive(true);
         }
     }
 
@@ -452,8 +455,8 @@ public class CinemaScreen extends Screen implements PanelHost {
             right.gizmoDrag(dx, dy);
             return true;
         }
-        if (hasRight && right.isDragScrolling()) {
-            right.dragScrollBy(dy);
+        if (scrollPanel != null && scrollPanel.isDragScrolling()) {
+            scrollPanel.dragScrollBy(dy);
             return true;
         }
         if (pressed != null) {
@@ -470,8 +473,8 @@ public class CinemaScreen extends Screen implements PanelHost {
             right.gizmoRelease();
             return true;
         }
-        if (hasRight && right.isDragScrolling()) {
-            right.endDragScroll();
+        if (scrollPanel != null && scrollPanel.isDragScrolling()) {
+            scrollPanel.endDragScroll();
             return true;
         }
         if (pressed != null) {
@@ -491,11 +494,11 @@ public class CinemaScreen extends Screen implements PanelHost {
         if (openDropdown != null && openDropdown.isOpen() && openDropdown.popupScrolled(mouseX, mouseY, scrollY)) {
             return true;
         }
-        if (hasRight && right.wheelLocked(mouseX, mouseY)) {
-            return right.mouseScrolled(mouseX, mouseY, scrollY);
+        if (scrollPanel != null && scrollPanel.wheelLocked(mouseX, mouseY)) {
+            return scrollPanel.mouseScrolled(mouseX, mouseY, scrollY);
         }
         if (super.mouseScrolled(mouseX, mouseY, scrollX, scrollY)) return true;
-        return hasRight && right.mouseScrolled(mouseX, mouseY, scrollY);
+        return scrollPanel != null && scrollPanel.mouseScrolled(mouseX, mouseY, scrollY);
     }
 
     @Override
@@ -562,10 +565,9 @@ public class CinemaScreen extends Screen implements PanelHost {
 
         drawLeftBackground(g);
         if (hasRight) right.extractBackground(g);
-        if (hasRight) right.extractScrollItems(g, mx, my, delta);
-        modeBar.extractBackground(g);
-        if (hasTuner) tuner.extractBackground(g);
         if (hasWorld) world.extractBackground(g);
+        if (scrollPanel != null) scrollPanel.extractScrollItems(g, mx, my, delta);
+        if (hasTuner) tuner.extractBackground(g);
         super.extractRenderState(g, mx, my, delta);
 
         if (openDropdown != null && openDropdown.isOpen()) {
@@ -589,8 +591,8 @@ public class CinemaScreen extends Screen implements PanelHost {
             drawLeftBackground(g);
         } else {
             if (hasRight) right.extractBackground(g);
-            if (hasRight) right.extractScrollItems(g, -1, -1, delta);
             if (hasWorld) world.extractBackground(g);
+            if (scrollPanel != null) scrollPanel.extractScrollItems(g, -1, -1, delta);
         }
         super.extractRenderState(g, -1, -1, delta);   // 動いている間は、ホバーの表示を止める
         g.pose().popMatrix();
@@ -630,8 +632,8 @@ public class CinemaScreen extends Screen implements PanelHost {
     // スクロールの表示範囲の外(上のタブの行・下の余白)を押したときは、スクロールする部品を、押せなくする。
     // 戻り値が true なら、呼び出し側が、終わったあとに、元に戻す
     private boolean blockScrollItems(double mx, double my) {
-        if (!hasRight || !right.outsideScrollBand(mx, my)) return false;
-        right.setScrollItemsActive(false);
+        if (scrollPanel == null || !scrollPanel.outsideScrollBand(mx, my)) return false;
+        scrollPanel.setScrollItemsActive(false);
         return true;
     }
 

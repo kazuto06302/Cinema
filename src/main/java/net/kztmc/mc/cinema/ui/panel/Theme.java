@@ -25,20 +25,9 @@ public final class Theme {
     public static final int SECTION_CARD = 0x14FFFFFF;
 
     public static final int DEFAULT_THEME = 0x5B9DFF;
-    public static final float DEFAULT_OPACITY = 0.90f;
 
     private static final float MUTE = 0.5f;   // 灰色寄りにする割合(大きいほど色味が薄い)
     private static int base = DEFAULT_THEME;
-    private static float opacity = DEFAULT_OPACITY;
-    public static float opacity() { return opacity; }
-    public static void setOpacity(float v) {
-        opacity = Mth.clamp(v, 0.1f, 1f);
-        setThemeColor(base);
-    }
-    private static int bgAlpha() { return Math.round(255 * opacity); }
-
-
-    public static final float HEADING_SCALE = 1f;     // 見出しの文字の倍率
 
     private static final float ICON_BOX = 9f;    // 絵文字を入れる箱の幅(8pxフォント基準)
     private static final float ICON_GAP = 3f;    // 箱と文字の間(同じ基準)
@@ -176,13 +165,6 @@ public final class Theme {
 
         int slot = iconSlot();
         text(g, font, fit(font, l.text(), Math.max(0, maxWidth - slot)), x + slot, y, color);
-    }
-
-    public static void heading(GuiGraphicsExtractor g, Font font, String s, int x, int y, int color) {
-        text(g, font, s, x, y, color, fontScale() * HEADING_SCALE);
-    }
-    public static int headingWidth(Font font, String s) {
-        return Math.round(textWidth(font, s) * HEADING_SCALE);
     }
 
     public static boolean isClick(int button) {

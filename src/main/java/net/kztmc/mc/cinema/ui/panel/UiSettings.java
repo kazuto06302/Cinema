@@ -17,7 +17,6 @@ public final class UiSettings {
 
     private static class Data {
         int themeColor = Theme.DEFAULT_THEME;
-        float opacity = Theme.DEFAULT_OPACITY;
     }
 
     public static void load() {
@@ -26,7 +25,6 @@ public final class UiSettings {
             Data d = GSON.fromJson(Files.readString(FILE), Data.class);
             if (d == null) return;
             Theme.setThemeColor(d.themeColor);
-            Theme.setOpacity(d.opacity);
         } catch (IOException | RuntimeException e) {
             Cinema.LOGGER.warn("[Cinema] could not read ui_settings.json", e);
         }
@@ -36,7 +34,6 @@ public final class UiSettings {
         try {
             Data d = new Data();
             d.themeColor = Theme.themeColor();
-            d.opacity = Theme.opacity();
             Files.createDirectories(FILE.getParent());
             Files.writeString(FILE, GSON.toJson(d));
         } catch (IOException e) {

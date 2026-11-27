@@ -36,7 +36,7 @@ import net.minecraft.world.item.Items;
 //   調整  : パーツごとのポーズ(準備中)
 // 基本の中身は長いので、ホイールと右端のスクロールバーで、上下にスクロールできる
 // 各セクションは、見出しをクリックで、畳める
-public final class RightPanel {
+public final class RightPanel implements ScrollPanel{
     private enum RightTab {
         MAIN("cinema.ui.right.basic"), POSE("cinema.ui.right.parts");
         final String label;
@@ -372,7 +372,7 @@ public final class RightPanel {
 
         EntityProfile profile = EntityProfiles.of(d.entityType());
         List<String[]> flags = new ArrayList<>();
-        if (!profile.isStateHidden(EntityFlags.FIRE)) flags.add(new String[] {EntityFlags.FIRE, Tr.get("cinema.ui.right.fire")});
+        if (!profile.isStateHidden(EntityFlags.FIRE) && !EntityFlags.isFireImmune(d.entityType())) {flags.add(new String[] {EntityFlags.FIRE, Tr.get("cinema.ui.right.fire")});}
         if (!profile.isStateHidden(EntityFlags.GLOW)) flags.add(new String[] {EntityFlags.GLOW, Tr.get("cinema.ui.right.glow")});
         if (canBaby) flags.add(new String[] {EntityFlags.BABY, Tr.get("cinema.ui.right.child")});
         if (living) flags.add(new String[] {EntityFlags.DAMAGE, Tr.get("cinema.ui.right.damage")});
@@ -957,16 +957,14 @@ public final class RightPanel {
 
             // 背の高い見出しは、文字を縦の中央に置く
             int top = getY() + (getHeight() - lay.th() - Theme.u(3)) / 2;
-            int headH = Math.round(lay.th() * Theme.HEADING_SCALE);
+            int headH = lay.th();
             int s = Math.max(3, Theme.u(4));
             triangle(g, getX() + s, top + headH / 2, s, !isCollapsed(key), color);
 
             int tx = getX() + s * 2 + Theme.u(4);
-            String shown = Theme.fit(font, text, Math.round((getWidth() - (tx - getX())) / Theme.HEADING_SCALE));
-            Theme.heading(g, font, shown, tx, top, color);
-
-            // 文字の右に、線(余白が狭いときは引かない)
-            int lineX = tx + Theme.headingWidth(font, shown) + Theme.u(6);
+            String shown = Theme.fit(font, text, getWidth() - (tx - getX()));
+            Theme.text(g, font, shown, tx, top, color);
+            int lineX = tx + Theme.textWidth(font, shown) + Theme.u(6);
             int lineEnd = getX() + getWidth();
             if (lineEnd - lineX > Theme.u(12)) {
                 int lineY = top + headH / 2;
@@ -1027,9 +1025,9 @@ public final class RightPanel {
         Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
         Theme.panel(g, backX, backY, backW, backH);   // 戻るボタンの背景
         NpcManager.get(id).ifPresent(d -> NpcFaces.paint(g, d, iconX, iconY, iconSize));
+        // 固定のラベル
         for (Label l : fixedLabels) {
-            if (l.heading()) Theme.heading(g, host.font(), l.text(), l.x(), l.y(), l.color());
-            else Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
+            Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
         }
 
         // パーツのタブ: 下半分(値の設定)の区切り線と背景
@@ -1054,17 +1052,15 @@ public final class RightPanel {
         for (Label l : scrollLabels) {
             int ly = l.y() - scroll;
             if (ly + lay.th() * 2 < contentTop || ly > contentBottom) continue;   // 完全に外のものだけ、省く
+            // スクロールするラベルの、見出しの枝
             if (l.heading()) {
-                // 畳めない見出し(同じセクションの2つ目以降): 大きめの文字と、右の線
-                Theme.heading(g, host.font(), l.text(), l.x(), ly, l.color());
-                int lineX = l.x() + Theme.headingWidth(host.font(), l.text()) + Theme.u(6);
+                Theme.text(g, host.font(), l.text(), l.x(), ly, l.color());
+                int lineX = l.x() + Theme.textWidth(host.font(), l.text()) + Theme.u(6);
                 int lineEnd = baseX + baseW;
                 if (lineEnd - lineX > Theme.u(12)) {
-                    int lineY = ly + Math.round(lay.th() * Theme.HEADING_SCALE) / 2;
+                    int lineY = ly + lay.th() / 2;
                     g.fill(lineX, lineY, lineEnd, lineY + 1, Theme.SECTION_LINE);
                 }
-            } else {
-                Theme.text(g, host.font(), l.text(), l.x(), ly, l.color());
             }
         }
         if (tab == RightTab.MAIN && System.currentTimeMillis() < statusUntil) {

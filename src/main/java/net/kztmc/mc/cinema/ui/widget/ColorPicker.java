@@ -21,6 +21,7 @@ public class ColorPicker extends AbstractWidget {
 
     private int[] columns = new int[0];   // 色の面の、列ごとの上端の色(明るさ100%)
     private float columnsHue = -1f;       // その色を計算したときの色相
+    private int[] hueColors = new int[0];   // 色相バーの、境目ごとの色(行数 + 1 個)
 
     public ColorPicker(int x, int y, int width, int height, int rgb, int[] presets, IntConsumer onChange) {
         super(x, y, width, height, Component.empty());
@@ -78,6 +79,17 @@ public class ColorPicker extends AbstractWidget {
         return columns;
     }
 
+    /** 色相バーの、各行の境目の色。高さが変わったときだけ計算し直す */
+    private int[] hueColors(int height) {
+        if (hueColors.length != height + 1) {
+            hueColors = new int[height + 1];
+            for (int i = 0; i <= height; i++) {
+                hueColors[i] = 0xFF000000 | Mth.hsvToRgb(i / (float) height, 1f, 1f);   // 0〜360度
+            }
+        }
+        return hueColors;
+    }
+
     @Override
     protected void extractWidgetRenderState(GuiGraphicsExtractor g, int mx, int my, float delta) {
         int x = getX(), y = getY(), aw = areaW(), ah = areaH();
@@ -92,13 +104,12 @@ public class ColorPicker extends AbstractWidget {
         g.outline(px - 3, py - 3, 7, 7, 0xFF000000);
         g.outline(px - 2, py - 2, 5, 5, 0xFFFFFFFF);
 
-        // 色相バー
+        // 色相バー: 1行ずつ、その行の上端の色から、下端の色へのグラデーション
         int hx = x + aw + gap();
         int hw = hueW();
-        int step = 2;
-        for (int r = 0; r < ah; r += step) {
-            float h = Math.min(0.999f, (r + step / 2f) / ah);
-            g.fill(hx, y + r, hx + hw, Math.min(y + ah, y + r + step), 0xFF000000 | Mth.hsvToRgb(h, 1f, 1f));
+        int[] hues = hueColors(ah);
+        for (int r = 0; r < ah; r++) {
+            g.fillGradient(hx, y + r, hx + hw, y + r + 1, hues[r], hues[r + 1]);
         }
         int hy = y + Math.round(hue * (ah - 1));
         g.outline(hx - 1, hy - 2, hw + 2, 5, 0xFF000000);

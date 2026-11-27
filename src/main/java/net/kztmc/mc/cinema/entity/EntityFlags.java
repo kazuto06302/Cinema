@@ -2,7 +2,11 @@ package net.kztmc.mc.cinema.entity;
 
 import java.util.List;
 import java.util.Map;
+
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.resources.Identifier;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.Mob;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
@@ -35,8 +39,9 @@ public final class EntityFlags {
             }
         }
 
-        // 燃えている: クライアントでは、共有フラグ0で決まる
-        EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 0, options.getOrDefault(FIRE, 0) == 1);
+        // 燃えている: クライアントでは、共有フラグ0で決まる(耐火のモブは、常にオフ)
+        boolean fire = !e.getType().fireImmune() && options.getOrDefault(FIRE, 0) == 1;
+        EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 0, fire);
 
         // 光っている: 共有フラグ6(バニラの光るアウトライン)
         EntityReflect.invokeFirst(e, List.of("setSharedFlag"), 6, options.getOrDefault(GLOW, 0) == 1);
@@ -52,5 +57,11 @@ public final class EntityFlags {
             living.hurtDuration = hurt ? 10 : 0;
             living.hurtTime = hurt ? 10 : 0;
         }
+    }
+
+    /** もともと耐火のモブか(ガスト・ブレイズなど)。炎の表示は、意味がないので出さない */
+    public static boolean isFireImmune(String entityTypeId) {
+        Identifier id = Identifier.tryParse(entityTypeId);
+        return id != null && BuiltInRegistries.ENTITY_TYPE.getOptional(id).map(EntityType::fireImmune).orElse(false);
     }
 }

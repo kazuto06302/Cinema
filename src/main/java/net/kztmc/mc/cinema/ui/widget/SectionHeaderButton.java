@@ -38,15 +38,15 @@ public class SectionHeaderButton extends AbstractWidget {
         int color = Theme.lerp(Theme.SECTION, 0xFFFFFFFF, hover * 0.5f);
 
         int top = getY();
-        int headH = Math.round(Theme.textH() * Theme.HEADING_SCALE);
+        int headH = Theme.textH();
         int s = Math.max(3, Theme.u(4));
         triangle(g, getX() + s, top + headH / 2, s, !collapsed.getAsBoolean(), color);
 
         int tx = getX() + s * 2 + Theme.u(4);
-        String shown = Theme.fit(font, text, Math.round((getWidth() - (tx - getX())) / Theme.HEADING_SCALE));
-        Theme.heading(g, font, shown, tx, top, color);
+        String shown = Theme.fit(font, text, getWidth() - (tx - getX()));
+        Theme.text(g, font, shown, tx, top, color);
 
-        int lineX = tx + Theme.headingWidth(font, shown) + Theme.u(6);
+        int lineX = tx + Theme.textWidth(font, shown) + Theme.u(6);
         int lineEnd = getX() + getWidth();
         if (lineEnd - lineX > Theme.u(12)) {
             int lineY = top + headH / 2;

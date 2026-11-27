@@ -8,6 +8,8 @@ import java.util.function.IntUnaryOperator;
 
 import net.kztmc.mc.cinema.ui.core.Layout;
 import net.kztmc.mc.cinema.ui.core.PanelHost;
+import net.kztmc.mc.cinema.ui.core.ScrollArea;
+import net.kztmc.mc.cinema.ui.core.ScrollPanel;
 import net.kztmc.mc.cinema.ui.panel.Theme;
 import net.kztmc.mc.cinema.ui.widget.ModernButton;
 import net.kztmc.mc.cinema.ui.widget.ModernCheckbox;
@@ -19,7 +21,8 @@ import net.minecraft.client.multiplayer.ClientLevel;
 
 /**
  * ワールド設定。NPCが選択されていないときの、右パネル。
- * 畳める見出しつきのセクションを、縦に並べる。セクションを増やすときは、buildContent に section(...) を足す。
+ * 畳める見出しつきのセクションを縦に並べる。上のタイトルは固定で、セクションの部分は、表示範囲で切り取って、スクロールする。
+ * セクションを増やすときは、buildContent に section(...) を足す。部品は scroll.add、文字は scrollLabels に足す。
  */
 public final class WorldPanel {
     private record Label(String text, int x, int y, int color) {}
@@ -30,14 +33,21 @@ public final class WorldPanel {
     private static final String[] MOON_NAMES = {"満月", "欠けていく(大)", "下弦", "欠けていく(小)",
             "新月", "満ちていく(小)", "上弦", "満ちていく(大)"};
 
-    private final List<Label> labels = new ArrayList<>();
-    private final List<int[]> spans = new ArrayList<>();   // 各セクションの上と下(カードの背景用)
+    private final ScrollArea scroll = new ScrollArea();
+    private final List<Label> labels = new ArrayList<>();         // 固定(タイトルと説明)
+    private final List<Label> scrollLabels = new ArrayList<>();   // スクロールする
+    private final List<int[]> spans = new ArrayList<>();          // 各セクションの上と下(スクロール前の座標)
     private Layout lay;
     private PanelHost host;
     private boolean building;
     private int baseX, baseW;      // 見出しとカードの位置(インデントなし)
     private int x, w;              // 中身の位置(インデントあり。各セクションは、これを使う)
     private int clockX, clockY = -1;
+
+    /** 画面が、スクロールの処理を任せる相手 */
+    public ScrollPanel scroll() {
+        return scroll;
+    }
 
     public void build(Layout lay, PanelHost host) {
         building = true;
@@ -52,31 +62,45 @@ public final class WorldPanel {
         this.lay = lay;
         this.host = host;
         labels.clear();
+        scrollLabels.clear();
         spans.clear();
         clockY = -1;
+        scroll.begin(host, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
 
         ClientLevel level = Minecraft.getInstance().level;
         if (level == null) return;
 
-        baseX = lay.rightX() + lay.pad();
-        baseW = lay.panelW() - lay.pad() * 2;
-        x = baseX;
-        w = baseW;
+        int fullX = lay.rightX() + lay.pad();
+        int fullW = lay.panelW() - lay.pad() * 2;
         int y = lay.panelY() + Theme.u(8);
 
-        labels.add(new Label("ワールド設定", baseX, y, Theme.ACCENT));
+        labels.add(new Label("ワールド設定", fullX, y, Theme.ACCENT));
         y += lay.th() + Theme.u(3);
-        labels.add(new Label(Theme.fit(host.font(), "NPCを選ぶと、そのNPCの編集になります", baseW), baseX, y, Theme.TEXT_DIM));
+        labels.add(new Label(Theme.fit(host.font(), "NPCを選ぶと、そのNPCの編集になります", fullW), fullX, y, Theme.TEXT_DIM));
         y += lay.th() + Theme.u(3);
-        labels.add(new Label(Theme.fit(host.font(), "時間・天候は、自分の画面だけの上書きです", baseW), baseX, y, Theme.TEXT_DIM));
+        labels.add(new Label(Theme.fit(host.font(), "時間・天候は、自分の画面だけの上書きです", fullW), fullX, y, Theme.TEXT_DIM));
         y += lay.th() + Theme.u(8);
+
+        // ここから下が、スクロールする部分
+        int bandTop = y;
+        int bandBottom = lay.panelY() + lay.panelH() - lay.pad();
+        scroll.setBand(bandTop, bandBottom);
+
+        int barW = Theme.u(5);
+        baseX = fullX;
+        baseW = fullW - barW - Theme.u(2);
+        x = baseX;
+        w = baseW;
+        y += Theme.u(3);
 
         // セクション(増やすときは、ここに1行足して、sectionXxx メソッドを書く)
         y = section("weather", "天気", this::sectionWeather, y);
         y = section("time", "時間", this::sectionTime, y);
         y = section("moon", "月", this::sectionMoon, y);
-        y = section("texture", "テクスチャのアニメーション", this::sectionTexture, y);
+        y = section("texture", "アニメーションの固定", this::sectionTexture, y);
         y = section("render", "描画", this::sectionRender, y);
+
+        scroll.end(y, fullX + fullW - barW, barW);
     }
 
     /**
@@ -86,7 +110,7 @@ public final class WorldPanel {
     private int section(String key, String title, IntUnaryOperator body, int y) {
         int top = y;
         int headerH = SectionHeaderButton.height();
-        host.add(new SectionHeaderButton(baseX, y, baseW, headerH, title, () -> collapsed.contains(key), () -> {
+        scroll.add(new SectionHeaderButton(baseX, y, baseW, headerH, title, () -> collapsed.contains(key), () -> {
             if (!collapsed.remove(key)) collapsed.add(key);
             host.refresh();
         }));
@@ -110,7 +134,7 @@ public final class WorldPanel {
         int sh = lay.sliderH();
         int gap = Math.max(1, Theme.u(3));
 
-        host.add(new ModernCheckbox(x, y, w, sh, "天気を上書きする", ClientOverrides.weatherOn, on -> {
+        scroll.add(new ModernCheckbox(x, y, w, sh, "天気を上書きする", ClientOverrides.weatherOn, on -> {
             if (building) return;
             ClientOverrides.weatherOn = on;
             WorldSettings.save();
@@ -122,7 +146,7 @@ public final class WorldPanel {
         int bw = (w - gap * 2) / 3;
         for (int i = 0; i < 3; i++) {
             int mode = i;
-            ModernButton b = host.add(new ModernButton(x + i * (bw + gap), y, bw, lay.btnH(), names[i],
+            ModernButton b = scroll.add(new ModernButton(x + i * (bw + gap), y, bw, lay.btnH(), names[i],
                     ModernButton.Style.DEFAULT, () -> {
                 ClientOverrides.weather = mode;
                 WorldSettings.save();
@@ -142,7 +166,7 @@ public final class WorldPanel {
         clockY = y;   // 実際の時刻は、毎フレーム描く
         y += lay.th() + Theme.u(4);
 
-        host.add(new ModernCheckbox(x, y, w, sh, "時間を上書きする", ClientOverrides.timeOn, on -> {
+        scroll.add(new ModernCheckbox(x, y, w, sh, "時間を上書きする", ClientOverrides.timeOn, on -> {
             if (building) return;
             ClientOverrides.timeOn = on;   // 設定値(timeTicks)には触れない
             WorldSettings.save();
@@ -150,7 +174,7 @@ public final class WorldPanel {
         }));
         y += sh;
 
-        host.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, ClientOverrides.timeTicks, v -> {
+        scroll.add(new ModernSlider(x, y, w, sh, "時刻", "tick", 0, 24000, 10, ClientOverrides.timeTicks, v -> {
             if (building) return;
             ClientOverrides.timeTicks = (int) v;   // チェックに関係なく、設定値を変える
             WorldSettings.markDirty();
@@ -162,7 +186,7 @@ public final class WorldPanel {
         int pw = (w - gap * 3) / 4;
         for (int i = 0; i < 4; i++) {
             int ticks = presetTicks[i];
-            host.add(new ModernButton(x + i * (pw + gap), y, pw, lay.btnH(), presetNames[i],
+            scroll.add(new ModernButton(x + i * (pw + gap), y, pw, lay.btnH(), presetNames[i],
                     ModernButton.Style.DEFAULT, () -> {
                 ClientOverrides.timeTicks = ticks;   // こちらも、チェックに関係なく押せる
                 WorldSettings.save();
@@ -175,7 +199,7 @@ public final class WorldPanel {
     private int sectionMoon(int y) {
         int sh = lay.sliderH();
 
-        host.add(new ModernCheckbox(x, y, w, sh, "月の形を上書きする", ClientOverrides.moonOn, on -> {
+        scroll.add(new ModernCheckbox(x, y, w, sh, "月の形を上書きする", ClientOverrides.moonOn, on -> {
             if (building) return;
             ClientOverrides.moonOn = on;
             WorldSettings.save();
@@ -183,7 +207,7 @@ public final class WorldPanel {
         }));
         y += sh;
 
-        host.add(new ModernSlider(x, y, w, sh, "月の形", "", 0, 7, ClientOverrides.moonPhase, v -> {
+        scroll.add(new ModernSlider(x, y, w, sh, "月の形", "", 0, 7, ClientOverrides.moonPhase, v -> {
             if (building) return;
             ClientOverrides.moonPhase = (int) v;   // チェックに関係なく、設定値を変える
             WorldSettings.markDirty();
@@ -194,10 +218,11 @@ public final class WorldPanel {
     private int sectionTexture(int y) {
         int sh = lay.sliderH();
 
-        labels.add(new Label(Theme.fit(host.font(), "炎・水・溶岩・ポータルなどを、指定のtickで止める", w), x, y, Theme.TEXT_DIM));
+        scrollLabels.add(new Label(Theme.fit(host.font(),
+                "炎・水・溶岩・ポータル・パーティクルなどを、指定のtickで止める", w), x, y, Theme.TEXT_DIM));
         y += lay.th() + Theme.u(4);
 
-        host.add(new ModernSlider(x, y, w, sh, "再生tick", "tick", 0, 20, 1,
+        scroll.add(new ModernSlider(x, y, w, sh, "再生tick", "tick", 0, 20, 1,
                 TextureAnimations.isFixed() ? TextureAnimations.fixedTick() : WorldSettings.textureTick, v -> {
             if (building) return;
             int tick = (int) v;
@@ -208,7 +233,7 @@ public final class WorldPanel {
         }));
         y += sh;
 
-        host.add(new ModernCheckbox(x, y, w, sh, "このtickで固定する", TextureAnimations.isFixed(), on -> {
+        scroll.add(new ModernCheckbox(x, y, w, sh, "このtickで固定する", TextureAnimations.isFixed(), on -> {
             if (building) return;
             if (on) TextureAnimations.fix(WorldSettings.textureTick);
             else TextureAnimations.release();
@@ -219,7 +244,7 @@ public final class WorldPanel {
     }
 
     private int sectionRender(int y) {
-        host.add(new ModernButton(x, y, w, lay.btnH(), "描画する項目を選ぶ...", ModernButton.Style.DEFAULT,
+        scroll.add(new ModernButton(x, y, w, lay.btnH(), "描画する項目を選ぶ...", ModernButton.Style.DEFAULT,
                 () -> Minecraft.getInstance().gui.setScreen(new RenderTogglesScreen(host.screen()))));
         return y + lay.btnH();
     }
@@ -233,16 +258,22 @@ public final class WorldPanel {
 
     public void extractBackground(GuiGraphicsExtractor g) {
         Theme.panel(g, lay.rightX(), lay.panelY(), lay.panelW(), lay.panelH());
-
-        // セクションのカード
-        int padV = Theme.u(2);
-        int padH = Theme.u(3);
-        for (int[] s : spans) {
-            Theme.roundRect(g, baseX - padH, s[0] - padV, baseW + padH * 2, s[1] - s[0] + padV, Theme.SECTION_CARD);
-        }
-
         for (Label l : labels) {
             Theme.text(g, host.font(), l.text(), l.x(), l.y(), l.color());
+        }
+
+        // スクロールする部分(カード・文字・時計)は、表示範囲で切り取って、スクロール量だけずらして描く
+        int off = scroll.offset();
+        int padV = Theme.u(2);
+        int padH = Theme.u(3);
+        g.enableScissor(lay.rightX(), scroll.top(), lay.rightX() + lay.panelW(), scroll.bottom());
+
+        for (int[] s : spans) {
+            int top = s[0] - off - padV;
+            Theme.roundRect(g, baseX - padH, top, baseW + padH * 2, s[1] - off - top, Theme.SECTION_CARD);
+        }
+        for (Label l : scrollLabels) {
+            Theme.text(g, host.font(), l.text(), l.x(), l.y() - off, l.color());
         }
 
         // 実際の(上書き前の)時刻。0 tick = 6:00。時間のセクションを開いているときだけ
@@ -251,7 +282,8 @@ public final class WorldPanel {
             int hour = (ticks / 1000 + 6) % 24;
             int minute = (ticks % 1000) * 60 / 1000;
             Theme.text(g, host.font(), String.format("実際: %02d:%02d  (%d tick)", hour, minute, ticks),
-                    clockX, clockY, Theme.TEXT);
+                    clockX, clockY - off, Theme.TEXT);
         }
+        g.disableScissor();
     }
 }

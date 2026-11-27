@@ -5,7 +5,6 @@ import net.kztmc.mc.cinema.ui.panel.UiSettings;
 import net.kztmc.mc.cinema.ui.panel.UiSounds;
 import net.kztmc.mc.cinema.ui.widget.ColorPicker;
 import net.kztmc.mc.cinema.ui.widget.ModernButton;
-import net.kztmc.mc.cinema.ui.widget.ModernSlider;
 import net.kztmc.mc.cinema.ui.widget.ModernTextField;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
@@ -61,11 +60,10 @@ public class SettingsScreen extends Screen {
         int th = Theme.textH();
         int btnH = Math.max(Theme.u(22), 22);
         int boxH = Math.max(th + 3, Theme.u(14));
-        int sh = th + Theme.u(11);
         int pickerH = Theme.u(110) + gap + Theme.u(14);
 
         panelW = Math.min(width - Theme.u(20), Theme.u(300));
-        panelH = pad + (th + Theme.u(5)) + (th + Theme.u(4)) + pickerH + gap + boxH + gap + sh + gap * 2 + btnH + pad;
+        panelH = pad + (th + Theme.u(5)) + (th + Theme.u(4)) + pickerH + gap + boxH + gap * 2 + btnH + pad;
         panelX = (width - panelW) / 2;
         panelY = Math.max(Theme.u(5), (height - panelH) / 2);
 
@@ -97,21 +95,15 @@ public class SettingsScreen extends Screen {
         hexBox.setValue(hex(Theme.themeColor()));
         hexBox.setOnChange(this::onHex);
         addRenderableWidget(hexBox);
-        y += boxH + gap;
-
-        // 不透明度
-        addRenderableWidget(new ModernSlider(x, y, w, sh, "パネルの不透明度", "%", 10, 100,
-                Math.round(Theme.opacity() * 100), v -> Theme.setOpacity((float) v / 100f))
-                .setDefault(Math.round(Theme.DEFAULT_OPACITY * 100)));
-        y += sh + gap * 2;
+        y += boxH + gap * 2;
 
         // ボタン
         int half = (w - gap) / 2;
         addRenderableWidget(new ModernButton(x, y, half, btnH, "初期値に戻す", ModernButton.Style.DEFAULT, () -> {
             Theme.setThemeColor(Theme.DEFAULT_THEME);
-            Theme.setOpacity(Theme.DEFAULT_OPACITY);
             rebuildWidgets();
         }));
+
         addRenderableWidget(new ModernButton(x + half + gap, y, w - half - gap, btnH, "閉じる",
                 ModernButton.Style.PRIMARY, this::onClose));
     }
