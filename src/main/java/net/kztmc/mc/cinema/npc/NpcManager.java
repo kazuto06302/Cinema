@@ -53,6 +53,7 @@ public final class NpcManager {
             DEFS.clear();
             DEFS.addAll(NpcStorage.load(worldKey, registries));
             NpcTexts.load(worldKey);
+            NpcGroups.load(worldKey);
             LIVE.clear();
             SceneFreeze.clearRegistry();
             liveLevel = null;
@@ -65,6 +66,7 @@ public final class NpcManager {
             SceneFreeze.clearRegistry();
             DEFS.clear();
             NpcTexts.clear();
+            NpcGroups.clear();
             liveLevel = null;
             worldKey = null;
             selected = null;
@@ -94,11 +96,13 @@ public final class NpcManager {
 
     public static void select(UUID id) {
         selected = id;
+        if (id != null) NpcGroups.select(null);
     }
 
     public static void add(NpcData data) {
         DEFS.add(data);
         selected = data.id();
+        NpcGroups.select(null);   // 追加
         dirty = true;
     }
 
@@ -136,6 +140,7 @@ public final class NpcManager {
     public static void remove(UUID id) {
         DEFS.removeIf(d -> d.id().equals(id));
         NpcTexts.remove(id);
+        NpcGroups.forgetNpc(id);
         despawn(id);
         if (id.equals(selected)) selected = null;
         dirty = true;
@@ -186,6 +191,7 @@ public final class NpcManager {
         if (worldKey != null && registries != null) {
             NpcStorage.save(worldKey, registries, DEFS);
             NpcTexts.save(worldKey);
+            NpcGroups.save(worldKey);
         }
         dirty = false;
         saveCooldown = 0;
@@ -305,6 +311,7 @@ public final class NpcManager {
             NpcData copy = src.withId(newId).withTransform(src.x() + 1.0, src.y(), src.z(),
                     src.yRot(), src.xRot(), src.headYRot(), src.bodyYRot());
             NpcTexts.copy(id, newId);
+            NpcGroups.copyMembership(id, newId);
             add(copy);   // 定義に追加して、選択して、保存対象にする。エンティティは、次の tick で自動で出る
         });
     }

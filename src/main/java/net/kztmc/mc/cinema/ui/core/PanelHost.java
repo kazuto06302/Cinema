@@ -32,6 +32,9 @@ public interface PanelHost {
     /** NPCを削除する(確認のダイアログを、画面の中央に出して、「削除」を押したときだけ削除する) */
     void confirmDelete(UUID id);
 
+    /** グループを削除する(確認のダイアログを出して、「削除」を押したときだけ削除する。中のNPCは残る) */
+    void confirmDeleteGroup(UUID id);
+
     /** 右クリックのメニューを、その位置に開く */
     void openContextMenu(int x, int y, List<ContextMenu.Entry> entries);
 

@@ -6,6 +6,7 @@
   "cinema.ui.cancel": "キャンセル",
 
   "cinema.ui.confirm.delete": "'%s'を削除しますか?",
+  "cinema.ui.confirm.delete.group": "グループ'%s'を削除しますか?(中のNPCは残ります)",
 
   "cinema.ui.right.basic": "基本",
   "cinema.ui.right.parts": "パーツ",

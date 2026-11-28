@@ -7,6 +7,7 @@ import java.util.UUID;
 
 import net.kztmc.mc.cinema.entity.PartGlow;
 import net.kztmc.mc.cinema.npc.NpcData;
+import net.kztmc.mc.cinema.npc.NpcGroups;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.ui.core.*;
 import net.kztmc.mc.cinema.ui.panel.Theme;
@@ -17,6 +18,7 @@ import net.kztmc.mc.cinema.ui.panel.left.LeftPanel;
 import net.kztmc.mc.cinema.ui.panel.left.PartsPanel;
 import net.kztmc.mc.cinema.ui.panel.left.TunerPanel;
 import net.kztmc.mc.cinema.ui.panel.right.GizmoModeBar;
+import net.kztmc.mc.cinema.ui.panel.right.GroupPanel;
 import net.kztmc.mc.cinema.ui.panel.right.PartGizmo;
 import net.kztmc.mc.cinema.ui.panel.right.RightPanel;
 import net.kztmc.mc.cinema.ui.panel.settings.SettingsScreen;
@@ -51,6 +53,8 @@ public class CinemaScreen extends Screen implements PanelHost {
     private final ContextMenu menu = new ContextMenu();
     private final ConfirmDialog confirm = new ConfirmDialog();
     private final GizmoModeBar modeBar = new GizmoModeBar();
+    private final GroupPanel groupPanel = new GroupPanel();
+    private boolean hasGroup;
 
     private Layout layout;
     private boolean hasRight;
@@ -164,6 +168,18 @@ public class CinemaScreen extends Screen implements PanelHost {
     }
 
     @Override
+    public void confirmDeleteGroup(UUID id) {
+        NpcGroups.Group group = NpcGroups.find(id);
+        String name = group == null ? "" : group.displayName();
+        menu.close();
+        confirm.open(this.font, layout, this.width, this.height,
+                Tr.get("cinema.ui.confirm.delete.group", name), Tr.get("cinema.ui.delete"), () -> {
+                    NpcGroups.remove(id);
+                    refresh();
+                });
+    }
+
+    @Override
     public void openContextMenu(int x, int y, List<ContextMenu.Entry> entries) {
         menu.open(this.font, layout, this.width, this.height, x, y, entries);
     }
@@ -175,6 +191,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         openDropdown = null;
         pressed = null;
         hasWorld = false;
+        hasGroup = false;
 
         // 左パネル(メイン)の中身: あとで、まとめて隠せるように、足されたウィジェットを覚える
         leftWidgets.clear();
@@ -192,14 +209,20 @@ public class CinemaScreen extends Screen implements PanelHost {
 
         buildDock();
 
+        Optional<NpcGroups.Group> group = selected.isEmpty() ? Optional.ofNullable(NpcGroups.selected()) : Optional.empty();
         selected.ifPresentOrElse(d -> {
             hasRight = true;
             right.build(layout, this, d);
         }, () -> {
-            hasWorld = true;
             PartGlow.setActive(false);   // 光らせる・軸を出すのを、止める
             PartGizmo.release();
-            world.build(layout, this);
+            if (group.isPresent()) {
+                hasGroup = true;
+                groupPanel.build(layout, this, group.get());
+            } else {
+                hasWorld = true;
+                world.build(layout, this);
+            }
         });
         scrollPanel = hasRight ? right : hasWorld ? world.scroll() : null;
         modeBar.build(layout, this, hasRight && right.gizmoReady());
@@ -525,6 +548,11 @@ public class CinemaScreen extends Screen implements PanelHost {
                 confirmDelete(selected);
                 return true;
             }
+            NpcGroups.Group group = NpcGroups.selected();
+            if (group != null) {   // 追加
+                confirmDeleteGroup(group.id());
+                return true;
+            }
         }
         return super.keyPressed(event);
     }
@@ -566,6 +594,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         drawLeftBackground(g);
         if (hasRight) right.extractBackground(g);
         if (hasWorld) world.extractBackground(g);
+        if (hasGroup) groupPanel.extractBackground(g);
         if (scrollPanel != null) scrollPanel.extractScrollItems(g, mx, my, delta);
         modeBar.extractBackground(g);
         if (hasTuner) tuner.extractBackground(g);
@@ -593,6 +622,7 @@ public class CinemaScreen extends Screen implements PanelHost {
         } else {
             if (hasRight) right.extractBackground(g);
             if (hasWorld) world.extractBackground(g);
+            if (hasGroup) groupPanel.extractBackground(g);
             if (scrollPanel != null) scrollPanel.extractScrollItems(g, -1, -1, delta);
         }
         super.extractRenderState(g, -1, -1, delta);   // 動いている間は、ホバーの表示を止める

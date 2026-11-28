@@ -6,6 +6,7 @@
   "cinema.ui.cancel": "Cancel",
 
   "cinema.ui.confirm.delete": "Do you want to delete '%s?'",
+  "cinema.ui.confirm.delete.group": "Delete group '%s'? (NPCs inside are kept)",
 
   "cinema.ui.right.basic": "Basic",
   "cinema.ui.right.parts": "Parts",

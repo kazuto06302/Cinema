@@ -2,8 +2,10 @@ package net.kztmc.mc.cinema.ui.panel.left;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 import net.kztmc.mc.cinema.npc.NpcData;
+import net.kztmc.mc.cinema.npc.NpcGroups;
 import net.kztmc.mc.cinema.npc.NpcManager;
 import net.kztmc.mc.cinema.npc.PlayerHistory;
 import net.kztmc.mc.cinema.ui.core.CinemaState;
@@ -51,13 +53,17 @@ public final class LeftPanel {
     private boolean probing;
     private NpcData probed;
 
+    private NpcTreeList npcTree;
+    private UUID renamingGroup;   // 名前を編集中のグループ
+    private UUID revealGroup;     // 作り直したあと、見える位置までスクロールするグループ
+
     public boolean isMobsTab() {
         return tab == Tab.MOBS;
     }
 
     /** 作り直す前に、リストのスクロール位置を保存する */
     public void saveScroll() {
-        if (npcList != null) npcScroll = npcList.getScroll();
+        if (npcTree != null) npcScroll = npcTree.getScroll();
         if (mobGrid != null) mobScroll = mobGrid.getScroll();
         if (playerGrid != null) playerScroll = playerGrid.getScroll();
     }
@@ -78,17 +84,15 @@ public final class LeftPanel {
         labels.add(new Label(CinemaState.devMode ? "CINEMA  [DEV]" : "CINEMA", x, y, Theme.ACCENT));
         y += lay.th() + Theme.u(5);
 
-        // --- タブ行(角丸のまま) ---
-        int usable = w - lay.gap() * 2;
-        int wNpc = usable * 22 / 100;
-        int wMob = usable * 33 / 100;
-        int wAdd = usable - wNpc - wMob;
-        host.add(new ModernButton(x, y, wNpc, lay.btnH(), "NPC一覧", ModernButton.Style.GHOST,
+        // --- タブ行: [NPC一覧] [+](+ を押すと、追加のメニューが開く) ---
+        int plusW = lay.btnH() + Theme.u(8);
+        int listW = w - plusW - lay.gap();
+        host.add(new ModernButton(x, y, listW, lay.btnH(), "NPC一覧", ModernButton.Style.GHOST,
                 () -> select(Tab.NPCS)).setSelected(tab == Tab.NPCS).setSilent(true));
-        host.add(new ModernButton(x + wNpc + lay.gap(), y, wMob, lay.btnH(), "+モブ", ModernButton.Style.GHOST,
-                () -> select(Tab.MOBS)).setSelected(tab == Tab.MOBS).setSilent(true));
-        host.add(new ModernButton(x + wNpc + wMob + lay.gap() * 2, y, wAdd, lay.btnH(), "+プレイヤー",
-                ModernButton.Style.GHOST, () -> select(Tab.PLAYERS)).setSelected(tab == Tab.PLAYERS).setSilent(true));
+        int plusX = x + listW + lay.gap();
+        int plusY = y + lay.btnH();
+        host.add(new ModernButton(plusX, y, plusW, lay.btnH(), "+", ModernButton.Style.GHOST,
+                () -> openAddMenu(plusX + plusW - Theme.u(80), plusY)).setSelected(tab != Tab.NPCS).setSilent(true));
         y += lay.btnH() + lay.gap();
 
         switch (tab) {
@@ -114,23 +118,80 @@ public final class LeftPanel {
     // ---- NPC一覧 ----
 
     private void buildNpcs(int x, int y, int w, int bottom) {
-        npcList = new ModernList<>(x, y, w, bottom - y, "NPCはまだいません",
-                d -> NpcData.PLAYER.equals(d.kind()) ? d.skin().orElse("NPC") : MobCatalog.nameOf(d.entityType()),
-                d -> NpcData.PLAYER.equals(d.kind()) ? "Player" : "Mob",
+        npcTree = new NpcTreeList(x, y, w, bottom - y, "NPCはまだいません",
                 d -> d.id().equals(NpcManager.selectedId()),
-                d -> {
-                    if (probing) {   // 右クリックの項目調べ: 選択はせず、どの項目かだけ覚える
-                        probed = d;
-                        return;
-                    }
-                    // トグル: 選択中の項目を押したら、選択を外す
+                d -> {   // NPCの選択(トグル)。グループの選択は、NpcManager.select が外す
+                    renamingGroup = null;
                     NpcManager.select(d.id().equals(NpcManager.selectedId()) ? null : d.id());
                     host.refresh();
+                },
+                group -> group.id().equals(NpcGroups.selectedId()),
+                group -> {   // グループの選択(トグル)。右パネルが開く
+                    renamingGroup = null;
+                    NpcGroups.select(group.id().equals(NpcGroups.selectedId()) ? null : group.id());
+                    host.refresh();
+                },
+                group -> {   // ▼ を押したときの、開閉
+                    renamingGroup = null;
+                    NpcGroups.setOpen(group.id(), !group.isOpen());
+                    host.refresh();
+                },
+                (d, group) -> {   // ドラッグで、グループへ入れる(null なら、外へ出す)
+                    renamingGroup = null;
+                    NpcGroups.assign(d.id(), group == null ? null : group.id());
+                    host.refresh();
                 });
-        npcList.setIcon((g, d, ix, iy, size) -> NpcFaces.paint(g, d, ix, iy, size));
-        npcList.setItems(NpcManager.defs());
-        npcList.setScroll(npcScroll);
-        host.add(npcList);
+        npcTree.setRows(treeRows());
+        npcTree.setScroll(npcScroll);
+        if (revealGroup != null) {
+            npcTree.scrollTo(revealGroup);
+            revealGroup = null;
+        }
+        host.add(npcTree);
+
+        // 名前の編集中: そのグループの行の上に、入力欄を重ねる(入力は、その場で反映する。Enter で閉じる)
+        if (renamingGroup != null) {
+            NpcGroups.Group group = NpcGroups.find(renamingGroup);
+            int[] r = group == null ? null : npcTree.rectOfGroup(group.id());
+            if (r == null) {
+                renamingGroup = null;   // 行が無い・見えない: 編集を終える
+            } else {
+                UUID groupId = group.id();
+                npcTree.setEditingGroup(groupId);
+                int fx = r[0] + Theme.u(8) + Theme.u(3) * 2 + Theme.u(5) - Theme.u(2);   // 矢印のあと
+                ModernTextField box = new ModernTextField(fx, r[1], r[0] + r[2] - fx, r[3]);
+                box.setMaxLength(32);
+                box.setValue(group.name());
+                box.setOnChange(s -> NpcGroups.rename(groupId, s));
+                box.setOnEnter(s -> {
+                    if (s.isBlank()) NpcGroups.rename(groupId, "グループ");
+                    renamingGroup = null;
+                    host.refresh();
+                });
+                host.add(box);
+                host.focus(box);
+            }
+        }
+    }
+
+    /** 一覧の行: グループ(作った順)と、その中のNPC(開いているときだけ)→ グループに入っていないNPC */
+    private static List<NpcTreeList.Row> treeRows() {
+        List<NpcData> all = NpcManager.defs();
+        List<NpcTreeList.Row> rows = new ArrayList<>();
+        for (NpcGroups.Group group : NpcGroups.groups()) {
+            List<NpcData> members = all.stream().filter(d -> {
+                NpcGroups.Group g = NpcGroups.groupOf(d.id());
+                return g != null && g.id().equals(group.id());
+            }).toList();
+            rows.add(new NpcTreeList.GroupRow(group, members.size()));
+            if (group.isOpen()) {
+                for (NpcData d : members) rows.add(new NpcTreeList.NpcRow(d, true));
+            }
+        }
+        for (NpcData d : all) {
+            if (NpcGroups.groupOf(d.id()) == null) rows.add(new NpcTreeList.NpcRow(d, false));
+        }
+        return rows;
     }
 
     // ---- モブ追加 ----
@@ -228,9 +289,7 @@ public final class LeftPanel {
         if (!name.isEmpty() && !name.matches("[A-Za-z0-9_]{1,16}")) {
             Minecraft mc = Minecraft.getInstance();
             if (mc.player != null) {
-                mc.player.sendOverlayMessage(
-                        Component.literal("[Cinema] ユーザー名は半角英数字とアンダースコアで16文字までです"));
-            }
+                mc.player.sendOverlayMessage(Component.literal("[Cinema] ユーザー名は半角英数字とアンダースコアで16文字までです"));}
             return;
         }
         NpcManager.spawnAtPlayer(NpcData.PLAYER, "minecraft:player", name.isEmpty() ? null : name);
@@ -244,30 +303,64 @@ public final class LeftPanel {
      * 項目の特定は、リスト自身のクリックの判定にまかせる(右クリックを、一瞬だけ「クリック」として扱う)。
      * @return リストの上の右クリックなら true(画面は、それ以上処理しない)
      */
+    /**
+     * NPC一覧の上の右クリック。NPCなら、選択して、メニュー(複製・グループから出す・削除)を開く。
+     * グループなら、メニュー(名前を変更・グループを削除)を開く。
+     * @return 一覧の上の右クリックなら true(画面は、それ以上処理しない)
+     */
     public boolean rightClick(net.minecraft.client.input.MouseButtonEvent event) {
-        if (tab != Tab.NPCS || npcList == null || !npcList.isMouseOver(event.x(), event.y())) return false;
+        if (tab != Tab.NPCS || npcTree == null || !npcTree.isMouseOver(event.x(), event.y())) return false;
 
-        probing = true;
-        probed = null;
-        Theme.probeAnyButton = true;
-        try {
-            npcList.mouseClicked(event, false);
-        } finally {
-            Theme.probeAnyButton = false;
-            probing = false;
-        }
-        NpcData target = probed;
-        if (target == null) return true;   // 項目のない所: 何もしない
+        NpcTreeList.Row row = npcTree.rowAt(event.y());
+        if (row == null) return true;   // 行のない所: 何もしない
 
-        java.util.UUID id = target.id();
-        NpcManager.select(id);
-        host.refresh();
-        host.openContextMenu((int) event.x(), (int) event.y(), java.util.List.of(
-                new ContextMenu.Entry("複製", () -> {
-                    NpcManager.duplicate(id);
+        List<ContextMenu.Entry> entries = new ArrayList<>();
+        if (row instanceof NpcTreeList.NpcRow nr) {
+            UUID id = nr.data().id();
+            NpcManager.select(id);
+            host.refresh();
+            entries.add(new ContextMenu.Entry("複製", () -> {
+                NpcManager.duplicate(id);
+                host.refresh();
+            }, false));
+            if (NpcGroups.groupOf(id) != null) {
+                entries.add(new ContextMenu.Entry("グループから出す", () -> {
+                    NpcGroups.assign(id, null);
                     host.refresh();
-                }, false),
-                new ContextMenu.Entry(Tr.get("cinema.ui.delete"), () -> host.confirmDelete(id), true)));
+                }, false));
+            }
+            entries.add(new ContextMenu.Entry(Tr.get("cinema.ui.delete"), () -> host.confirmDelete(id), true));
+        } else if (row instanceof NpcTreeList.GroupRow gr) {
+            UUID groupId = gr.group().id();
+            entries.add(new ContextMenu.Entry("名前を変更", () -> {
+                renamingGroup = groupId;
+                revealGroup = groupId;
+                host.refresh();
+            }, false));
+            entries.add(new ContextMenu.Entry("グループを削除(中のNPCは残す)", () -> {
+                NpcGroups.remove(groupId);
+                renamingGroup = null;
+                host.refresh();
+            }, true));
+        }
+        host.openContextMenu((int) event.x(), (int) event.y(), entries);
         return true;
+    }
+
+    /** + のメニュー(モブ・プレイヤー・グループ)。右クリックのメニューと、同じ見た目 */
+    private void openAddMenu(int mx, int my) {
+        host.openContextMenu(mx, my, List.of(
+                new ContextMenu.Entry("モブ", () -> select(Tab.MOBS), false),
+                new ContextMenu.Entry("プレイヤー", () -> select(Tab.PLAYERS), false),
+                new ContextMenu.Entry("グループ", this::addGroup, false)));
+    }
+
+    /** グループを足して、すぐ名前を編集できるようにする */
+    private void addGroup() {
+        NpcGroups.Group group = NpcGroups.add(NpcGroups.nextDefaultName());
+        tab = Tab.NPCS;
+        renamingGroup = group.id();
+        revealGroup = group.id();
+        host.refresh();
     }
 }
