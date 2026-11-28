@@ -48,21 +48,43 @@ public class DockButton extends AbstractWidget {
     };
 
     /** スライダー(設定) */
+    /** 歯車(設定) */
     public static final Icon SETTINGS = (g, x, y, s, c) -> {
-        int w = s / 2;
-        int h = Math.max(2, s / 14);
-        int gap = Math.max(3, s / 5);
-        int k = Math.max(3, s / 9);   // つまみの大きさ
-        int bx = x + (s - w) / 2;
-        int by = y + (s - (h * 3 + gap * 2)) / 2;
-        int[] knob = {w / 3, w * 2 / 3, w / 2};
-        for (int i = 0; i < 3; i++) {
-            int ly = by + i * (h + gap);
-            int ky = ly - (k - h) / 2;
-            g.fill(bx, ly, bx + w, ly + h, c);
-            g.fill(bx + knob[i] - k / 2, ky, bx + knob[i] - k / 2 + k, ky + k, c);
+        float cx = x + s / 2f;
+        float cy = y + s / 2f;
+        float rTip = s * 0.30f;    // 歯の先
+        float rBody = s * 0.22f;   // 本体
+        float rHole = s * 0.10f;   // 中の穴
+        int x0 = (int) Math.floor(cx - rTip) - 1;
+        int x1 = (int) Math.ceil(cx + rTip) + 1;
+        int y0 = (int) Math.floor(cy - rTip) - 1;
+        int y1 = (int) Math.ceil(cy + rTip) + 1;
+
+        for (int py = y0; py <= y1; py++) {
+            int runStart = Integer.MIN_VALUE;
+            for (int px = x0; px <= x1 + 1; px++) {
+                boolean on = px <= x1 && gear(px + 0.5f - cx, py + 0.5f - cy, rTip, rBody, rHole);
+                if (on && runStart == Integer.MIN_VALUE) {
+                    runStart = px;
+                } else if (!on && runStart != Integer.MIN_VALUE) {
+                    g.fill(runStart, py, px, py + 1, c);   // 連なった部分を、まとめて1回で描く
+                    runStart = Integer.MIN_VALUE;
+                }
+            }
         }
     };
+
+    private static boolean gear(float dx, float dy, float rTip, float rBody, float rHole) {
+        float d = (float) Math.sqrt(dx * dx + dy * dy);
+        if (d < rHole || d > rTip) return false;
+        if (d <= rBody) return true;
+
+        // 歯: 8本。1本ぶんの角度(sector)の中で、中心(0 と sector)に近い所だけ
+        float sector = (float) (Math.PI * 2 / 8);
+        float t = (float) (Math.atan2(dy, dx) % sector);
+        if (t < 0) t += sector;
+        return Math.min(t, sector - t) < sector * 0.22f;
+    }
 
     private final Icon icon;
     private final Runnable onPress;

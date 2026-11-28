@@ -22,6 +22,7 @@ public final class PartGizmo {
     }
 
     public static Mode mode = Mode.MOVE;
+    public static boolean scaleLinked = true;   // 大きさのリンク(右パネルのボタンと共有)
 
     private static final String[] AXES = {"X", "Y", "Z"};
     private static final double ROTATE_PER_PIXEL = 0.6;   // 回転: 1ドットあたりの度
@@ -104,7 +105,7 @@ public final class PartGizmo {
             }
             case SCALE -> {
                 double delta = along * SCALE_PER_PIXEL;
-                if (Modifiers.shift()) {   // Shift: 3軸を一緒に
+                if (scaleLinked != Modifiers.shift()) {   // リンクがオンなら3軸を一緒に(Shiftで逆)
                     double v = 0;
                     for (int a = 0; a < 3; a++) {
                         Channel c = Channel.scale(a);

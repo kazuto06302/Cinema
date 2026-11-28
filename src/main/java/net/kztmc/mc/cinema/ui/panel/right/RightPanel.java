@@ -351,6 +351,12 @@ public final class RightPanel implements ScrollPanel{
 
     // X・Y・Z の3列の数値欄(枠の外の左上に、軸のラベル)。戻り値は、次の y
     private int numberRow(int y, double[] values, double dragPerPixel, double wheelStep, AxisConsumer onChange) {
+        return numberRow(y, values, dragPerPixel, wheelStep, onChange, null);
+    }
+
+    // X・Y・Z の3列の数値欄(枠の外の左上に、軸のラベル)。out があれば、作った欄が入る。戻り値は、次の y
+    private int numberRow(int y, double[] values, double dragPerPixel, double wheelStep, AxisConsumer onChange,
+                          ModernNumberField[] out) {
         int labelH = lay.th() + Theme.u(2);
         int colGap = Math.max(2, Theme.u(4));
         int colW = (w - colGap * 2) / 3;
@@ -358,8 +364,9 @@ public final class RightPanel implements ScrollPanel{
             final int axis = i;
             int cx = x + i * (colW + colGap);
             labels().add(new Label(AXES[i], cx, y, AXIS_COLORS[i]));   // 固定の欄のときは、固定のラベルへ
-            add(new ModernNumberField(cx, y + labelH, colW, lay.sliderH(), "", AXIS_COLORS[i], values[i],
-                    v -> onChange.accept(axis, v)).framed().dragSpeed(dragPerPixel, wheelStep));
+            ModernNumberField field = add(new ModernNumberField(cx, y + labelH, colW, lay.sliderH(), "", AXIS_COLORS[i],
+                    values[i], v -> onChange.accept(axis, v)).framed().dragSpeed(dragPerPixel, wheelStep));
+            if (out != null) out[i] = field;
         }
         return y + labelH + lay.sliderH();
     }
@@ -789,18 +796,16 @@ public final class RightPanel implements ScrollPanel{
         y += lay.gap();
 
         // 大きさ(%)
-        note(Tr.get("cinema.ui.parts.scale"), x, y);
-        y += lay.th() + Theme.u(2);
+// 大きさ(%): 位置・回転と同じ XYZ。右上のリンクがオンなら、1つ変えると、3軸が割合を保ったまま変わる
+        int linkSize = lay.th() + Theme.u(6);
+        note(Tr.get("cinema.ui.parts.scale"), x, y + (linkSize - lay.th()) / 2);
+        add(new LinkButton(x + w - linkSize, y, linkSize, linkSize,
+                () -> PartGizmo.scaleLinked, on -> PartGizmo.scaleLinked = on));
+        y += linkSize + Theme.u(2);
+        ModernNumberField[] scaleFields = new ModernNumberField[3];
         y = numberRow(y, channelValues(d, path, PartEdits.Channel.SX, PartEdits.Channel.SY, PartEdits.Channel.SZ),
-                1.0, 5.0, (axis, v) -> setChannel(path, PartEdits.Channel.scale(axis), v));
+                1.0, 5.0, (axis, v) -> setScale(path, axis, v, scaleFields), scaleFields);
         y += lay.gap();
-
-        // 均等に拡大縮小(3つの軸を、まとめて変える)
-        add(new ModernSlider(x, y, w, sh, Tr.get("cinema.ui.parts.uniform"), "%", 10, 400, 1,
-                PartEdits.get(d, path, PartEdits.Channel.SX), v -> {
-            for (int axis = 0; axis < 3; axis++) setChannel(path, PartEdits.Channel.scale(axis), v);
-        }).setDefault(100));
-        y += sh + lay.gap();
 
         // [DEV] つながりの確認(描画のフック・軸・選択・光る対象)
         if (CinemaState.devMode) {
@@ -809,6 +814,22 @@ public final class RightPanel implements ScrollPanel{
             y += lay.th() + Theme.u(3);
         }
         return y;
+    }
+
+    // 大きさの入力。リンクがオンなら、変えた軸の変化の割合を、ほかの軸にもかける(3軸の割合を保つ)
+    private void setScale(String path, int axis, double value, ModernNumberField[] fields) {
+        NpcData data = NpcManager.get(id).orElse(null);
+        if (!PartGizmo.scaleLinked || data == null) {
+            setChannel(path, PartEdits.Channel.scale(axis), value);
+            return;
+        }
+        double old = PartEdits.get(data, path, PartEdits.Channel.scale(axis));
+        for (int a = 0; a < 3; a++) {
+            double next = a == axis ? value
+                    : old == 0 ? value : PartEdits.get(data, path, PartEdits.Channel.scale(a)) * value / old;
+            setChannel(path, PartEdits.Channel.scale(a), next);
+            if (a != axis && fields[a] != null) fields[a].setValueSilently(next);   // 表示だけ合わせる
+        }
     }
 
     // 畳んでいるか(基本タブのセクションだけ)

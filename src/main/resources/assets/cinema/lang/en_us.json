@@ -45,7 +45,6 @@
   "cinema.ui.parts.position": "Position offset",
   "cinema.ui.parts.rotation.add": "Rotation (added)",
   "cinema.ui.parts.scale": "Scale (%)",
-  "cinema.ui.parts.uniform": "Uniform scale",
   "cinema.ui.parts.reset": "Reset this part",
   "cinema.ui.parts.reset_all": "Reset all parts",
   "cinema.ui.parts.empty": "This entity has no editable parts",

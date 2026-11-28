@@ -45,7 +45,6 @@
   "cinema.ui.parts.position": "位置(ずれ)",
   "cinema.ui.parts.rotation.add": "回転(足し算)",
   "cinema.ui.parts.scale": "大きさ(%)",
-  "cinema.ui.parts.uniform": "均等に拡大縮小",
   "cinema.ui.parts.reset": "このパーツをリセット",
   "cinema.ui.parts.reset_all": "すべてのパーツをリセット",
   "cinema.ui.parts.empty": "このエンティティには、編集できるパーツがありません",

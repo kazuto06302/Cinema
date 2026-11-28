@@ -335,6 +335,11 @@ public class ModernNumberField extends AbstractWidget implements Draggable {
         }
     }
 
+    /** 外から値を合わせる(コールバックは呼ばない) */
+    public void setValueSilently(double v) {
+        this.value = Math.round(v * 10000.0) / 10000.0;
+    }
+
     @Override
     public boolean keyPressed(KeyEvent event) {
         if (!editing) return false;
