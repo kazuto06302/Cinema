@@ -47,7 +47,6 @@ public class DockButton extends AbstractWidget {
         g.fill(x + (s - w) / 2, y + (s - h) / 2, x + (s + w) / 2, y + (s + h) / 2, c);
     };
 
-    /** スライダー(設定) */
     /** 歯車(設定) */
     public static final Icon SETTINGS = (g, x, y, s, c) -> {
         float cx = x + s / 2f;
@@ -77,13 +76,16 @@ public class DockButton extends AbstractWidget {
     private static boolean gear(float dx, float dy, float rTip, float rBody, float rHole) {
         float d = (float) Math.sqrt(dx * dx + dy * dy);
         if (d < rHole || d > rTip) return false;
-        if (d <= rBody) return true;
-
-        // 歯: 8本。1本ぶんの角度(sector)の中で、中心(0 と sector)に近い所だけ
-        float sector = (float) (Math.PI * 2 / 8);
-        float t = (float) (Math.atan2(dy, dx) % sector);
-        if (t < 0) t += sector;
-        return Math.min(t, sector - t) < sector * 0.22f;
+        float angle = (float) Math.atan2(dy, dx);
+        float sector = (float) (Math.PI * 2.0 / 8.0);
+        // 1歯分の角度を -0.5 ～ 0.5 に正規化
+        float t = angle / sector;
+        t -= Math.floor(t + 0.5f);
+        float a = Math.abs(t);
+        // 歯の台形形状
+        float toothWidth = 0.29f;
+        if (a < toothWidth) return d <= rTip;
+        return d <= rBody;
     }
 
     private final Icon icon;
